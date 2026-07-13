@@ -1,0 +1,55 @@
+# x86 / Linux + CPU stack for the MPID project.
+#
+# IMPORTANT: this target has NO CUDA and NO Apple Silicon. Both bnb 4-bit and
+# mlx 4-bit paths are therefore unavailable; training/inference will run in
+# fp32 on CPU (acceptable for Phase 0 / 1 development; see doc/VERIFICATION.md
+# §Phase 0A-1 for the implications and the deferral plan for real training).
+#
+# Install with::
+#
+#     pip install -r requirements-x86.txt
+#
+# This file is intentionally self-contained (no -r requirements.txt), so
+# the torch / bitsandbytes pins do not collide with the macOS MPS-flavored
+# base file.
+
+# --- PyTorch CPU index (required for Linux x86_64 CPU-only wheels) ---
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# --- Core DL stack (x86 CPU-only) ---
+# torch 2.5 has working +cpu wheels for Linux x86_64 on the PyTorch index.
+torch>=2.5,<2.6
+torchvision>=0.20,<0.22
+transformers>=4.45,<4.50
+tokenizers>=0.20,<0.22
+safetensors>=0.4
+
+# --- PEFT / accelerate / bitsandbytes ---
+# bitsandbytes installs fine on CPU-only Linux (it's a Python wrapper) but
+# the 4-bit / 8-bit CUDA kernels are unavailable; the probe in
+# scripts/quant_smoke.py will report it as FAIL and fall back to torch CPU.
+# We pin to 0.42 (the same floor as macOS) — the 0.43+ CUDA-specific wheels
+# would only install on a CUDA host, which this target is not.
+peft>=0.11,<0.15
+accelerate>=0.34,<1.0
+bitsandbytes>=0.42,<0.46
+
+# --- Datasets / metrics ---
+datasets>=2.20,<3.0
+scikit-learn>=1.4,<1.7
+numpy>=1.24,<2.1
+pandas>=2.0,<3.0
+pillow>=10.0,<12.0
+
+# --- Misc ---
+pyyaml>=6.0
+tqdm>=4.66
+huggingface_hub>=0.25
+sentencepiece>=0.2
+protobuf>=4.25
+
+# --- Dev / test (optional but recommended for CI) ---
+pytest>=8.0
+pytest-cov>=5.0
+black>=24.0
+ruff>=0.5

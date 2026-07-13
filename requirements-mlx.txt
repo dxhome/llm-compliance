@@ -1,0 +1,6 @@
+# Apple Silicon (MPS) only — alternative 4-bit path when bitsandbytes is unavailable.
+# Install only on macOS:  pip install -r requirements-mlx.txt
+# These are NOT installed on x86 because mlx-vlm has no CPU wheels.
+
+mlx>=0.20
+mlx-vlm>=0.1.0

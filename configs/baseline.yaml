@@ -1,0 +1,30 @@
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32            # fp16 + MPS gives NaN (P0A-2)
+  device: cpu               # MPS+LoRA+grad-ckpt unstable (VERIFICATION § P2-7); CPU for smoke baseline
+  quantization: null        # "4bit" / "8bit" only on x86 + CUDA
+  gradient_checkpointing: false  # disable on CPU (we have plenty of RAM)
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target: q_proj,k_proj,v_proj,o_proj
+
+training:
+  epochs: 1                 # Phase 2 acceptance uses 1-2 epochs
+  max_train_records: 5      # CPU LoRA smoke: 5 records ~ 8 min; validates end-to-end pipeline
+  max_val_records: 5        # 5 records for quick eval
+  batch_size: 1
+  lr: 2.0e-4
+  weight_decay: 0.0
+  class_weighted: true      # inverse-frequency
+
+  early_stop_patience: 2
+  log_every: 1
+  seed: 42
+
+io:
+  train_jsonl: data/mpid-v1/train.jsonl
+  val_jsonl:   data/mpid-v1/val.jsonl
+  out_dir:     artifacts/baseline

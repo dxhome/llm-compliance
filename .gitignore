@@ -65,7 +65,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+doc/_build/
 
 # PyBuilder
 target/
@@ -139,6 +139,10 @@ cython_debug/
 .idea/
 
 # ============ Project-Specific ============
+# Datasets and model weights (large files; do not commit)
+/data
+/models
+
 # ML artifacts (large files; do not commit)
 artifacts/
 *.safetensors

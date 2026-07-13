@@ -94,7 +94,7 @@
 ## Phase 1 — 多模态注入威胁模型构建（对应 C1）
 
 - [ ] **T1.1** 形式化定义威胁模型：直接注入 / 间接注入 / 多模态注入三类 `[P:high][D:T0.1]`
-- [ ] **T1.2** 编写 `docs/threat_model.md`：攻击分类、典型样例、形式化定义、攻击者能力假设 `[P:high][D:T1.1]`
+- [ ] **T1.2** 编写 `doc/threat_model.md`：攻击分类、典型样例、形式化定义、攻击者能力假设 `[P:high][D:T1.1]`
 - [ ] **T1.3** 编写 `src/mpid/data/public_loaders.py`，把 P0A-3 拉取的公开集统一为内部 schema `(text, image, label)` `[P:high][D:T1.2]`
 - [ ] **T1.4** 编写 `src/mpid/data/synthetic_image_injection.py`（可选）：输入干净图 + 攻击模板库，输出注入图像 + 标注 JSONL `[P:medium][D:T1.3]`
 - [ ] **T1.5** 实现 `src/mpid/data/split.py`，8:1:1 划分 + 类别均衡检查 `[P:high][D:T1.3]`

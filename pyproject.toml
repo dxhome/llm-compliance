@@ -22,7 +22,7 @@ dependencies = [
     "safetensors>=0.4",
     "peft>=0.11,<0.15",
     "accelerate>=0.34,<1.0",
-    "bitsandbytes>=0.43,<0.46",
+    "bitsandbytes>=0.42,<0.46",
     "datasets>=2.20,<3.0",
     "scikit-learn>=1.4,<1.7",
     "numpy>=1.24,<2.1",
@@ -44,9 +44,10 @@ dev = [
 ]
 
 [project.scripts]
-mpid-train = "mpid.cli.train:main"
-mpid-eval = "mpid.cli.eval:main"
-mpid-infer = "mpid.cli.infer:main"
+# Console-script entry points are intentionally NOT declared yet.
+# Phase 2 (T2.5 / T2.9 / T2.1) will create ``mpid.cli.{train,eval,infer}``
+# and register them here. Declaring them now would break ``pip install -e .``
+# because the modules don't exist.
 
 [tool.setuptools]
 package-dir = { "" = "src" }

@@ -22,7 +22,7 @@ The **clean base** can be:
 
 The attack templates are short English / Chinese strings designed to
 fool a VLM by overriding the system prompt through visual content
-(indirect injection per ``doc/threat_model.md`` § 3.2).
+(indirect injection per ``doc/reference.md`` § 2.1.2).
 
 The output directory layout follows the rest of the project: PNG files
 under ``data/mpid-v1-crossmodal/images/`` and a manifest at

@@ -204,7 +204,7 @@ llm-compliance/
 │
 ├── doc/                     # 全部正式文档（不散落）
 │   ├── opening-report-vlm.md    # 课题开题报告 v0.3
-│   ├── threat_model.md          # C1 多模态注入威胁模型
+│   ├── reference.md            # C1 威胁模型 + 数据集构造 + EDA 概念速查（已合并原 threat_model.md）
 │   ├── tasks.md                 # 任务分解（按 Phase）
 │   └── VERIFICATION.md          # 验证报告（实测基线、限制、决策）
 │

@@ -14,7 +14,7 @@ MPID schema::
         "metadata": dict,           # raw fields, for debugging
     }
 
-The label mapping follows ``doc/threat_model.md`` § 3 and § 6.
+The label mapping follows ``doc/reference.md`` § 2.1.6 (威胁模型) and § 2.2.3 (数据集对应).
 """
 from __future__ import annotations
 

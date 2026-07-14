@@ -740,7 +740,7 @@ x86 端跑完后**diff 项**应当是：
 
 | TP   | 任务               | 文件                                                                                               | 状态 |
 | ---- | ---------------- | ------------------------------------------------------------------------------------------------ | -- |
-| T1.1 | 3 类攻击形式化定义       | [threat\_model.md](threat_model.md)                                                              | ✅  |
+| T1.1 | 3 类攻击形式化定义       | [reference.md § 2.1](reference.md#21-威胁模型threat-model)                                                              | ✅  |
 | T1.2 | 威胁模型文档           | 同上                                                                                               | ✅  |
 | T1.3 | 统一 schema loader | [src/mpid/data/public\_loaders.py](../../src/mpid/data/public_loaders.py)                        | ✅  |
 | T1.4 | 合成图像注入器          | [src/mpid/data/synthetic\_image\_injection.py](../../src/mpid/data/synthetic_image_injection.py) | ✅  |
@@ -750,7 +750,7 @@ x86 端跑完后**diff 项**应当是：
 | T1.8 | Cross-modal 子集   | [data/mpid-v1-crossmodal/](../../data/mpid-v1-crossmodal/)                                       | ✅  |
 | 编排   | 一键 build         | [scripts/build\_phase1.py](../../scripts/build_phase1.py)                                        | ✅  |
 
-### 1.2 威胁模型关键决策（[threat\_model.md](threat_model.md) 摘录）
+### 1.2 威胁模型关键决策（[reference.md § 2.1](reference.md#21-威胁模型threat-model) 摘录）
 
 **3 类攻击**：
 

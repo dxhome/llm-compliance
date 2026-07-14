@@ -1,0 +1,26 @@
+# MPID Phase 2.5 demo dependencies (T2.5.3).
+#
+# The demo is intentionally a self-contained sub-project: it only depends on
+# the main ``mpid`` package and the two extra UI libraries below. The
+# pinned versions match the platform-agnostic range we use in
+# ``requirements.txt``; install with::
+#
+#     pip install -r demo/requirements.txt
+#
+# Note: the main ``src/mpid/`` package itself is NOT listed here — it is
+# expected to be on PYTHONPATH (the demo launcher adds it). If you want
+# to install it, do so from the project root with::
+#
+#     pip install -e .
+#
+# before running the demo.
+
+# Web UI
+gradio>=3.50,<4.0
+
+# Charts (matplotlib is the only one we actually need now; the
+# per-class bar chart is rendered as a static PNG and embedded via
+# ``gr.Image``. ``plotly`` is kept optional in case a future demo
+# wants to switch back to a live ``gr.Plot`` widget.)
+matplotlib>=3.7
+plotly>=5.18,<6.0

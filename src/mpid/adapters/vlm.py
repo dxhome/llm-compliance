@@ -227,6 +227,86 @@ class VLMAdapter:
         lm_logits = outputs.logits[b, last_idx]  # (1, V)
         return {"last_hidden": pooled, "logits": lm_logits}
 
+    @torch.inference_mode()
+    def generate(
+        self,
+        text: str,
+        image: Optional[Union[str, Path, Image.Image]] = None,
+        *,
+        max_new_tokens: int = 128,
+        do_sample: bool = False,
+        system_prompt: Optional[str] = None,
+    ) -> str:
+        """Free-form text generation — used by the demo (T2.5.1).
+
+        Unlike :meth:`forward`, this method lets the base VLM respond to
+        the user prompt in a chat-like manner (no 3-class head, no
+        LoRA-trained safety). It exists to power the **left column** of
+        the Phase 2.5 demo, where the user sees that the unprotected
+        base model will happily comply with prompt-injection attacks.
+
+        The implementation:
+
+          1. Builds a single-turn ``[user, image, text]`` message and
+             applies the processor's chat template (matches the format
+             used by SmolVLM-Instruct).
+          2. Tokenises + pixel-encodes via the same processor.
+          3. Calls ``model.generate(...)`` with greedy decoding by
+             default (deterministic, repeatable in the demo).
+          4. Decodes only the **new** tokens past the prompt length, so
+             the response is just the model's reply (not the prompt).
+        """
+        img = self._resolve_image(image)
+        # Build the chat-template prompt. The single image is referenced
+        # first, then the user text — this is the format the model's
+        # Idefics3 backbone was instruction-tuned on.
+        user_content: list[dict] = []
+        if image is not None:
+            user_content.append({"type": "image"})
+        else:
+            # The chat template requires an image placeholder to keep
+            # the visual-token slot; ``processor.apply_chat_template``
+            # handles ``None`` by inserting a stub when no image is
+            # given, but we add an explicit empty-image dict for
+            # consistency with the single-image path.
+            user_content.append({"type": "image"})
+        user_content.append({"type": "text", "text": text or ""})
+        messages: list[dict] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_content})
+        prompt = self.processor.apply_chat_template(
+            messages, add_generation_prompt=True,
+        )
+        # Tokenise + image-encode in one shot. The processor will
+        # expand ``<image>`` into the visual-token sequence expected by
+        # the Idefics3 backbone.
+        encoded = self.processor(
+            text=[prompt], images=[img], return_tensors="pt",
+        )
+        encoded = {k: v.to(self.device) for k, v in encoded.items()
+                   if torch.is_tensor(v)}
+        # ``generate`` is incompatible with gradient-checkpointed /
+        # peft-wrapped trainable graphs in some HF versions; we are in
+        # inference mode here, but still keep the kwargs minimal.
+        gen_kwargs = dict(
+            max_new_tokens=max_new_tokens,
+            do_sample=do_sample,
+        )
+        if do_sample:
+            gen_kwargs["temperature"] = 0.7
+            gen_kwargs["top_p"] = 0.9
+        output_ids = self.model.generate(**encoded, **gen_kwargs)
+        # Strip the prompt prefix so we only return the newly generated
+        # text. The input is batch size 1 so ``[0, input_len:]`` is the
+        # right slice.
+        prompt_len = encoded["input_ids"].shape[1]
+        new_ids = output_ids[0, prompt_len:]
+        text_out = self.processor.batch_decode(
+            [new_ids], skip_special_tokens=True,
+        )[0].strip()
+        return text_out
+
     def train(self) -> None:
         self.model.train()
 

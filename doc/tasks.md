@@ -134,6 +134,39 @@
 
 ---
 
+## Phase 2.5 — 成果可视化 Demo（独立交付）
+
+> 本节是**独立的展示目标**，不依赖 Phase 3/4/5/6/7。可以最早在 Phase 2（T2.7）产出 `lora_baseline.safetensors` 后启动。
+> 目标：**最直观地**展示本项目"Base VLM 易被注入攻击" → "+ LoRA + 3 类 head 后能识别并拦截"的对比。
+> 决策记录：方案 C（Gradio 网页）作为唯一交付方案，见 [doc/reference.md](reference.md) § 3.x。
+>
+> **目录约定**：所有 demo 相关内容（脚本、依赖、样本、文档、截图）统一放在项目根的 **`demo/`** 目录下，**不**进 `scripts/` / `doc/` / `data/` / `report/` 等核心目录。`demo/` 是端到端自洽的子项目，依赖核心 `src/mpid/` 但本身不修改核心代码。
+
+- [ ] **T2.5.1** 在 `src/mpid/adapters/vlm.py` 的 `VLMAdapter` 上加 `generate(text, image, max_new_tokens)` 方法，供 demo 让 base VLM **按用户 prompt 自由生成**（不被 head 拦截的状态）`[P:high][D:T2.1]`
+- [ ] **T2.5.2** 写 `demo/samples.json`：从 `data/mpid-v1/test.jsonl` 选 8 条预置样本（clean ×3 / direct ×3 / indirect ×2），含 text、image path、label 元数据 `[P:high][D:T1.5]`
+- [ ] **T2.5.3** 写 `demo/requirements.txt`（gradio + plotly；与主 `requirements.txt` 分离；可通过 `pip install -r demo/requirements.txt` 安装）`[P:high][D:-]`
+- [ ] **T2.5.4** 写 `demo/gradio_app.py`：Gradio Blocks 应用，UI 布局包括：
+  - 上方：8 个预置样本按钮（点选即填入 text + image）
+  - 中部：text 输入框 + 图像上传
+  - 下方：左右两栏对比
+    - 左：**Base SmolVLM** — `generate()` 出的自由生成文本 + "易被攻破"红色提示
+    - 右：**LoRA + 3-class head** — label（clean/direct/indirect）+ risk 进度条 + 三类置信度条
+  - 右侧"项目说明"标签页：威胁模型、模型卡、参考文献
+  `[P:high][D:T2.5.1-T2.5.3]`
+- [ ] **T2.5.5** 写 `demo/README.md`：启动命令、UI 截图、8 条预置样本的预期对比结果、依赖安装 `[P:medium][D:T2.5.4]`
+- [ ] **T2.5.6** 端到端冒烟：起 gradio server → 跑 8 条预置样本 → 截图保存到 `demo/screenshots/`（base 被攻破 vs LoRA 拦截）`[P:high][D:T2.5.4]`
+- [ ] **T2.5.7** 在 `doc/VERIFICATION.md` 加 § Phase 2.5 节：UI 布局说明 + 8 条对比的预期 + 实际结果 + 已知限制（**此处属于核心文档，不是 demo 内容**，保留在 `doc/`）`[P:high][D:T2.5.6]`
+- [ ] **T2.5.8** 在 `README.md` 加 § "在线体验" 段：贴 1-2 张 `demo/screenshots/` 截图链接 + 启动命令 `[P:medium][D:T2.5.5]`
+
+**Phase 2.5 验收**：
+- `python demo/gradio_app.py` 起 server ≤ 30 s
+- 8 条预置样本全部能跑通，base 侧输出有效生成文本、LoRA 侧输出合法 label+risk
+- 至少 1 张对比截图（base 被攻破 / LoRA 拦截）保存到 `demo/screenshots/`
+- `demo/README.md` 含启动 + 预期 + 限制三节
+- **`demo/` 目录结构自洽**（含 `gradio_app.py` / `samples.json` / `requirements.txt` / `README.md` / `screenshots/`），不依赖项目根目录外的相对路径
+
+---
+
 ## Phase 3 — C4 早退机制（对应 §3.6.1）
 
 > C4 是**纯加速方向**优化。基础设施可与 Phase 2 共用（共用 backbone + head），建议在 Phase 2 完成后启动。
@@ -242,6 +275,13 @@ T2.1 ── T2.2 ─┐                                │
 T2.3 ───┤      ├─ T2.5 ── T2.6 ── T2.7 ── T2.8
 T2.4 ───┘                       └─ T2.9       │
                                 └─ T2.10 ── T2.11 ── T2.12
+                                              │
+【Phase 2.5 — 成果可视化 Demo（独立）】            │
+T2.1 ── T2.5.1                                │
+T1.5 ── T2.5.2 ─┐                              │
+                ├─ T2.5.4 ── T2.5.5 ── T2.5.6 ── T2.5.7
+                │             └─ T2.5.8     │
+T2.7 ───────────┘                              │
                                                        │
 【Phase 3 — C4 早退】                                  │
 T2.2 ── T3.1 ── T3.3 ── T3.5 ── T3.6 ── T3.7         │

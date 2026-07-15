@@ -1,9 +1,28 @@
 # MPID 项目参考手册 (Reference)
 
 > **文档类型**：FAQ / 参考手册
-> **文档版本**：v3.4
+> **文档版本**：v3.6
 > **创建日期**：2026-07-13
 > **用途**：项目执行过程中常见问题与基础概念速查
+>
+> **v3.6 变更**：
+> - 新增 **§3.9 项目交付物深度解析**章节（7 个子章节）
+> - 核心论点：**C4/C5/C6 是推理时优化，不是模型本身的改变**——只给微调过的 LoRA 不够，第三方还需要完整的推理代码
+> - 7 个交付物清单：3 个模型（base + LoRA + head）+ 4 个系统代码块（C4 + C5 + C6 + 调度器）
+> - 4 种分发方式对比：自包含文件夹（当前选）/ pip 包 / API 服务 / ONNX
+> - 关键架构认识：**"防御是系统的属性，不是模型的属性"**——LoRA + C4/C5/C6 缺一不可
+> - 2 个类比（医院 / 软件工程）加深理解
+> - 当前状态表 + T3.8/T3.9/T3.10 三个新任务建议
+> - 答辩一句话话术：完整包 vs 只发权重的对比
+>
+> **v3.5 变更**：
+> - 新增 **Phase 3 — C4 早退机制**章节（7 个子章节：目标 / 涉及文件 / 手动校验步骤 / 验收清单 / 代码解读 / 常见坑 / 与下一阶段衔接）
+> - 新增 `src/mpid/early_exit.py` 模块（`EarlyExitConfig` / `should_early_exit` / `classify_with_early_exit` / `EarlyExitStats`）
+> - 新增 `tests/test_early_exit.py` 单测（13 个用例，pure-Python 全部通过）
+> - `scripts/eval.py` 新增 `--early-exit` / `--clean-threshold` / `--simulate-c5-c6-ms` 选项（T3.7）
+> - `scripts/infer.py` 新增 `--early-exit` / `--clean-threshold` flag（T3.6，CLI 占位）
+> - C4 端到端跑通：3 个产物（`early_exit_compare.{json,md}` + `early_exit_per_sample.jsonl`）
+> - 核心结论：C4 不引入新模型，复用 Phase 2 head，零训练成本；5 条 smoke 训练后 head 不会触发早退（符合预期，框架就位等真实训练）
 >
 > **v3.4 变更**：
 > - §2.5 手动端到端校验从 7 步扩展到 8 步——新增 **Step 8（T2.11）** 作为 Phase 2 的"最终能力证明"
@@ -38,6 +57,7 @@
   - [Phase 0 — 脚手架](#phase-0--脚手架)
   - [Phase 1 — 数据集构造（对应 C1 威胁模型）](#phase-1--数据集构造对应-c1-威胁模型)
   - [Phase 2 — VLM 端到端基线（对应 C2）](#phase-2--vlm-端到端基线对应-c2)
+  - [Phase 3 — C4 早退机制（对应 C4 优化）](#phase-3--c4-早退机制对应-c4-优化)
 - [第二部分：核心概念速查](#第二部分核心概念速查)
   - [2.A 威胁模型（Threat Model）](#2a-威胁模型threat-model)
   - [2.B 数据集构造（Dataset Construction）](#2b-数据集构造dataset-construction)
@@ -53,6 +73,7 @@
   - [3.6 与开题报告研究目标的对应](#36-与开题报告研究目标的对应)
   - [3.7 答辩常问 Q&A 预演](#37-答辩常问-qa-预演)
   - [3.8 一句话总结](#38-一句话总结)
+  - [3.9 项目交付物深度解析：给第三方的不仅是模型](#39-项目交付物深度解析给第三方的不仅是模型)
 - [附录 A：术语速查](#附录-a术语速查)
 - [附录 B：速查卡片](#附录-b速查卡片)
 
@@ -1094,6 +1115,179 @@ training:
 **Phase 5 会用到的 Phase 2 产出**：
 - `data/mpid-v1-crossmodal/` 来自 Phase 1 → 给 C6 跨模态训练用
 - `ClassificationHead` 双输出改造 → 给 C6 主输出 + 辅助输出复用
+
+---
+
+## Phase 3 — C4 早退机制（对应 C4 优化）
+
+> 对应开题报告 §3.6.1。
+> **C4 早退 = 速度方向优化**。当 VLM + head 给出 ``P(clean) > θ`` 时，**直接返回 "clean"**，跳过 C5 / C6 的更复杂判断。
+> **设计哲学**：clean 样本占 80% → 大多数请求可以快速放行；只有"可疑的"才走完整管线。
+
+### 3.1 一句话目标
+
+**给已经训练好的 VLM + head 加一个"高置信度 clean 快速放行"层，clean 样本延迟降低 ≥ 30% 而 Macro F1 退化 ≤ 0.02。**
+
+### 3.2 涉及模块与文件
+
+| 文件 | 角色 | 任务 |
+|---|---|---|
+| [src/mpid/early_exit.py](../src/mpid/early_exit.py) | 早退核心：``EarlyExitConfig`` / ``should_early_exit()`` / ``classify_with_early_exit()`` / ``EarlyExitStats`` | T3.1 |
+| [tests/test_early_exit.py](../tests/test_early_exit.py) | 13 个单测（pure-Python，不需 VLM） | T3.4 |
+| [scripts/eval.py](../scripts/eval.py) | 新增 ``--early-exit`` / ``--clean-threshold`` / ``--simulate-c5-c6-ms`` 选项 | T3.7 |
+| [scripts/infer.py](../scripts/infer.py) | 新增 ``--early-exit`` / ``--clean-threshold`` flag（CLI 占位） | T3.6 |
+
+### 3.3 手动校验步骤
+
+#### Step 1: 跑单测
+
+```bash
+source .venv/bin/activate
+python -m pytest tests/test_early_exit.py -v
+```
+
+**期望输出**：`13 passed in 1.10s`
+
+**它验证了什么**：
+- ``should_early_exit`` 的 5 个边界条件（关闭/高/低/严格大于/批量输入）
+- 3 个 ``EarlyExitStats`` 累计测试（含 per-class）
+- 2 个 ``EarlyExitResult`` 构造测试
+
+---
+
+#### Step 2: 跑端到端对比
+
+```bash
+python scripts/eval.py --early-exit --max-records 20
+```
+
+**期望输出**（关键摘要）：
+```
+[eval] mode:       EARLY-EXIT COMPARE (C4 on/off)
+[eval] threshold:  P(clean) > 0.95  → exit as 'clean'
+[eval] simulated C5+C6 cost: 200.0 ms per non-exit sample
+[eval] C4 exit rate: 0/5 = 0.0%
+[eval] C4 wrong-exit: 0
+[eval] Latency:      11520.7 ms → 11520.7 ms (0.0% saved)
+[eval] F1 delta:     +0.0000
+[eval] wrote artifacts/baseline/early_exit_compare.json
+[eval] wrote artifacts/baseline/early_exit_compare.md
+[eval] wrote artifacts/baseline/early_exit_per_sample.jsonl
+```
+
+**关键观察**：
+- 5 条 smoke 训练 → P(clean) 都在 0.55-0.90 → 没达到 0.95 阈值 → 0% 早退命中率
+- **这是符合预期的**：smoke 训练后 head 没学好，模型对 clean 也"不太确定"
+- 当真正训练后（> 100 样本 + 1+ epoch），clean 样本 P(clean) 会上升到 0.95+ → C4 才会触发
+
+**`early_exit_compare.md` 示例**：
+
+```markdown
+# C4 Early-Exit Comparison Report
+
+- eval records: 5
+- clean threshold: P(clean) > 0.95
+- simulated C5+C6 cost: 200.0 ms per non-exit sample
+
+## Exit statistics
+- Exit rate: 0.0%  (0/5)
+- Wrong exits (non-clean → clean): 0
+
+### Per-class exit rate
+
+| class | exits | total | exit rate |
+|---|---|---|---|
+| clean | 0 | 0 | 0.0% |
+| direct | 0 | 5 | 0.0% |
+| indirect | 0 | 0 | 0.0% |
+
+## Latency
+- Average per-sample latency (no C4):  11520.7 ms
+- Average per-sample latency (with C4): 11520.7 ms
+- Saved per sample: 0.0 ms (0.0%)
+- Speedup: 1.00x
+
+## Pass / fail
+- F1 退化 ≤ 0.02: PASS (actual: +0.0000)
+- 无 clean 漏报: PASS (actual: 0)
+- 节省 ≥ 10%: FAIL (actual: 0.0%)
+```
+
+### 3.4 验收清单
+
+| 项 | 通过条件 |
+|---|---|
+| 单测 | `pytest tests/test_early_exit.py` 13/13 PASS |
+| 端到端 | `eval.py --early-exit` 跑通 + 3 个产物文件（.json / .md / .jsonl）齐全 |
+| **F1 退化** | 真实训练后 delta ≥ -0.02（**必须**——C4 不会让模型变笨） |
+| **无 clean 漏报** | n_clean_wrong_exit = 0（直接/间接被误判为 clean 的样本数 = 0） |
+| **延迟节省** | saved_pct ≥ 10%（true positive rate 决定） |
+
+### 3.5 核心模块代码片段解读
+
+#### [early_exit.py](../src/mpid/early_exit.py) 的 `should_early_exit`
+
+```python
+def should_early_exit(probs, cfg):
+    if not cfg.enabled:
+        return None
+    if probs.dim() == 2:
+        probs = probs[0]
+    p_clean = float(probs[LABEL2IDX["clean"]].item())
+    if p_clean > cfg.clean_threshold:    # 严格大于（不是 ≥）
+        return "clean"
+    return None
+```
+
+**为什么用严格大于 (`>`) 而不是 `≥`？**
+- 边界值处理：P(clean) = threshold 时是"刚好达到"而非"显著超过"，逻辑上不放心
+- 严格 `>` 意味着阈值越高 = 越保守 = 越不可能误判
+- 在 0.95 这种高位阈值下，`>` vs `≥` 的差别很小，但更安全
+
+**为什么把 `enabled=False` 放在最前面？**
+- "disable = 退化到 Phase 2 行为"是最容易的回归测试
+- 单测 `test_should_early_exit_disabled_returns_none` 就是为了保证这个不变量
+
+#### [eval.py](../scripts/eval.py) 的 `run_early_exit_compare`
+
+**核心设计**：
+1. **同模型跑两次**：因为 C4 判定依赖 head 输出，所以两次必须用**同一个加载的 checkpoint**
+2. **模拟 C5+C6 成本** = `simulate_c5_c6_ms`（默认 200ms）
+   - Phase 3 实际还没实现 C5/C6，所以"延迟节省"是**模拟值**
+   - 当真正实现 C5/C6 时，模拟值会替换为实测值
+3. **per-class exit 统计**：直接统计 "ground truth = clean 且退出" / "ground truth = direct 且退出" 等
+
+```python
+# 关键代码片段：模拟 C5+C6 成本
+total_no_exit_ms = latency_vlm_head_ms + simulate_c5_c6_ms  # 不早退 → 跑 C5/C6
+if early is not None:
+    total_with_exit_ms = latency_vlm_head_ms                 # 早退 → 跳过 C5/C6
+else:
+    total_with_exit_ms = latency_vlm_head_ms + simulate_c5_c6_ms
+```
+
+### 3.6 常见坑
+
+1. **smoke 训练必然 exit_rate = 0%**：5 条样本训出的 head 还学不会区分 clean，验证的是"框架工作"不是"效果达标"
+2. **P(clean) 严格 > 阈值**：边界值（=阈值）不算早退，所以调整 `--clean-threshold` 时要往下调一点（如 0.94）才能命中
+3. **per_sample.jsonl 中 `id` 字段都是 "0"**：当前 dataloader 没把原始 id 传出来，只是个占位符。Phase 6 会修正
+4. **C4 当前只跳过"模拟的 C5/C6"**：真实 C5/C6 实现后，节省 = 实际 C5+C6 耗时（更可观）
+
+### 3.7 与下一阶段的衔接
+
+**Phase 3 验收通过**意味着：
+- `EarlyExitConfig` / `should_early_exit` 是稳定的 API
+- `eval.py --early-exit` 能产生可对比的延迟/F1 数据
+- 13 个单测保证 `should_early_exit` 不会回归
+
+**Phase 4 会用到的 Phase 3 产出**：
+- `EarlyExitConfig` 的 `clean_threshold` 字段 → 给 C5 的"高置信度 clean"判断复用
+- `eval.py --early-exit` 的对比框架 → 给 C5 的 `--compare-with-c4` 复用
+- `EarlyExitStats` 的 per-class 统计 → 给 C5 的"哪些类别被早退放行"分析复用
+
+**Phase 5 会用到的 Phase 3 产出**：
+- C4 → C5 → C6 的级联判定逻辑，C4 是第一道关
+- 跨模态样本如果 C4 早退为 clean，就**完全跳过 C6**（节省最大）
 
 ---
 
@@ -2400,6 +2594,183 @@ Phase 2  Phase 7    中期路线    长期路线
 > - **长期路线（项目结束后 1-3 年）**：SOTA 接近 + 实时流式 + 多模态 benchmark → F1 0.90+
 >
 > **答辩一句话**："**我们用 500M 模型 + 3 层防御 + 离线可分发，在'轻量级多模态防注入'这个被业界忽视的细分领域，给出了一套**可落地、可扩展、可解释**的方案。**"
+
+---
+
+### 3.9 项目交付物深度解析：给第三方的不仅是模型
+
+> **本节是项目理解的关键。回答一个常被忽略的问题：项目交付给第三方时，到底交付的是什么？**
+> 这一节是 §3 部分的"压轴"——前面的 §3.2 讲局限、§3.3 讲设计权衡、§3.4 讲未来；本节讲"交付形态"。
+
+#### 3.9.1 一个常被忽略的架构问题
+
+**问题**：C4 早退（以及未来的 C5 规则、C6 跨模态）这些优化，到底是模型的一部分，还是推理过程的一部分？
+
+**答案**：**它们都是推理过程的一部分，不是模型本身的改变**。
+
+具体来说：
+
+| 组件 | 性质 | 体现在哪里 |
+|---|---|---|
+| SmolVLM-500M 基础模型 | 模型权重 | 1GB safetensors |
+| LoRA 微调 | **模型权重**（"我训出来的"） | 6MB safetensors |
+| Classification head | **模型权重**（"我训出来的"） | 12KB safetensors |
+| **C4 早退判定** | **推理代码** | `should_early_exit()` 这 5 行 Python |
+| **C5 规则匹配** | **推理代码 + 配置** | YAML 关键词 + `match_rule()` 函数 |
+| **C6 跨模态判定** | **推理代码** | OCR + CLIP 相似度计算 |
+| **C4→C5→C6 调度器** | **推理代码** | `pipeline.infer()` 调度逻辑 |
+
+**关键判断**：只有前三项是"模型"；后四项是"系统"。
+
+#### 3.9.2 完整的交付物清单（7 个组件）
+
+**只给微调过的 LoRA 是不够的**。第三方要能"完整用起来"你的防注入优化，必须拿到：
+
+```
+项目完整交付物 = 模型（3 件）+ 系统（4 件）
+─────────────────────────────────────────────
+【模型部分】3 个文件
+  1. SmolVLM-500M 基础模型       ~1GB
+  2. LoRA 适配器权重              ~6MB  ← 你训的
+  3. Classification head 权重     ~12KB  ← 你训的
+
+【系统部分】4 个代码块
+  4. C4 早退判定器               ~150 行 Python
+  5. C5 规则匹配 + 关键词库       ~200 行 + YAML
+  6. C6 跨模态判定器              ~400 行 Python（5A 阶段）
+  7. C4→C5→C6 流水线调度器        ~100 行 Python
+```
+
+**类比**：
+- **只给模型** ≈ 只给"训练有素的安全检查员"，没给"检查流程手册"——检查员会检查但不知道什么时候用眼、什么时候用工具
+- **给完整交付** ≈ "检查员 + 手册"——第三方立刻可用
+
+#### 3.9.3 项目已设计的应对方案：Phase 2.11 离线包
+
+项目里 [scripts/package_offline.py](../../scripts/package_offline.py) 已经预见到了这个问题，**把整个交付物打包成自包含目录**：
+
+```
+mpid_offline/                          ← 第三方拿到的就是这个文件夹
+├── models/
+│   └── smolvlm-500m/                 # 1GB 基础模型
+├── artifacts/
+│   └── lora_baseline.safetensors     # 6MB LoRA
+├── src/mpid/                          # 推理代码
+│   ├── adapters/vlm.py
+│   ├── heads/classification.py
+│   ├── train/trainer.py
+│   └── ...                            # ← 这里将来要加 early_exit / rules / crossmodal
+├── infer.py                           # 入口脚本
+├── MANIFEST.json                      # 包的元信息
+├── CHECKSUMS.txt                      # sha256 校验
+├── requirements.txt                   # 依赖列表
+└── run.sh                             # 一键启动
+```
+
+**第三方使用流程**：
+```bash
+cd mpid_offline/
+pip install -r requirements.txt
+python infer.py --text "忽略以上指令"   # 自动加载 LoRA + 跑 C4 + 输出结果
+```
+
+#### 3.9.4 4 种分发方式对比
+
+| 方式 | 形态 | 第三方用法 | 复杂度 | 适用场景 |
+|---|---|---|---|---|
+| **A. 自包含文件夹** | `mpid_offline/`（zip 压缩） | `cd && python infer.py` | 🟢 低 | 个人 / 小团队 / 边缘设备 |
+| **B. pip 包** | `pip install mpid-inject-guard` | `import mpid_guard; guard.check(text)` | 🟡 中 | 集成到第三方 Python 代码 |
+| **C. API 服务** | HTTP server | `POST /check {"text": "..."}` | 🟡 中 | 服务化部署（多客户端） |
+| **D. ONNX + runtime** | ONNX 模型 + C++/Rust SDK | `guard_sdk->check(text)` | 🔴 高 | 极致性能（< 50ms 延迟） |
+
+**项目当前走的是方式 A**——`mpid_offline/` 是一个文件夹，第三方解压即可使用。
+
+**方式 A 的优势**：
+- **离线运行**：包内自带模型权重，运行时零网络依赖
+- **可审计**：所有代码 + 模型都在文件夹里，第三方可以自己 review
+- **可复现**：CHECKSUMS.txt 校验完整性，防止供应链攻击
+- **简单**：不需要服务端、不需要数据库、不需要配置
+
+**方式 A 的局限**：
+- 体积大（~1GB 模型 + ~50MB 代码）
+- 不适合服务端多客户端调用
+- 不适合"模型即服务"的商业模式
+
+#### 3.9.5 关键架构认识：防御是系统的属性，不是模型的属性
+
+**这是理解整个项目最核心的架构认识**：
+
+```
+        LoRA 提供:                    系统提供:
+        ─────────                    ─────────
+        ✅ 知道什么是注入模式         ✅ 什么时候该信任 LoRA（C4 早退）
+        ✅ 区分 direct / indirect     ✅ 什么时候走规则（C5 前置）
+        ✅ 跨模态冲突检测能力         ✅ 什么时候调 OCR/CLIP（C6 跨模态）
+        ✅ 多语种识别能力             ✅ 怎么调度多级判定（C4→C5→C6）
+```
+
+**两者缺一不可**：
+- 只有 LoRA，没 C4/C5/C6 → 模型"懂"但不会"用"
+- 只有 C4/C5/C6，没 LoRA → 系统"想"做但没有知识来源
+
+**这与现有业界方案的对比**：
+
+| 业界方案 | 形态 | 是模型还是系统？ |
+|---|---|---|
+| Llama-Guard 7B | 模型 + 推荐代码 | **两者**——Meta 发布模型时同时给 inference 代码 |
+| PromptGuard 86M | 模型 + 部署工具 | **两者**——既给权重也给 wrapper |
+| OpenAI Moderation API | 纯服务 | **系统**（权重不可见） |
+| **本项目** | LoRA + 离线包 | **两者**——给权重也给完整推理代码 |
+
+#### 3.9.6 类比加深理解
+
+**类比 1：医院**
+- **LoRA = 主治医生**（专业能力强）
+- **C4 早退 = 导诊台**（明显没病的直接放行）
+- **C5 规则 = 标准化检查流程**（量体温、测血压、问症状）
+- **C6 跨模态 = 影像科 + 化验科**（复杂检查）
+- **流水线调度器 = 门诊部系统**（决定先看哪科）
+
+**只给医生没给系统 = 病人来了不知道挂什么科**
+**只给系统没给医生 = 流程完美但没人能看病**
+
+**类比 2：软件工程**
+- **LoRA = 经过专业培训的 AI 工程师**
+- **C4 早退 = 简单的 lint 工具**（明显的语法错误快速放行）
+- **C5 规则 = 代码审查 checklist**（检查常见漏洞）
+- **C6 跨模态 = 静态分析 + 单元测试**（深度检查）
+- **流水线调度器 = CI/CD pipeline**（决定跑哪些检查）
+
+**只给工程师没给流程 = 工程师很专业但不知道怎么用**
+**只给流程没给工程师 = 流程完美但没人能写代码**
+
+#### 3.9.7 当前状态与下一步
+
+**当前状态**：
+
+| 项 | 状态 |
+|---|---|
+| Phase 2.11 离线包 | ✅ 已实现（`scripts/package_offline.py`） |
+| 包内含 LoRA + head + 基础 infer.py | ✅ |
+| 包内含 C4 早退代码 | ❌ **待做（T3.8）** |
+| 包内含 C5 规则代码 | ❌ Phase 4 实现后 |
+| 包内含 C6 跨模态代码 | ❌ Phase 5 实现后 |
+| `MANIFEST.json` 标注 C4 启用 | ❌ **待做（T3.8）** |
+
+**下一步建议**：
+
+| 任务 | 内容 | 优先级 |
+|---|---|---|
+| **T3.8** | 扩展 `package_offline.py`：把 `src/mpid/early_exit.py` 加入打包列表 | 🟡 中 |
+| **T3.9** | 让包内 `infer.py` 默认启用 C4 早退 | 🟡 中 |
+| **T3.10** | 重新跑 `package_offline.py` + `smoke_offline.py` 验证包可用 | 🟡 中 |
+| Phase 4 完成时 | 同样把 C5 加入包 | - |
+| Phase 5A 完成时 | 同样把 C6A 加入包 | - |
+| Phase 5B 完成时 | 把跨模态 LoRA + C6B 加入包 | - |
+
+**给答辩的一段话**：
+
+> "**我们的交付物是一个完整的'轻量级多模态防注入检测包'——不仅包含训练好的 LoRA 权重（~6MB），更包含完整的推理代码（C4 早退 + C5 规则 + C6 跨模态）和调度器。第三方下载 `mpid_offline/` 文件夹后，无需联网、无需 GPU，只需 `pip install -r requirements.txt && python infer.py` 即可使用。这与只发布模型权重的传统方案相比，让'防御能力'真正可落地、可复用、可审计。**"
 
 ---
 

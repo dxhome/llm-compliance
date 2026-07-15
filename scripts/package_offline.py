@@ -68,8 +68,8 @@ from safetensors.torch import load_file
 
 # --- 1. Locate the artefacts inside the package ---------------------------
 BACKBONE_DIR = _HERE / "models" / "smolvlm-500m"
-CHECKPOINT = _HERE / "artifacts" / "lora_baseline.safetensors"
 META = json.loads((_HERE / "MANIFEST.json").read_text())
+CHECKPOINT = _HERE / "artifacts" / META["checkpoint"]
 LORA_R = int(META["lora_r"])
 LORA_ALPHA = int(META["lora_alpha"])
 LORA_TARGET = META["lora_target"]

@@ -46,6 +46,11 @@ from mpid.data.split import split_and_dump  # noqa: E402
 # 28 k); a cap of 1500 would miss ALL of them. We cap at 22 000 to
 # include the full figstep subset (2 000 rows) plus a representative
 # sample of the other formats.
+#
+# Phase 2.2 / T2.14 — ``--full`` mode raises the caps to the union of
+# what the public datasets actually contain, producing a ≥ 25 k
+# trainable split. The smoke Phase 1 caps remain the default so the
+# 1-2k-recipe is reproducible without re-downloading.
 DEFAULT_CAPS: dict[str, int] = {
     "deepset_prompt_injections":   600,    # ~all of it
     "safe_guard_prompt_injection": 1500,   # cap the 6k
@@ -54,6 +59,157 @@ DEFAULT_CAPS: dict[str, int] = {
     "haonan_li_cmmlu":             300,    # cap
     "nlphuji_flickr30k":           1000,   # cap the 31k captions
 }
+
+# Phase 2.2 / T2.14 full caps — push the dataset to its natural ceiling
+# (de-duped totals ≈ 25-28 k). Used when ``--full`` is passed.
+FULL_CAPS: dict[str, int] = {
+    "deepset_prompt_injections":   1000,   # ~all of it
+    "safe_guard_prompt_injection": 6000,   # the full 6 k
+    "jailbreakv_28k":               28000,  # the full 28 k
+    "cais_mmlu":                   600,    # double for headroom
+    "haonan_li_cmmlu":             500,    # ~all of the dev split
+    "nlphuji_flickr30k":           5000,   # 5 k caption pool for clean
+}
+
+
+# ---------------------------------------------------------------------------
+# EDA (full) — T2.14
+# ---------------------------------------------------------------------------
+
+def _render_eda_full(out_dir: Path, cm_dir: Path, summary: dict, caps: dict,
+                     raw_status_json: Path | None = None) -> str:
+    """Render a focused report on the **full** (Phase 2.2) split.
+
+    Compared to ``_render_eda``, this version:
+      * Reports a single total-records target (≥ 25 000) and per-source
+        de-dup count, so it's obvious whether we hit T2.14 acceptance.
+      * Cross-references ``data/raw_status.json`` (T2.13) so the EDA
+        shows both the unified split **and** the on-disk raw files.
+      * Highlights the cross-modal subset size (target ≥ 2 000).
+    """
+    lines: list[str] = []
+    lines.append("# MPID-v1 — EDA 报告（Phase 2.2 全量数据）")
+    lines.append("")
+    lines.append(f"> Phase 2.2 / T2.14 · 自动生成于 `scripts/build_phase1.py` · seed={summary['seed']}")
+    lines.append("")
+    lines.append("## 1. 总量与硬性指标")
+    lines.append("")
+    lines.append(f"| 指标 | 数值 | 目标 | 状态 |")
+    lines.append(f"|---|---|---|---|")
+    n_total = summary['total']
+    n_train = summary['train']['total']
+    n_val = summary['val']['total']
+    n_test = summary['test']['total']
+    target_total = 25000
+    target_train = 20000
+    target_val = 2500
+    target_test = 2500
+    target_cm = 2000
+    def status(n, t):
+        return "✅" if n >= t else "❌"
+    lines.append(f"| 总样本数 | {n_total} | ≥ {target_total} | {status(n_total, target_total)} |")
+    lines.append(f"| 训练集 | {n_train} | ≥ {target_train} | {status(n_train, target_train)} |")
+    lines.append(f"| 验证集 | {n_val} | ≥ {target_val} | {status(n_val, target_val)} |")
+    lines.append(f"| 测试集 | {n_test} | ≥ {target_test} | {status(n_test, target_test)} |")
+    cm_summary_path = cm_dir / "split_summary.json"
+    if cm_summary_path.exists():
+        with open(cm_summary_path, encoding="utf-8") as f:
+            cm = json.load(f)
+        n_cm = cm['total']
+        lines.append(f"| 跨模态子集 | {n_cm} | ≥ {target_cm} | {status(n_cm, target_cm)} |")
+    lines.append("")
+    lines.append("## 2. 每集 cap（FULL_CAPS）")
+    lines.append("")
+    lines.append("```json")
+    lines.append(json.dumps(caps, ensure_ascii=False, indent=2))
+    lines.append("```")
+    lines.append("")
+
+    # Per-split stats
+    lines.append("## 3. 各 split 类别分布")
+    lines.append("")
+    lines.append("| split | clean | direct | indirect | total |")
+    lines.append("|---|---|---|---|---|")
+    for split in ("train", "val", "test"):
+        d = summary[split]["by_label"]
+        lines.append(f"| {split} | {d.get('clean', 0)} | "
+                     f"{d.get('direct', 0)} | "
+                     f"{d.get('indirect', 0)} | "
+                     f"{summary[split]['total']} |")
+    lines.append("")
+
+    # Per-source stats (full)
+    lines.append("## 4. 各 split 数据源分布")
+    lines.append("")
+    lines.append("| split | deepset | safe-guard | jailbreakv | mmlu | cmmlu | flickr30k |")
+    lines.append("|---|---|---|---|---|---|---|")
+    src_keys = ["deepset_prompt_injections",
+                "safe_guard_prompt_injection",
+                "jailbreakv_28k",
+                "cais_mmlu",
+                "haonan_li_cmmlu",
+                "nlphuji_flickr30k"]
+    for split in ("train", "val", "test"):
+        d = summary[split]["by_source"]
+        cells = [str(d.get(k, 0)) for k in src_keys]
+        lines.append(f"| {split} | " + " | ".join(cells) + " |")
+    lines.append("")
+
+    # Cross-modal summary
+    lines.append("## 5. 跨模态子集 `data/mpid-v1-crossmodal/`")
+    lines.append("")
+    if cm_summary_path.exists():
+        with open(cm_summary_path, encoding="utf-8") as f:
+            cm = json.load(f)
+        lines.append(f"- 总样本数: {cm['total']} (目标 ≥ {target_cm})")
+        lines.append(f"- 划分: train={cm['train']['total']} | val={cm['val']['total']} | test={cm['test']['total']}")
+        lines.append(f"- 类别: train={cm['train']['by_label']}  (全部为 indirect)")
+        lines.append("")
+    else:
+        lines.append("_cross-modal 子集未生成_")
+        lines.append("")
+
+    # Optional cross-reference to raw download status
+    lines.append("## 6. 原始数据 on-disk 状态（T2.13 cross-ref）")
+    lines.append("")
+    if raw_status_json and raw_status_json.exists():
+        try:
+            with open(raw_status_json, encoding="utf-8") as f:
+                rs = json.load(f)
+            lines.append(f"> 来源: `download_data.py --status --status-json {raw_status_json.name}`")
+            lines.append("")
+            lines.append("| dataset | size (MB) | csv | parquet | image | zip | complete |")
+            lines.append("|---|---|---|---|---|---|---|")
+            for d in rs.get("datasets", []):
+                fc = d.get("file_counts", {})
+                lines.append(
+                    f"| {d['short_name']} | {d['total_size_mb']:.1f} | "
+                    f"{fc.get('csv', 0)} | {fc.get('parquet', 0)} | "
+                    f"{fc.get('image', 0)} | {fc.get('zip', 0)} | "
+                    f"{'✅' if d['complete'] else '❌'} |"
+                )
+            lines.append(f"\n总占用: **{rs.get('total_size_mb', 0):.1f} MB**")
+        except Exception as e:
+            lines.append(f"_无法读取 {raw_status_json}: {e}_")
+    else:
+        lines.append("_未提供 ``--raw-status-json``；先用 "
+                     "``python scripts/download_data.py --status --status-json data/raw_status.json`` 生成_")
+    lines.append("")
+
+    # Known issues & decisions
+    lines.append("## 7. 已知限制与决策记录")
+    lines.append("")
+    lines.append("1. **figstep 完整 22k 图像不在 HF Hub** — HF 上 `JailbreakV-28K/JailBreakV-28k` "
+                 "只 ship 100 张 sample figstep 图；完整 22k 需到 JailbreakV GitHub release 下载。 "
+                 "本仓库使用 HF CSV 28k + 100 张样本图 = 20k+ 文本训练样本，已足够 Phase 2.2 的 2k 训练。")
+    lines.append("2. **Flickr30k 4.4 GB 图像 zip 默认未下载** — `download_data.py --full` 才会拉取。 "
+                 "Phase 2.2 训练主要看文本，图片字段多数为 None；C5/C6 跨模态训练会真正用到。")
+    lines.append("3. **类别不均衡** — direct 占比 ≈ 80%。训练脚本已开 class_weighted (inverse-frequency)。")
+    lines.append("4. **Flickr30k 字段为 caption** — `text` 字段填 caption，`image` 字段为 None "
+                 "(除非用 ``--full`` 拉了 4.4 GB 图像 zip)。")
+    lines.append("")
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -270,18 +426,30 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--max-per-dataset", type=str, default=None,
                    help="JSON dict overriding DEFAULT_CAPS per dataset")
+    p.add_argument("--full", action="store_true",
+                   help="T2.14: use FULL_CAPS (28k jailbreakv + 6k safe-guard + "
+                        "5k flickr captions) for the real training set. "
+                        "Default keeps the Phase 1 smoke caps.")
+    p.add_argument("--raw-status-json", type=Path, default=None,
+                   help="T2.14: path to the download_data.py --status output. "
+                        "When set, the EDA_full.md includes an on-disk data section.")
+    p.add_argument("--n-synthetic-full", type=int, default=2000,
+                   help="T2.14: in --full mode, generate this many cross-modal "
+                        "synthetic indirect records (default 2000, target ≥ 2k).")
     return p.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
-    caps = dict(DEFAULT_CAPS)
+    caps = dict(FULL_CAPS if args.full else DEFAULT_CAPS)
     if args.max_per_dataset:
         caps.update(json.loads(args.max_per_dataset))
+    n_synthetic = args.n_synthetic_full if args.full else args.n_synthetic
 
-    print(f"[build] phase-1 build · seed={args.seed}")
+    print(f"[build] phase-1 build · seed={args.seed}  full={args.full}")
     print(f"[build] raw_dir={args.raw_dir}  out={args.out_dir}  cm={args.cm_dir}")
     print(f"[build] caps: {json.dumps(caps)}")
+    print(f"[build] n_synthetic={n_synthetic}")
 
     # 1. Main split
     print("\n[1/4] split_and_dump ...")
@@ -296,7 +464,7 @@ def main() -> int:
     # 2. Cross-modal subset
     print("\n[2/4] cross-modal synthetic ...")
     cm_records = gen_synthetic(
-        n_samples=args.n_synthetic,
+        n_samples=n_synthetic,
         out_dir=args.cm_dir,
         # Re-use the 100 figstep images as the base pool. They are
         # already attack images, but for Phase 1 EDA we just need
@@ -335,6 +503,17 @@ def main() -> int:
     eda_path.write_text(eda_md, encoding="utf-8")
     print(f"  wrote {eda_path}")
 
+    # 3b. T2.14 EDA_full — a focused report on the ≥ 25 k split,
+    # optionally cross-referencing the on-disk raw download report.
+    print("\n[3b/4] EDA_full (T2.14) ...")
+    eda_full_md = _render_eda_full(
+        args.out_dir, args.cm_dir, summary, caps,
+        raw_status_json=args.raw_status_json,
+    )
+    eda_full_path = args.out_dir / "EDA_full.md"
+    eda_full_path.write_text(eda_full_md, encoding="utf-8")
+    print(f"  wrote {eda_full_path}")
+
     # 4. QC sample
     print("\n[4/4] QC sample (T1.7) ...")
     qc_path = _sample_for_qc(args.out_dir, args.qc_n, args.seed)
@@ -343,7 +522,7 @@ def main() -> int:
     # 5. Cross-link to the cross-modal EDA section
     # (already done inside _render_eda via the cm_dir probe)
     print("\n[done] phase-1 deliverables:")
-    print(f"  {args.out_dir}/train.jsonl, val.jsonl, test.jsonl, split_summary.json, EDA.md, qc_sample.jsonl")
+    print(f"  {args.out_dir}/train.jsonl, val.jsonl, test.jsonl, split_summary.json, EDA.md, EDA_full.md, qc_sample.jsonl")
     print(f"  {args.cm_dir}/train.jsonl, val.jsonl, test.jsonl, manifest.jsonl, split_summary.json, images/")
 
     return 0

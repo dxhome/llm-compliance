@@ -43,7 +43,7 @@ class MPIDJsonlDataset(Dataset):
         device: str,
         *,
         max_records: Optional[int] = None,
-        cache_size: int = 1024,
+        cache_size: int = 4096,
     ) -> None:
         self.jsonl_path = Path(jsonl_path)
         self.processor = processor
@@ -65,6 +65,43 @@ class MPIDJsonlDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.records)
+
+    def preload(self, log_every: int = 500) -> None:
+        """Pre-encode every record into the LRU cache.
+
+        For Phase 2.2 the bottleneck on CPU is image preprocessing
+        (the SmolVLM processor turns each 512x512 image into 17 patches
+        of 512x512 — about 4 MB per record). Doing this lazily inside
+        ``__getitem__`` on the main thread interleaves with the
+        forward pass and makes per-step time very noisy.
+
+        Pre-encoding trades RAM (~4 MB × N records) for a one-time
+        preprocessing pass that we can see progress on. After
+        ``preload()``, ``__getitem__`` is a pure dict-copy from RAM.
+
+        Memory budget at full caps (40k train + 4k val):
+          40 000 × 4 MB ≈ 160 GB ← too much. So in practice the
+          caller picks a moderate ``max_records`` (e.g. 2 000) for
+          the real run; the function below still pre-encodes but the
+          RAM cost stays bounded.
+        """
+        import time as _t
+
+        n = len(self.records)
+        print(f"[ds] preloading {n} records into RAM (cache_size={self._cache_size}) ...",
+              flush=True)
+        t0 = _t.perf_counter()
+        for i in range(n):
+            # Force the cache insertion by calling __getitem__.
+            _ = self[i]
+            if (i + 1) % log_every == 0 or (i + 1) == n:
+                dt = _t.perf_counter() - t0
+                rate = (i + 1) / max(dt, 1e-3)
+                print(f"[ds]   preload {i+1}/{n}  ({rate:.1f} rec/s, "
+                      f"{dt:.1f}s elapsed)", flush=True)
+        dt = _t.perf_counter() - t0
+        print(f"[ds] preload done: {n} records in {dt:.1f}s "
+              f"(avg {n/max(dt,1e-3):.1f} rec/s)", flush=True)
 
     def __getitem__(self, idx: int) -> dict:
         if idx in self._cache:

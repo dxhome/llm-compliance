@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import sys
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -50,6 +51,17 @@ from mpid.heads.classification import (
     ClassificationHead,
 )
 from mpid.data.dataset import MPIDJsonlDataset, collate
+
+
+def _log(msg: str, flush: bool = True) -> None:
+    """A single point for progress output. Always uses ``flush=True`` by
+    default so that long-running training loops show progress in real
+    time even when stdout is line-buffered (e.g. when launched via
+    subprocess)."""
+    if flush:
+        print(msg, flush=True)
+    else:
+        print(msg)
 
 
 # ---------------------------------------------------------------------------
@@ -86,8 +98,17 @@ class TrainConfig:
     class_weighted: bool = True        # inverse-frequency weights
 
     early_stop_patience: int = 2
-    log_every: int = 10
+    log_every: int = 5             # default tighter so progress is visible on CPU
     seed: int = 42
+    # T2.16: phase 2.2 真实训练开关
+    max_train_seconds: float = 0.0  # 0=不限制；>0 时单次 run 总时长上限（秒）
+                                     # 防止 benchmark 把整夜跑完
+    preload_dataset: bool = False   # 预编码所有样本到 RAM（牺牲 RAM 换时间）
+    checkpoint_name: str = "lora_baseline.safetensors"  # T2.16 改为 lora_full.safetensors
+    flush: bool = True              # 所有 print 强制 flush（避免缓冲）
+    save_every: int = 0            # >0 时每 N step 保存一次 partial checkpoint
+                                    # 0 = 仅 epoch 结束或 budget 超时时保存
+    partial_name: str = "lora_partial.safetensors"  # partial checkpoint 文件名
 
 
 # ---------------------------------------------------------------------------
@@ -211,8 +232,45 @@ def train(cfg: TrainConfig) -> TrainResult:
     out_dir = Path(cfg.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Helpers -------------------------------------------------------------
+    log = lambda m: _log(m, flush=cfg.flush)
+    t0_total = time.perf_counter()
+
+    def phase(stage: str) -> None:
+        dt = time.perf_counter() - t0_total
+        log(f"[train][+{dt:6.1f}s] === {stage} ===")
+
+    # Signal handler: save partial checkpoint on SIGTERM/SIGINT.
+    # The ``peft_model`` and ``head`` will be assigned after phase 2/3;
+    # we use a small mutable holder so the handler can reach them
+    # even if the user kills the run mid-epoch.
+    state_holder: dict = {}
+    _interrupted = {"flag": False}
+
+    def _save_partial_and_exit(signum, frame):
+        sig_name = {2: "SIGINT", 15: "SIGTERM"}.get(signum, f"signal-{signum}")
+        log(f"[train] !! {sig_name} received — saving partial checkpoint ...")
+        pm = state_holder.get("peft_model")
+        hd = state_holder.get("head")
+        if pm is not None and hd is not None:
+            try:
+                save_checkpoint(out_dir / cfg.partial_name, pm, hd, cfg)
+                log(f"[train] !! partial saved to {out_dir / cfg.partial_name}")
+            except Exception as e:
+                log(f"[train] !! partial save FAILED: {e}")
+        _interrupted["flag"] = True
+
+    import signal as _signal
+    try:
+        _signal.signal(_signal.SIGTERM, _save_partial_and_exit)
+        _signal.signal(_signal.SIGINT, _save_partial_and_exit)
+    except (ValueError, OSError):
+        # Not on main thread (e.g. embedded); skip signal hooks.
+        pass
+
+    phase("phase 1/6 加载 backbone")
     # 1. Adapter (loads backbone)
-    print(f"[train] loading adapter on {cfg.device} ...")
+    log(f"[train] loading adapter on {cfg.device} ...")
     adapter = VLMAdapter(
         backbone_name=cfg.backbone_name,
         dtype=cfg.dtype,
@@ -227,9 +285,20 @@ def train(cfg: TrainConfig) -> TrainResult:
         adapter.model.to(torch.float16)
     elif cfg.dtype == "bfloat16":
         adapter.model.to(torch.bfloat16)
+    log(f"[train]   backbone loaded in {time.perf_counter()-t0_total:.1f}s")
 
+    phase("phase 2/6 LoRA + head 注入")
     # 2. LoRA injection
     peft_model, n_lora_params = inject_lora(adapter.model, cfg)
+    # Disable KV cache BEFORE training: the IDEFICS3 model defaults
+    # to ``use_cache=True``, which is *incompatible* with gradient
+    # checkpointing (the checkpoint layer re-evaluates attention and
+    # would clobber the cache). Without this, MPS's autograd goes
+    # off the rails around step 2-3 and produces NaN losses.
+    try:
+        peft_model.config.use_cache = False
+    except AttributeError:
+        pass
     peft_model.train()
     # Re-apply gradient checkpointing after peft wrapping
     if cfg.gradient_checkpointing and hasattr(peft_model, "gradient_checkpointing_enable"):
@@ -243,8 +312,13 @@ def train(cfg: TrainConfig) -> TrainResult:
         num_classes=NUM_CLASSES,
     ).to(cfg.device)
     n_head_params = sum(p.numel() for p in head.parameters() if p.requires_grad)
-    print(f"[train] LoRA params: {n_lora_params:,}  Head params: {n_head_params:,}")
+    log(f"[train] LoRA params: {n_lora_params:,}  Head params: {n_head_params:,}")
 
+    # Expose to signal handler for mid-epoch partial saves.
+    state_holder["peft_model"] = peft_model
+    state_holder["head"] = head
+
+    phase("phase 3/6 数据集加载")
     # 4. Data
     train_ds = MPIDJsonlDataset(
         Path(cfg.train_jsonl),
@@ -258,30 +332,51 @@ def train(cfg: TrainConfig) -> TrainResult:
         device=cfg.device,
         max_records=cfg.max_val_records,
     )
+    log(f"[train] dataset: train={len(train_ds)} val={len(val_ds)}")
+    log(f"[train] batch_size={cfg.batch_size}  steps_per_epoch={len(train_ds)//cfg.batch_size}")
+
+    # Optional: preload dataset into RAM. For 2k records each with
+    # 17 patches × 512x512 pixel_values this is ~9 GB on RAM, which
+    # is fine on a 16 GB Mac. The payoff is no per-step image
+    # preprocessing on the main thread.
+    if cfg.preload_dataset:
+        phase("phase 3b/6 预编码数据到 RAM (--preload-dataset)")
+        t_pre = time.perf_counter()
+        train_ds.preload(log_every=200)
+        val_ds.preload(log_every=200)
+        log(f"[train] preload done in {time.perf_counter()-t_pre:.1f}s")
+
     train_dl = DataLoader(train_ds, batch_size=cfg.batch_size,
                           shuffle=True, collate_fn=collate, num_workers=0)
     val_dl = DataLoader(val_ds, batch_size=cfg.batch_size,
                         shuffle=False, collate_fn=collate, num_workers=0)
-    print(f"[train] dataset: train={len(train_ds)} val={len(val_ds)}")
 
+    phase("phase 4/6 优化器 + class weights")
     # 5. Loss + optimiser
     if cfg.class_weighted:
         weights = compute_class_weights(train_ds.records).to(cfg.device)
     else:
         weights = None
-    print(f"[train] class weights: {weights.tolist() if weights is not None else 'None'}")
+    log(f"[train] class weights: {weights.tolist() if weights is not None else 'None'}")
 
     # Trainable params: LoRA + head. We do NOT freeze explicitly
     # because LoRA already freezes the base; the head is fresh.
     trainable = [p for p in peft_model.parameters() if p.requires_grad] \
                 + list(head.parameters())
     n_trainable = sum(p.numel() for p in trainable)
-    print(f"[train] total trainable params: {n_trainable:,}")
+    log(f"[train] total trainable params: {n_trainable:,}")
     opt = torch.optim.AdamW(trainable, lr=cfg.lr, weight_decay=cfg.weight_decay)
 
+    phase(f"phase 5/6 训练循环  ({cfg.epochs} epoch × {len(train_ds)} sample × bs={cfg.batch_size})")
     # 6. Loop
     res = TrainResult()
     patience_left = cfg.early_stop_patience
+    n_steps_per_epoch = max(1, len(train_dl))
+    total_steps = n_steps_per_epoch * cfg.epochs
+    t_warmup = None
+    step_global = 0
+    budget_deadline = (t0_total + cfg.max_train_seconds) if cfg.max_train_seconds > 0 else None
+
     for epoch in range(cfg.epochs):
         peft_model.train(); head.train()
         t_epoch = time.perf_counter()
@@ -304,23 +399,98 @@ def train(cfg: TrainConfig) -> TrainResult:
             loss = F.cross_entropy(logits, batch["label"], weight=weights)
             opt.zero_grad()
             loss.backward()
+            # NaN / Inf guard BEFORE clipping. MPS + LoRA + grad-ckpt
+            # has a known issue where the loss occasionally diverges to
+            # NaN (FP16 / BF16 gradient underflow when class weights
+            # are skewed). If we see NaN, **do not** step the optimizer
+            # (that would poison the LoRA weights).
+            if not torch.isfinite(loss).item():
+                if step_global == 1 or step_global % cfg.log_every == 0:
+                    log(f"[train]   ! step {step+1} loss={loss.item():.4f} — "
+                        f"NaN/Inf detected, skipping optimizer step")
+                opt.zero_grad(set_to_none=True)
+                continue
             torch.nn.utils.clip_grad_norm_(trainable, 1.0)
             opt.step()
             loss_sum += float(loss.item())
             loss_count += 1
-            if (step + 1) % cfg.log_every == 0:
+            step_global += 1
+
+            # Progress: log_every steps AND always at step 1 of the
+            # epoch (so we know training actually started). Skip logging
+            # if the step was NaN (we already logged a warning above).
+            should_log = (step + 1 == 1) or ((step + 1) % cfg.log_every == 0) \
+                         or (step + 1 == n_steps_per_epoch)
+            if should_log and loss_count > 0:
                 avg = loss_sum / loss_count
-                print(f"[train] epoch {epoch} step {step+1}/{len(train_dl)} "
-                      f"loss={avg:.4f}  ({time.perf_counter()-t_epoch:.1f}s)")
-                loss_sum, loss_count = 0.0, 0
+                t_now = time.perf_counter()
+                # Measure per-step time. Use the first step of the
+                # epoch as a "warmup" because the first step pays
+                # for kernel JIT, allocator init, etc.
+                if t_warmup is None:
+                    t_warmup = t_now
+                    per_step_s = float("nan")
+                    eta_s = float("nan")
+                else:
+                    elapsed_train = t_now - t_warmup
+                    per_step_s = elapsed_train / max(1, (step_global - 1))
+                    remaining = total_steps - step_global
+                    eta_s = per_step_s * remaining
+                log(
+                    f"[train] epoch {epoch+1}/{cfg.epochs} "
+                    f"step {step+1}/{n_steps_per_epoch} "
+                    f"(global {step_global}/{total_steps}) "
+                    f"loss={avg:.4f}  "
+                    f"step_dt={per_step_s:.2f}s  "
+                    f"epoch_elapsed={t_now-t_epoch:.1f}s  "
+                    f"ETA={eta_s:.0f}s  "
+                    f"total_elapsed={t_now-t0_total:.1f}s"
+                )
+
+            # Periodic partial save (--save-every N). Cheaper than
+            # waiting for an epoch boundary if the user later kills
+            # the process.
+            if cfg.save_every > 0 and step_global > 0 \
+                    and step_global % cfg.save_every == 0:
+                log(f"[train]   ↳ periodic save: {cfg.partial_name} "
+                    f"(step {step_global})")
+                save_checkpoint(out_dir / cfg.partial_name, peft_model, head, cfg)
+
+            # Wall-clock budget check.
+            if budget_deadline is not None and time.perf_counter() > budget_deadline:
+                log(f"[train] BUDGET EXCEEDED ({cfg.max_train_seconds}s) — "
+                    f"stopping at epoch {epoch+1} step {step+1}")
+                # Save what we have and break.
+                save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
+                res.history.append({
+                    "epoch": epoch, "val_macro_f1": 0.0, "val_accuracy": 0.0,
+                    "report": {}, "confusion_matrix": [],
+                    "note": "budget_exceeded",
+                })
+                summary = {
+                    "config": cfg.__dict__,
+                    "n_lora_params": n_lora_params,
+                    "n_head_params": n_head_params,
+                    "n_trainable_params": n_trainable,
+                    "best_epoch": res.best_epoch,
+                    "best_macro_f1": res.best_macro_f1,
+                    "history": res.history,
+                    "budget_exceeded": True,
+                }
+                with open(out_dir / "train_summary.json", "w", encoding="utf-8") as f:
+                    json.dump(summary, f, ensure_ascii=False, indent=2)
+                return res
+
         # End of epoch: eval.
+        log(f"[train] epoch {epoch+1} train done; starting eval ...")
         t_eval = time.perf_counter()
         ev = evaluate(peft_model, head, val_dl, cfg.device)
         dt_eval = time.perf_counter() - t_eval
         macro_f1 = ev["report"]["macro avg"]["f1-score"]
         acc = ev["report"]["accuracy"]
-        print(f"[train] epoch {epoch}: val Macro F1={macro_f1:.4f}  "
-              f"acc={acc:.4f}  (eval in {dt_eval:.1f}s)")
+        log(f"[train] epoch {epoch+1}: val Macro F1={macro_f1:.4f}  "
+            f"acc={acc:.4f}  (eval in {dt_eval:.1f}s, "
+            f"total_elapsed={time.perf_counter()-t0_total:.1f}s)")
         res.history.append({"epoch": epoch,
                             "val_macro_f1": macro_f1,
                             "val_accuracy": acc,
@@ -330,8 +500,8 @@ def train(cfg: TrainConfig) -> TrainResult:
         # sub-threshold run (tiny smoke, extreme imbalance) yields
         # an artefact. We also keep the "best so far" semantics
         # by overwriting if the new F1 is strictly better.
-        save_checkpoint(out_dir / "lora_baseline.safetensors",
-                       peft_model, head, cfg)
+        log(f"[train] saving checkpoint {cfg.checkpoint_name} ...")
+        save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
         if macro_f1 > res.best_macro_f1:
             res.best_macro_f1 = macro_f1
             res.best_epoch = epoch
@@ -339,9 +509,10 @@ def train(cfg: TrainConfig) -> TrainResult:
         else:
             patience_left -= 1
             if patience_left <= 0:
-                print(f"[train] early stop at epoch {epoch} (best epoch {res.best_epoch})")
+                log(f"[train] early stop at epoch {epoch+1} (best epoch {res.best_epoch+1})")
                 break
 
+    phase("phase 6/6 收尾 + 写 train_summary.json")
     # Final summary
     summary = {
         "config": cfg.__dict__,
@@ -351,10 +522,12 @@ def train(cfg: TrainConfig) -> TrainResult:
         "best_epoch": res.best_epoch,
         "best_macro_f1": res.best_macro_f1,
         "history": res.history,
+        "total_seconds": time.perf_counter() - t0_total,
     }
     with open(out_dir / "train_summary.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
-    print(f"[train] best Macro F1 = {res.best_macro_f1:.4f} at epoch {res.best_epoch}")
+    log(f"[train] DONE  best Macro F1 = {res.best_macro_f1:.4f} at epoch {res.best_epoch+1}, "
+        f"total time = {time.perf_counter()-t0_total:.1f}s")
     return res
 
 
@@ -388,7 +561,7 @@ def save_checkpoint(path: Path, peft_model, head: ClassificationHead, cfg: Train
         "lora_r": str(cfg.lora_r),
         "lora_alpha": str(cfg.lora_alpha),
     })
-    print(f"[train] saved {path} ({len(state)} tensors)")
+    print(f"[train] saved {path} ({len(state)} tensors)", flush=True)
 
 
 def load_checkpoint(path: Path, head: ClassificationHead) -> dict:

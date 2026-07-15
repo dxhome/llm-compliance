@@ -78,10 +78,14 @@ def main() -> int:
             shutil.copy2(src, dst)
 
     # Sanity: MANIFEST + CHECKSUMS + infer.py + backbone + checkpoint.
+    # The checkpoint filename is read from MANIFEST.json so this smoke
+    # works for any of (lora_baseline, lora_full, lora_partial, ...).
+    manifest = json.loads((stage / "MANIFEST.json").read_text())
+    ckpt_name = manifest.get("checkpoint", "lora_baseline.safetensors")
     must_have = [
         "infer.py", "requirements.txt", "MANIFEST.json", "CHECKSUMS.txt",
         "models/smolvlm-500m/config.json",
-        "artifacts/lora_baseline.safetensors",
+        f"artifacts/{ckpt_name}",
         "src/mpid/__init__.py",
     ]
     missing = [p for p in must_have if not (stage / p).exists()]

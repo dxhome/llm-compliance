@@ -73,8 +73,12 @@ def build_train_config(cfg: dict, out_dir_override: str | None) -> TrainConfig:
         weight_decay=float(training.get("weight_decay", 0.0)),
         class_weighted=bool(training.get("class_weighted", True)),
         early_stop_patience=int(training.get("early_stop_patience", 2)),
-        log_every=int(training.get("log_every", 10)),
+        log_every=int(training.get("log_every", 5)),
         seed=int(training.get("seed", 42)),
+        # T2.16 真实训练开关
+        max_train_seconds=float(training.get("max_train_seconds", 0.0)),
+        preload_dataset=bool(training.get("preload_dataset", False)),
+        checkpoint_name=str(training.get("checkpoint_name", "lora_baseline.safetensors")),
     )
 
 
@@ -92,13 +96,73 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Override the output directory from the config",
     )
+    p.add_argument(
+        "--max-train-seconds",
+        type=float,
+        default=0.0,
+        help="T2.16: wall-clock budget in seconds. 0=no limit. "
+             "When set, training stops and saves a partial checkpoint at the deadline.",
+    )
+    p.add_argument(
+        "--preload-dataset",
+        action="store_true",
+        help="T2.16: pre-encode all records into RAM before training. "
+             "Adds ~4 MB × N_records of RAM but eliminates per-step image preprocessing.",
+    )
+    p.add_argument(
+        "--checkpoint-name",
+        type=str,
+        default=None,
+        help="T2.16: output safetensors file name (default: lora_baseline.safetensors). "
+             "Phase 2.2 uses lora_full.safetensors.",
+    )
+    p.add_argument(
+        "--save-every",
+        type=int,
+        default=0,
+        help="T2.16: every N training steps, save a partial checkpoint "
+             "to <partial_name>. 0 disables (default: only at epoch end "
+             "or budget cutoff). Recommended for long runs.",
+    )
+    p.add_argument(
+        "--partial-name",
+        type=str,
+        default=None,
+        help="T2.16: filename for periodic partial checkpoints "
+             "(default: lora_partial.safetensors).",
+    )
+    p.add_argument(
+        "-u", "--unbuffered",
+        action="store_true",
+        help="Force line-buffered stdout (always recommended for long runs)",
+    )
     return p.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+
+    # Force line-buffered stdout when requested (or always — long runs
+    # without -u look "stuck" to the user).
+    if args.unbuffered:
+        import sys as _sys
+        _sys.stdout.reconfigure(line_buffering=True)
+        _sys.stderr.reconfigure(line_buffering=True)
+
     raw = load_config(args.config)
     cfg = build_train_config(raw, args.out_dir)
+
+    # CLI overrides.
+    if args.max_train_seconds:
+        cfg.max_train_seconds = args.max_train_seconds
+    if args.preload_dataset:
+        cfg.preload_dataset = True
+    if args.checkpoint_name:
+        cfg.checkpoint_name = args.checkpoint_name
+    if args.save_every:
+        cfg.save_every = int(args.save_every)
+    if args.partial_name:
+        cfg.partial_name = args.partial_name
 
     # Make IO paths absolute relative to the repo root so the script
     # works from any cwd.
@@ -110,12 +174,17 @@ def main() -> int:
     cfg.out_dir = str((repo / cfg.out_dir).resolve()) \
         if not Path(cfg.out_dir).is_absolute() else cfg.out_dir
 
-    print(f"[train] config: {args.config}")
-    print(f"[train] out_dir: {cfg.out_dir}")
-    print(f"[train] train: {cfg.train_jsonl}")
-    print(f"[train] val:   {cfg.val_jsonl}")
+    print(f"[train] config: {args.config}", flush=True)
+    print(f"[train] out_dir: {cfg.out_dir}", flush=True)
+    print(f"[train] train: {cfg.train_jsonl}", flush=True)
+    print(f"[train] val:   {cfg.val_jsonl}", flush=True)
     print(f"[train] epochs={cfg.epochs}  max_train_records={cfg.max_train_records}  "
-          f"batch_size={cfg.batch_size}  lr={cfg.lr}")
+          f"batch_size={cfg.batch_size}  lr={cfg.lr}", flush=True)
+    if cfg.max_train_seconds:
+        print(f"[train] BUDGET: {cfg.max_train_seconds}s", flush=True)
+    if cfg.preload_dataset:
+        print(f"[train] PRELOAD: enabled (~4 MB × {cfg.max_train_records} ≈ "
+              f"{cfg.max_train_records*4/1024:.1f} GB RAM)", flush=True)
 
     train(cfg)
     return 0

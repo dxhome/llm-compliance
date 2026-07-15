@@ -37,6 +37,15 @@ from typing import Any, Iterator
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+# Windows console defaults to GBK, which can't encode the ✅ / ❌
+# glyphs used in the conformance checklist. Reconfigure stdout to utf-8
+# so the script runs identically on every platform.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+except Exception:
+    pass
+
 USE_COLOR = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
 _GREEN = "\033[32m" if USE_COLOR else ""
 _RED = "\033[31m" if USE_COLOR else ""

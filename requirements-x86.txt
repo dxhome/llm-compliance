@@ -17,9 +17,11 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 # --- Core DL stack (x86 CPU-only) ---
-# torch 2.5 has working +cpu wheels for Linux x86_64 on the PyTorch index.
-torch>=2.5,<2.6
-torchvision>=0.20,<0.22
+# Original pin was torch 2.5 for Linux x86_64 +cpu wheels.
+# Widened upper bound to <2.14 to support Python 3.14 (torch 2.13+ added 3.14 wheels).
+# Recorded in doc/VERIFICATION.md § Phase 0A-1 "x86 + Python 3.14 实测修订".
+torch>=2.5,<2.14
+torchvision>=0.20,<0.30
 transformers>=4.45,<4.50
 tokenizers>=0.20,<0.22
 safetensors>=0.4

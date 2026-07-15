@@ -30,16 +30,20 @@ def _clear_cache():
 # ---------------------------------------------------------------------------
 
 def test_is_apple_silicon_uses_uname(monkeypatch):
-    """We can fake the platform via monkeypatching os.uname."""
-    monkeypatch.setattr(
-        os, "uname",
-        lambda: SimpleNamespace(sysname="Linux", machine="x86_64", nodename="x", release="r", version="v"),
-    )
+    """We can fake the platform via monkeypatching the stdlib ``platform``.
+
+    The production code now uses ``platform.system()`` / ``platform.machine()``
+    (cross-platform, unlike ``os.uname`` which does not exist on Windows),
+    so the test patches those two module-level callables.
+    """
+    import platform as _platform
+
+    monkeypatch.setattr(device_mod, "platform", _platform)
+    monkeypatch.setattr(_platform, "system", lambda: "Linux")
+    monkeypatch.setattr(_platform, "machine", lambda: "x86_64")
     assert device_mod._is_apple_silicon() is False
-    monkeypatch.setattr(
-        os, "uname",
-        lambda: SimpleNamespace(sysname="Darwin", machine="arm64", nodename="x", release="r", version="v"),
-    )
+    monkeypatch.setattr(_platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(_platform, "machine", lambda: "arm64")
     assert device_mod._is_apple_silicon() is True
 
 

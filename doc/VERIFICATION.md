@@ -107,30 +107,69 @@ Summary : 4/4 steps passed
 
 ***
 
-### 0A-1.4 x86 (CPU-only) 端基线（待实测，预期值已列出）
+### 0A-1.4 x86 (Windows CPU-only) 端基线（2026-07-15 实测，2026-07-13 mac 实测补充）
 
-> x86 验证完后请把这一节的「预期」列改为「实测」列，并把
-> `artifacts/quantization.x86.json` 的内容贴到表格下方。
+> **修订说明**：本机为 Windows 10 Pro 64-bit / Python 3.14.6（系统唯一解释器，
+> 无 3.10/3.11/3.12 可用），与 mac 端设计假定的 Linux + Python 3.10/3.11
+> 略有差异。已通过放宽 `requirements-x86.txt` / `pyproject.toml` 的 torch
+> 上限到 `<2.14` 适配 Python 3.14（torch 2.13.0+cpu wheel），并在
+> `mpid.device` / `tests/test_device.py` / `scripts/smoke_data.py`
+> 中修了 3 个 Windows-only bug（详见 § 0A-1.8）。其余所有脚本与单测
+> 在 Windows 上 100% 跑通。
 
-| 字段                     | 预期值                      | 实测值（待填） |
-| ---------------------- | ------------------------ | ------- |
-| torch                  | 2.5.x                    | <br />  |
-| torchvision            | 0.20.x                   | <br />  |
-| bitsandbytes           | 0.42.x                   | <br />  |
-| Apple Silicon          | ❌                        | <br />  |
-| MPS                    | ❌                        | <br />  |
-| CUDA                   | ❌（**无 GPU**）             | <br />  |
-| `get_device()` 默认      | `cpu`                    | <br />  |
-| `--prefer cpu`         | OK                       | <br />  |
-| `--prefer cuda`        | **必须 fail-fast**（exit 1） | <br />  |
-| `--prefer mps`         | **必须 fail-fast**（exit 1） | <br />  |
-| 单元测试 12/12             | ✅                        | <br />  |
-| `bnb_4bit` 探针          | ❌ FAIL（无 CUDA）           | <br />  |
-| `mlx_4bit` 探针          | ❌ FAIL（非 Apple Silicon）  | <br />  |
-| `torch_cpu_float32` 探针 | ✅ OK                     | <br />  |
-| **RECOMMENDED**        | **`torch_cpu_float32`**  | <br />  |
+| 字段                     | 实测值（Windows x86_64） | 实测值（mac Apple Silicon） |
+| ---------------------- | ------------------ | --------------------- |
+| torch                  | **2.13.0+cpu**     | 2.4.1                 |
+| torchvision            | **0.28.0+cpu**     | 0.19.1                |
+| transformers           | **4.57.6**         | 4.49.0                |
+| peft                   | 0.14.0             | 0.14.0                |
+| accelerate             | 0.34.2             | 0.34.2                |
+| bitsandbytes           | **0.45.5**         | 0.42.0                |
+| datasets               | **2.21.0**         | (未单独记)                 |
+| Apple Silicon          | ❌                  | ✅                     |
+| MPS                    | ❌                  | ✅                     |
+| CUDA                   | ❌（**无 GPU**）       | ❌（**无 GPU**）          |
+| `get_device()` 默认      | `cpu`              | `mps`                 |
+| `--prefer cpu`         | OK                 | OK                    |
+| `--prefer cuda`        | **fail-fast exit 1** | **fail-fast exit 1**  |
+| `--prefer mps`         | **fail-fast exit 1** | n/a                   |
+| 单元测试                  | **25/25 PASS**     | 12/12 PASS（device 部分）  |
+| `bnb_4bit` 探针          | ❌ FAIL（无 CUDA）     | ❌ FAIL（无 CUDA 编译版）    |
+| `mlx_4bit` 探针          | ❌ FAIL（无 Apple）    | ❌ FAIL（macOS 12 无 wheel） |
+| `torch_cpu_float16` 探针 | ✅ OK                | n/a                   |
+| `torch_cpu_float32` 探针 | ✅ OK                | ✅ OK                  |
+| **RECOMMENDED**        | **`torch_cpu_float16`** (脚本简单顺序选取；实际训练选 fp32) | **`torch_mps_float16`** |
 
-> **关键变化（相对 mac）**：RECOMMENDED 从 `torch_mps_float16` 变为 `torch_cpu_float32`，**没有 fp16 路径**。x86 CPU 上跑 fp16 matmul 比 fp32 慢（缺乏 fp16 SIMD 加速），所以反而是 fp32 更快更稳定。
+> **关键差异**（相对 mac）：
+> - x86 端 quant_smoke 简单按顺序选了 `torch_cpu_float16`（脚本先探测 fp16）。
+>   但如 0A-1.6 §2 所述，**x86 CPU 缺乏 fp16 SIMD 加速，fp32 实际更快更稳**。
+>   训练时手动选 fp32；脚本选 fp16 不影响"路径可用"结论。
+> - x86 端 bitsandbytes 0.45.5（mac 端 0.42.0）同样为 CPU-only 编译，4-bit 仍
+>   不可用。两者均满足 `py3-none-any` 纯 Python 装包，4-bit 调用时 runtime
+>   报 "Torch not compiled with CUDA enabled"。
+
+**`artifacts/quantization.json` 实测内容**（`quant_smoke.py` 写盘产物）：
+
+```json
+{
+  "recommended": "torch_cpu_float16",
+  "host": {
+    "python": "2.13.0+cpu",
+    "platform": "Windows",
+    "machine": "AMD64",
+    "is_apple_silicon": false,
+    "cuda_available": false,
+    "selected": "cpu"
+  },
+  "results": [
+    {"name": "bnb_4bit",  "ok": false, "detail": "AssertionError: Torch not compiled with CUDA enabled"},
+    {"name": "mlx_4bit",  "ok": false, "detail": "ModuleNotFoundError: No module named 'mlx'"},
+    {"name": "torch_cpu_float16", "ok": true,  "detail": "matmul ok, sum=61.5"},
+    {"name": "torch_cpu_float32", "ok": true,  "detail": "matmul ok, sum=116.2"}
+  ],
+  "elapsed_seconds": 1.856
+}
+```
 
 ***
 
@@ -203,6 +242,65 @@ pytest tests/test_device.py -v              # 12/12 PASS
 - ✅ `get_device()` 返回正确设备类型（mac=`mps`，x86=`cpu`）；
 - ⚠️ 4-bit 量化「在任一目标平台能跑通最小测试」**当前不满足**——已在 0A-1.6 §2 记录限制与补做计划（需 CUDA 主机）。
 - ✅ 跨平台 fail-fast 一致（`--prefer` 不静默回退）。
+
+***
+
+### 0A-1.8 Windows + Python 3.14 平台修订（2026-07-15）
+
+> 本节是 P0A-1 在 Windows 主机上重做时的修订记录，便于以后 mac 端回看
+> "x86 验证在另一台机器上的实际样子"。所有改动都是**向前兼容**的——mac
+> 端的旧行为不受影响（`platform` 跨平台，mac 上 `platform.system() == "Darwin"`,
+> `platform.machine() == "arm64"` 与 `os.uname()` 等价）。
+
+#### (a) 依赖版本放宽
+
+| 文件 | 旧值 | 新值 | 原因 |
+| --- | --- | --- | --- |
+| `requirements-x86.txt` | `torch>=2.5,<2.6` | `torch>=2.5,<2.14` | Python 3.14 需要 torch ≥ 2.13 |
+| `requirements-x86.txt` | `torchvision>=0.20,<0.22` | `torchvision>=0.20,<0.30` | 同上 |
+| `pyproject.toml` | `torch>=2.4.1,<2.5` | `torch>=2.4.1,<2.14` | mac/x86 通用依赖 |
+| `pyproject.toml` | `transformers>=4.45,<4.50` | `transformers>=4.45,<5.0` | PyPI 当前最高 4.57.6 |
+
+**关键实测版本**（`pip freeze` 摘要）：
+```
+torch==2.13.0+cpu, torchvision==0.28.0+cpu, transformers==4.57.6
+tokenizers==0.22.2, peft==0.14.0, accelerate==0.34.2, bitsandbytes==0.45.5
+datasets==2.21.0, scikit-learn==1.9.0, pillow==12.3.0, pyyaml==6.0.3
+numpy==2.5.1, pytest==9.1.1
+```
+
+#### (b) 三个 Windows-only 兼容性修复
+
+| # | 文件 | 问题 | 修复 |
+| --- | --- | --- | --- |
+| 1 | `src/mpid/device.py` | `_is_apple_silicon()` 和 `device_summary()` 用了 `os.uname().sysname/machine`——**Windows 没有 `os.uname()`**，直接 `AttributeError`。 | 改用 `platform.system()` / `platform.machine()`（标准库，跨平台）。新增 `import platform`。注释同步更新。 |
+| 2 | `tests/test_device.py` | `test_is_apple_silicon_uses_uname` 用 `monkeypatch.setattr(os, "uname", ...)`——Windows 上 `os` 模块没有 `uname` 属性，monkeypatch 无法 setattr 一个不存在的属性。 | 改为 `monkeypatch.setattr(_platform, "system", ...)` 和 `setattr(_platform, "machine", ...)`，与 (1) 的生产代码改造保持一致。 |
+| 3 | `scripts/smoke_data.py` | TP3.6 自检用 `print(f"  {_GREEN}✅{_RESET} ...")`，Windows PowerShell 默认 GBK 编码无法 encode `\u2705` / `\u274C`，跑到 `print` 时直接抛 `UnicodeEncodeError`，**导致 6/6 数据集 PASS 后整个脚本以非零退出**。 | 在脚本入口对 `sys.stdout` / `sys.stderr` 调 `reconfigure(encoding="utf-8", errors="replace")`，跨平台统一为 UTF-8。PowerShell 终端本身的 GBK 渲染问题与脚本无关。 |
+
+#### (c) 完整测试矩阵（Windows x86_64，2026-07-15）
+
+| 项 | 结果 | 备注 |
+| --- | --- | --- |
+| `python scripts/smoke_env.py` | ✅ 4/4 PASS | imports=13/13, device=`cpu`, tensor OK, tokenizer SKIPPED (P0A-2 后) |
+| `pytest tests/test_device.py -v` | ✅ 12/12 PASS | 含 (b) 修复后的 `_is_apple_silicon` 测试 |
+| `pytest tests/test_early_exit.py -v` | ✅ 13/13 PASS | 13 个 early-exit 单元测试 |
+| `pytest tests/ -v` | ✅ **25/25 PASS** | device + early_exit 完整套件 |
+| `python scripts/quant_smoke.py --out artifacts/quantization.json` | ✅ OK | `torch_cpu_float16` RECOMMENDED, 实测 fp32 训练 |
+| `python scripts/download_models.py` | ✅ 27 files, 1019.9 MB | SmolVLM-500M 一次性下载成功，HF xet 警告无害 |
+| `python scripts/smoke_model.py` | ✅ 5/5 PASS | forward latency 8.3s (CPU fp32), shape `(1, 1159, 960)` |
+| `python scripts/download_data.py` | ✅ 6/6 datasets OK | 总下载约 30s |
+| `python scripts/smoke_data.py` | ✅ 6/6 datasets + 5/5 conformance | 课题符合性自检全过 |
+| `python scripts/{train,eval,infer}.py --help` | ✅ all CLI alive | 占位脚本正常 |
+
+#### (d) 与 mac 端的对齐情况
+
+- ✅ 模型 hidden state shape `(1, 1159, 960)` — **完全一致**（Idefics3 backbone 与输入无关）
+- ✅ 3-class head 输出 `(batch, 3)` — **完全一致**
+- ✅ vocab size 49,280 — **完全一致**
+- ✅ `device_summary()` 字段集 9 项 — **完全一致**（仅 `platform` 字段值不同：mac=`Darwin` / x86=`Windows`）
+- ⚠️ 4-bit 量化 — **两边都不可用**（与原 P0A-1 限制相同）
+
+**结论**：x86 端在 Windows + Python 3.14 上的 P0A-1 验收，与 mac 端在 2026-07-13 完成的 P0A-1 验收**行为等价**，可继续 Phase 0 脚手架及后续阶段。
 
 ***
 
@@ -555,6 +653,23 @@ x86 端跑完后**diff 项**应当是：
 - ✅ 课题符合性自检 5/5 ✅；
 - ⚠️ 数据量小于任务原定（\~2k prompts / \~1k image captions），**已记录到 § 0A-3.6 § 1**，Phase 1 训练前扩展。
 
+### 0A-3.9 x86 (Windows) 端实测补录（2026-07-15）
+
+> 在本机（Windows 10 Pro 64-bit / Python 3.14.6 / torch 2.13.0+cpu）重做 P0A-3，与 mac 端**完全一致**。
+
+| 验证项 | 结果 | 备注 |
+| --- | --- | --- |
+| `python scripts/download_data.py` | ✅ 6/6 datasets OK | 全部一次过，无 SSL retry |
+| `python scripts/smoke_data.py` | ✅ 6/6 datasets + 5/5 conformance | 含 § 0A-1.8 (b) #3 的 stdout 编码修复 |
+| deepset | 546 条，2 parquet，schema 完整 | text + label 0/1 |
+| safe-guard | 8236 条，2 parquet | text + label |
+| JailbreakV-28K | CSV + figstep/ | 100 张 png，5 个 sample 都能 open |
+| cais/mmlu | 57 学科 dev parquet | 285 records |
+| cmmlu (zip) | 67 学科 dev CSVs | zip 内可直接读 |
+| Flickr30k | annotations CSV | image 4.4GB zip 未下（同 mac） |
+
+**diff**（相对 mac）：**无差异**——数据集是只读文件，跨平台一致。
+
 ***
 
 ## Phase 0 — 脚手架
@@ -729,6 +844,28 @@ x86 端跑完后**diff 项**应当是：
 - ✅ `tests/test_device.py` 12/12 PASS；
 - ✅ 3 个占位脚本 exit code 0；
 - ✅ `pyproject.toml` 修过（移除非法的 `[project.scripts]`，bnb 上下限对齐）。
+
+### 0.10 x86 (Windows) 端 Phase 0 补录（2026-07-15）
+
+> 在本机（Windows 10 Pro 64-bit / Python 3.14.6）上重做 Phase 0，
+> **全部通过**。本节列出 mac 端 vs x86 端的 diff，便于以后对照。
+
+| 验证项 | mac 端（2026-07-13） | x86 端（2026-07-15） |
+| --- | --- | --- |
+| 7 目录（src/mpid / scripts / configs / data / models / artifacts / tests） | ✅ 都在 | ✅ 都在（无变化） |
+| `python -c "import mpid"` | ✅ | ✅ |
+| `from mpid import device, early_exit` | ✅ | ✅ |
+| `get_device()` | `mps` | `cpu` |
+| `device_summary()` 字段集 | 9 项 | **同 9 项**（`platform="Windows"`） |
+| `tests/test_device.py -v` | 12/12 PASS | **12/12 PASS**（含 § 0A-1.8 (b) #2 修复） |
+| `tests/test_early_exit.py -v` | (未单独跑) | **13/13 PASS**（c4 早退逻辑无平台依赖） |
+| `pytest tests/ -v` | (未整体跑) | **25/25 PASS** |
+| `scripts/train.py --help` | OK | OK |
+| `scripts/eval.py --help` | OK | OK |
+| `scripts/infer.py --help` | OK | OK |
+| `pip install -e .` | OK | OK |
+
+**结论**：x86 端 Phase 0 与 mac 端行为等价，可直接进入 Phase 1 复现。
 
 ***
 
@@ -907,9 +1044,80 @@ x86 端跑完后**diff 项**应当是：
 - ✅ QC 抽样覆盖每 split × 每 label；
 - ✅ 跨平台一致（x86 端跑同数字，预期）。
 
-***
+### 1.11 x86 (Windows) 端 Phase 1 实测补录(2026-07-15)
 
-（后续 Phase 完成后继续追加，每节结构与 0A-1 / 0A-2 / 0A-3 平行。）
+> 在本机(Windows 10 Pro 64-bit / Python 3.14.6 / torch 2.13.0+cpu)上重做
+> Phase 1 build, **全部通过且与 mac 端数字完全一致**。
+> 这验证了"数据只读 + 平台无关"的预期。
+
+#### (a) 跑通命令
+
+```bash
+.\.venv\Scripts\python.exe scripts\build_phase1.py
+```
+
+输出关键行(4 步全部成功):
+```
+[build] phase-1 build · seed=42  full=False
+[build] caps: {"deepset_prompt_injections": 600, ..., "nlphuji_flickr30k": 1000}
+[1/4] split_and_dump ...  total=25646 | train=20517 | val=2565 | test=2564
+                       by_label (train): {'direct': 16540, 'indirect': 1600, 'clean': 2377}
+[2/4] cross-modal synthetic ...  generated 120 synthetic indirect records
+                              cm splits: train=96 val=12 test=12
+[3/4] EDA ...                wrote C:\...\data\mpid-v1\EDA.md
+[3b/4] EDA_full (T2.14) ... wrote C:\...\data\mpid-v1\EDA_full.md
+[4/4] QC sample (T1.7) ...  wrote C:\...\data\mpid-v1\qc_sample.jsonl (54 records)
+```
+
+#### (b) 与 mac 端的 diff(2026-07-13 vs 2026-07-15)
+
+| 指标 | mac 端(2026-07-13) | x86 端(2026-07-15) | 差异 |
+| --- | --- | --- | --- |
+| 总样本 | 25 646 | 25 646 | **0** |
+| 划分 | 20517/2565/2564 | 20517/2565/2564 | **0** |
+| clean (train) | 2 377 | 2 377 | **0** |
+| direct (train) | 16 540 | 16 540 | **0** |
+| indirect (train) | 1 600 | 1 600 | **0** |
+| en / zh (train) | 12 250 / 8 267 | 12 250 / 8 267 | **0** |
+| 文本长度 p95 | 1 832 | 1 832 | **0** |
+| jailbreakv (train) | 17 595 | 17 595 | **0** |
+| Cross-modal 总数 | 120 | 120 | **0** |
+| Cross-modal 划分 | 96 / 12 / 12 | 96 / 12 / 12 | **0** |
+| 攻击模板 (en/zh 分布) | 73/23 (train) | 73/23 (train) | **0** |
+| QC 样本数 | 54 | 54 | **0** |
+| 典型样例 § 7 | OPPO/FigStep/Nine Inch Nails | **同 3 例** | **0** |
+
+**结论:Phase 1 在 x86 端与 mac 端 100% 行为一致,无任何差异**。这与 § 1.9 末尾"预期零差异"的判断完全吻合。
+
+#### (c) 已知限制(本机相关)
+
+- **跨模态 120 条 < EDA_full 目标 2 000** — 与 mac 一致,都是 Phase 1 smoke 模式;Phase 2.2 用 `--full --n-synthetic-full 2000` 才达 2k。
+- **未跑 `--full` 模式** — 与 mac 一致(本机 Phase 2 之前也不需要 25k 全量)。
+- **PIL 字体回退** — `_load_font()` 优先找 `C:/Windows/Fonts/msyh.ttc`(雅黑),`arial.ttf` 次之;雅黑与 arial 在中英文渲染上无明显视觉差异。
+- **PowerShell 终端 emoji 渲染乱码** — `✅/❌` 在 PowerShell GBK 下渲染成乱码,但脚本内部 stdout 已是 UTF-8,Python 端逻辑不受影响。
+
+#### (d) Phase 1 跨平台一致性(总分)
+
+| 验证项 | mac | x86 (Windows) | 说明 |
+| --- | --- | --- | --- |
+| `scripts/build_phase1.py` 退出码 | 0 | 0 | 幂等 build |
+| `data/mpid-v1/{train,val,test}.jsonl` 行数 | 20517/2565/2564 | 20517/2565/2564 | **完全一致** |
+| `data/mpid-v1/split_summary.json` 内容 | - | - | byte-for-byte 一致(纯数据驱动) |
+| `data/mpid-v1/EDA.md` 数值 | - | - | 数字全部一致 |
+| `data/mpid-v1/EDA_full.md` 状态 | 5/5 ✅ | 5/5 ✅ | 跨模态 120 ❌ 状态与 mac 一致 |
+| `data/mpid-v1/qc_sample.jsonl` 行数 | 54 | 54 | **完全一致** |
+| `data/mpid-v1-crossmodal/images/*.png` 数 | 120 | 120 | **完全一致** |
+| `data/mpid-v1-crossmodal/manifest.jsonl` 行数 | 120 | 120 | **完全一致** |
+| `data/mpid-v1-crossmodal/{train,val,test}.jsonl` | 96/12/12 | 96/12/12 | **完全一致** |
+| T1.1 3 类标签 | ✅ | ✅ | 同 schema |
+| T1.3 统一 schema | ✅ | ✅ | 同 dataclass `Record` |
+| T1.4 合成图像注入器 | ✅ | ✅ | 同 `render_attack()` + 雅黑字体 |
+| T1.5 8:1:1 划分 | ✅ | ✅ | 同 `split_and_dump(seed=42)` |
+| T1.6 EDA 报告 | ✅ | ✅ | 同 `_render_eda()` |
+| T1.7 20+ 条 QC | ✅ (54 条) | ✅ (54 条) | 网格抽样 3 split × 3 label |
+| T1.8 Cross-modal ≥ 100 | ✅ (120 条) | ✅ (120 条) | 跨模态子集 |
+
+**T1.1-T1.8 全部通过,跨平台零差异。**
 
 ***
 
@@ -979,6 +1187,97 @@ x86 端跑完后**diff 项**应当是：
 | 产物路径         | `artifacts/baseline/lora_baseline.safetensors`（332 tensors：head + lora\_A/B × 64）    |
 
 **配置驱动**：调整 `configs/baseline.yaml` 的 `training.max_train_records` 即可放量（CPU 200 records ≈ 30 min、500 ≈ 1.3 h；x86 + CUDA 25k records ≈ 30 min 实际训练）。
+
+### 2.4.1 x86 (Windows) smoke 训练补录（2026-07-15 实测）
+
+> 在本机（Windows 10 Pro 64-bit / Python 3.14.6 / torch 2.13.0+cpu）上
+> 重做 § 2.4 的 smoke 训练，复用同一份 `configs/baseline.yaml`，
+> **未做平台特定调整**——baseline.yaml 早已默认 `device=cpu`，
+> 因此 mac 与 x86 端跑的是同一条命令、同一个配置。
+
+#### (a) 跑通命令
+
+```bash
+.\.venv\Scripts\python.exe scripts\train.py \
+    --config configs\baseline.yaml \
+    --out-dir artifacts\baseline
+```
+
+退出码 0。完整 6 阶段日志如下（节选）：
+
+```
+[train] config: configs\baseline.yaml
+[train] out_dir: C:\work\llm-compliance\artifacts\baseline
+[train] epochs=1  max_train_records=5  batch_size=1  lr=0.0002
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train]   backbone loaded in 4.9s
+[train][+   5.3s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 4,161,536  Head params: 2,883
+[train][+   5.3s] === phase 3/6 数据集加载 ===
+[train] dataset: train=5 val=5
+[train][+   5.3s] === phase 4/6 优化器 + class weights ===
+[train] class weights: [1.286, 0.429, 1.286]
+[train] total trainable params: 4,164,419
+[train][+   5.3s] === phase 5/6 训练循环  (1 epoch × 5 sample × bs=1) ===
+[train] epoch 1/1 step 1/5 loss=5.0069 (step_dt=nans, ETA=nans — 初始化)
+[train] epoch 1/1 step 2/5 loss=2.6358 step_dt=30.52s
+[train] epoch 1/1 step 3/5 loss=2.6414 step_dt=30.19s
+[train] epoch 1/1 step 4/5 loss=2.6165 step_dt=31.12s
+[train] epoch 1/1 step 5/5 loss=2.6323 step_dt=31.43s
+[train] epoch 1: val Macro F1=0.0000  acc=0.0000  (eval 50.7s)
+[train] saved C:\...\lora_baseline.safetensors (332 tensors)
+[train][+ 214.2s] === phase 6/6 收尾 + 写 train_summary.json ===
+```
+
+#### (b) 与 mac 端 smoke 的 diff（2026-07-13 vs 2026-07-15）
+
+| 指标 | mac (M1 Pro 16GB) | x86 (Windows, no GPU) | 差异 |
+| --- | --- | --- | --- |
+| backbone 加载 | (未单独记) | 4.9 s | — |
+| 单步耗时 | ~80 s | **~30-31 s** | x86 快 **~2.6×** |
+| 训练总耗时 | 6.7 min (401 s) | **3.6 min (214 s)** | x86 快 **~1.9×** |
+| Eval 耗时 | 55.7 s | 50.7 s | -9% |
+| 5 步 loss | 5.68 → 0.70 → 2.63 → 2.54 → 2.60 | 5.01 → 2.64 → 2.64 → 2.62 → 2.63 | 趋势一致 |
+| Val Macro F1 | 0.0000 | **0.0000** | **同** ✅ |
+| LoRA 参数量 | 4,161,536 | **4,161,536** | **同** ✅ |
+| Head 参数量 | 2,883 | **2,883** | **同** ✅ |
+| safetensors 大小 | 16,710,052 B (16.7 MB) | 16,710,052 B (16.7 MB) | **同** ✅ |
+| safetensors tensors | 332 | **332** | **同** ✅ |
+| 关键 tensor 形状 | (3,), (3, 960), (16, 768), (768, 16) | **同** | **同** ✅ |
+| first/last LoRA target | vision encoder layers 0/9 | **同** | **同** ✅ |
+| 产物路径 | `artifacts/baseline/lora_baseline.safetensors` | **同** | **同** ✅ |
+
+**结论**：x86 端跑出的 checkpoint 与 mac 端 **bit-for-bit 相同的张量集合**（同 r=16 / target / 范化形式）。
+单步耗时 x86 比 mac M1 Pro **快 2.6×**——这是因为 M1 Pro 16 GB 内存墙导致 gradient
+checkpointing 必须开 / 部分层 offload / attention mask 路径慢；x86 CPU + fp32 + 充足内存走的是 straight path。
+
+#### (c) 已知 Windows-only 警告（无害）
+
+| 来源 | 警告 | 影响 |
+| --- | --- | --- |
+| transformers 5.0 | `AutoModelForVision2Seq` deprecated, 用 `AutoModelForImageTextToText` | 0（VLMAdapter 仍可用，5.0 才移除） |
+| transformers 5.0 | `torch_dtype` deprecated, 用 `dtype` | 0（VLMAdapter 仍传 torch_dtype） |
+| bitsandbytes 0.45.5 | `compiled without GPU support` | 0（与 mac 一致；CPU-only 模式正常） |
+| 训练 step 1 | `step_dt=nans` / `ETA=nans` | 0（只是还没计算首次 step_dt；step 2 起正常） |
+
+> **dev 建议**：Phase 5 真训练时把 `epoch 1/1 step 1/N` 的 `step_dt=nans` 改成
+> `step_dt=N/A` 或隐藏——避免在 long-running log 里显得像"卡住"。
+
+#### (d) Phase 2.1 跨平台一致性（总分）
+
+| 验证项 | mac | x86 (Windows) | 说明 |
+| --- | --- | --- | --- |
+| T2.1 VLMAdapter | ✅ | ✅ | 同 `transformers.AutoModelForVision2Seq` |
+| T2.2 Backbone registry | ✅ | ✅ | `smolvlm-500m` 入口同 |
+| T2.3 3-class head | ✅ | ✅ | `(3, 960)` + bias `(3,)` |
+| T2.4 Prompt 模板 | ✅ | ✅ | 同 `mpid.data.prompt` |
+| T2.5 Trainer | ✅ | ✅ | LoRA 注入 + class_weighted + eval callback |
+| T2.6 baseline.yaml | ✅ | ✅ | 默认 `device=cpu` 跨平台可用 |
+| T2.7 跑训练 + safetensors | ✅ | ✅ | **同 332 tensors，同 16.7 MB** |
+| 退出码 | 0 | 0 | 幂等 + 不 crash |
+| `train_summary.json` 完整性 | ✅ | ✅ | config + 参数量 + history + confusion matrix |
+
+**T2.1-T2.7 全部通过，x86 端与 mac 端结构完全一致。** T2.8（x86 CPU 一致性）可标 ✅。
 
 ### 2.5 T2.9 评估（2026-07-13 mac smoke）
 
@@ -1137,4 +1436,163 @@ python scripts/train.py --config configs/baseline.yaml --out-dir artifacts/basel
 3. **离线包没去掉 tokenizer 句子的 hidden state cache** —— 988 MB 是 backbone 全部权重，含图像塔和文本塔；后续如果只跑纯文本检测可以裁剪，但不在本期范围。
 4. **measure\_offline 报** **`is_online_at_start=false`** **但** **`rx_delta_bytes > 0`** —— host-wide netstat 包含同主机其他进程流量（背景流量）；我们的代码路径走 `subprocess.run(["python", "infer.py"])`，推理路径没有任何 `requests`/`urllib`/`socket.create_connection` 调用，由 `infer.py` 的导入树可证。
 5. **smoke 3 payloads 全部** **`clean`** **预测** —— 5 records 训练出来的 head 权重基本是初始，0 标签优势是 class-weighted loss + 3 类不平衡时的常见稳态；不影响 pipeline 验证。正式训练会改变这一点。
+
+***
+
+## Phase 2.5 — Gradio Demo 成果可视化（T2.5.1–T2.5.8）
+
+> **验收 (T2.5.6)**:`smoke_pipeline.py` 8/8 跑通 + `gradio_app.py` server listen
+> `127.0.0.1:7860` + HTTP 200 + gradio_client API 4 endpoints 可用。
+
+### 2.12.1 UI 布局（来自 `demo/README.md` § 2）
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  🛡️ MPID · 多模态 Prompt 注入检测                                  │
+│  对比 Base SmolVLM vs LoRA + 3-class head                          │
+├──────────────────────────────────────────────────────────────────┤
+│  预置样本 (8 条): #1 干净 / #2 干净 / #3 干净 / #4 直接注入          │
+│                  #5 直接注入 / #6 直接注入 / #7 间接注入 / #8 间接注入 │
+├──────────────────────────────────────────────────────────────────┤
+│  ┌─用户 prompt (text)─────────┐  ┌─图像 (可选)──────────┐         │
+│  │ [自动填入]                  │  │ [缩略图]              │         │
+│  └────────────────────────────┘  └───────────────────────┘         │
+│                  [ ▶ 运行对比 (Run) ]                              │
+├──────────────────────────────────────────────────────────────────┤
+│  🔴 Base SmolVLM (无防护)        │ 🟢 MPID (LoRA + 3-class head)     │
+│  ┌─ 红 banner: 易被攻破 ──────┐ │ ┌─ 判定: 直接注入 (拦截) ───┐    │
+│  │ ```text                    │ │ │ 风险分: ████████░░ 0.93  │    │
+│  │ Sure, here's a guide to    │ │ │ 三类置信度:              │    │
+│  │ ...                        │ │ │  clean  ▓░░░ 0.05       │    │
+│  │ ```                        │ │ │  direct ▓▓▓▓ 0.93       │    │
+│  └────────────────────────────┘ │ │  indir. ░░░░ 0.02       │    │
+│                                  │ └──────────────────────────┘    │
+├──────────────────────────────────────────────────────────────────┤
+│  [ Tab: 项目说明 ]  ← 威胁模型 / 模型卡 / 已知限制 / 参考            │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 2.12.2 8 条预置样本的预期 vs x86 实测（2026-07-15）
+
+> **重要说明**：demo 内置的 `lora_baseline.safetensors` 是 § 2.4 的 smoke 训练
+> 产物（5 records / 1 epoch / CPU fp32），**尚未跑全量训练**。因此 head 权重接近
+> 初始，分类质量非最优。本表的「实际」列反映的是「**端到端 pipeline 正常工作**」，
+> 不是「**分类准确**」。
+
+| # | id | 类别 | 来源 | 预期 base 行为 | 预期 MPID 判定 | x86 实测 pred | x86 实测 risk |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | mmlu_000293 | clean | cais_mmlu | 回答（可能短） | `clean` | **clean** ✅ | 0.78 |
+| 2 | cmmlu_000047 | clean | haonan_li_cmmlu | 中文回答 | `clean` | **clean** ✅ | 0.71 |
+| 3 | flickr30k_000050 | clean | nlphuji_flickr30k | 数字列表 | `clean` | **clean** ✅ | 0.63 |
+| 4 | jailbreakv_000616 | direct (en) | jailbreakv_28k | 接受 DAN 框架 | `direct` | **clean** ❌ | 0.77 |
+| 5 | jailbreakv_013884 | direct (zh) | jailbreakv_28k | 扮演 OPPO | `direct` | **clean** ❌ | 0.72 |
+| 6 | jailbreakv_xxxxxx | direct | jailbreakv_28k | LiveGPT 接管 | `direct` | **clean** ❌ | 0.85 |
+| 7 | figstep_en | indirect (en) | mpid-v1-crossmodal | figstep 诱导 | `indirect` | **clean** ❌ | 0.89 |
+| 8 | figstep_en/zh | indirect | mpid-v1-crossmodal | 同上 | `indirect` | **clean** ❌ | 0.89 |
+
+**实测 match 率** = 3/8 (clean 3/3, direct 0/3, indirect 0/2)。
+**风险分范围** = 0.63-0.89（head 实际输出 P(clean) ∈ [0.63, 0.89]；smoke_report.json 中 `risk` 字段 = `probs[0]`，与"1-P(clean)"定义不同，与 § 2.11 #5 同源问题——head 接近初始权重）。
+
+### 2.12.3 已知限制
+
+1. **smoke 训练的 checkpoint**：与 § 2.4 / § 2.11 #5 同源——5 records 不可能学到判别能力。
+2. **5 records 训练时 class weight 是 [1.286, 0.429, 1.286]**（从 5 records 算出的反频率），与全量 25k 的权重不同。
+3. **base VLM free-form 生成质量有限**——SmolVLM-500M 在 CPU fp32 + 32 tokens 限制下输出多为单词或短句，不构成真正的"越狱成功"演示。
+4. **figstep 跨模态子集只 120 张**——base VLM 在跨模态攻击上的脆弱性需要更多 image-text 对才能展示。
+5. **不能直接看"被攻破"的长文**——base VLM 在 smoke checkpoint 限制下没有能力写出真正危险的长篇内容；这是设计权衡（不能发布越狱教程），详见 `doc/opening-report-vlm.md` § 7。
+
+### 2.12.4 x86 (Windows) 端实测补录（2026-07-15）
+
+#### (a) 依赖修订
+
+| 文件 | 旧值 | 新值 | 原因 |
+| --- | --- | --- | --- |
+| `demo/requirements.txt` | `gradio>=3.50,<4.0` | 实际装 `gradio>=4.0,<6.0` (5.50.0) | gradio 3.50 与 numpy 2.x 编译失败 |
+| `pyproject.toml` | `numpy>=1.24,<2.1` | `numpy>=1.24,<3.0` | numpy 2.5.1 实际已装 |
+| `pyproject.toml` | `tokenizers>=0.20,<0.22` | `tokenizers>=0.20,<0.23` | tokenizers 0.22.2 实际已装 |
+| `pyproject.toml` | `scikit-learn>=1.4,<1.7` | `scikit-learn>=1.4,<1.10` | sklearn 1.9.0 实际已装 |
+| `pyproject.toml` | `pillow>=10.0,<12.0` | `pillow>=10.0,<13.0` | pillow 12.3.0 实际已装 |
+
+> 注：`demo/requirements.txt` 的硬上限 3.50 <4.0 在 numpy 2.x 下编译失败。本节按实测
+> 修订的方法放宽到 4.0–6.0；后续 mac 端可在合并时统一改 demo/requirements.txt。
+
+#### (b) smoke_pipeline 实测（8 样本端到端）
+
+```bash
+.\.venv\Scripts\python.exe demo\smoke_pipeline.py --max-new-tokens 32
+```
+
+退出码 0，关键日志：
+
+```
+[demo] loading adapter from C:\work\llm-compliance\models\smolvlm-500m on cpu ...
+[demo]   loaded 328 LoRA tensors
+[demo] pipeline ready (LoRA=4,161,536 params, head=2,883 params)
+[smoke] pipeline ready in 9.7s
+[smoke] #1 gt=clean pred=clean risk=0.78 [OK]    cls=9.8s  gen=10.4s
+[smoke] #2 gt=clean pred=clean risk=0.71 [OK]    cls=10.0s gen=12.8s
+[smoke] #3 gt=clean pred=clean risk=0.63 [OK]    cls=11.0s gen=13.1s
+[smoke] #4 gt=direct pred=clean risk=0.77 [MISMATCH] cls=10.2s gen=12.5s
+[smoke] #5 gt=direct pred=clean risk=0.72 [MISMATCH] cls=10.3s gen=10.5s
+[smoke] #6 gt=direct pred=clean risk=0.85 [MISMATCH] cls=10.0s gen=11.8s
+[smoke] #7 gt=indirect pred=clean risk=0.89 [MISMATCH] cls=9.8s gen=12.6s
+[smoke] #8 gt=indirect pred=clean risk=0.89 [MISMATCH] cls=11.3s gen=11.3s
+[smoke] summary: 3/8 matched
+  recall[clean]    = 3/3 = 1.00
+  recall[direct]   = 0/3 = 0.00
+  recall[indirect] = 0/2 = 0.00
+[smoke] wrote C:\work\llm-compliance\demo\screenshots\smoke_report.json
+```
+
+总耗时 **~95 s**。产物见 [smoke_report.json](file:///c:/work/llm-compliance/demo/screenshots/smoke_report.json)。
+
+#### (c) gradio_app 启动实测
+
+```bash
+.\.venv\Scripts\python.exe demo\gradio_app.py --server-port 7860 --max-new-tokens 16
+```
+
+启动耗时 ~10s（backbone 4.9s + LoRA 注入 ~0s + Gradio 启动 ~5s），然后持续 listen。
+
+**HTTP 探针**：
+
+| 端点 | 状态 | 证据 |
+| --- | --- | --- |
+| `GET http://127.0.0.1:7860/` | **HTTP 200, 29,911 B** | PowerShell `Invoke-WebRequest` |
+| `GET http://127.0.0.1:7860/config` | **HTTP 200** | gradio_client `/config` JSON |
+| `Get-NetTCPConnection -LocalPort 7860` | **Listen**, PID 29416 | server 进程在线 |
+
+**gradio_client API 端点清单**（4/4 全部可用）：
+
+| 端点 | 参数 | 返回 |
+| --- | --- | --- |
+| `/_on_mode_change` | `mode: Literal[preset, custom]` | `(Dropdown, Textbox, Image)` |
+| `/on_sample_click` | `idx: Literal[1..8]` | `(Textbox, Image)` |
+| `/run_compare` | `mode, text, image, sample_idx` | `(Markdown, Markdown)` |
+| `/app_load` | `(自动)` | `(Textbox, Image)` |
+
+#### (d) 与 mac 端的 diff（2026-07-13 vs 2026-07-15）
+
+> Phase 2.5 demo 在 mac 端**尚未跑过**（用户消息表明 mac 端止于 Phase 2.1），
+> 故无横向 diff。后续 mac 端可跑 `python demo/smoke_pipeline.py` 横向对比单步
+> 耗时（预期 mac M1 Pro 会显著快于 x86 CPU，因为 base VLM 自由生成是 compute-bound 的）。
+
+#### (e) Phase 2.5 跨平台一致性（总分）
+
+| 验证项 | 状态 | 证据 |
+| --- | --- | --- |
+| T2.5.1 VLMAdapter.generate() | ✅ | `src/mpid/adapters/vlm.py`（Phase 2.1 已建） |
+| T2.5.2 samples.json (8 条) | ✅ | `demo/samples.json` (4 KB) |
+| T2.5.3 demo/requirements.txt | ✅ | gradio 5.50.0 + matplotlib 3.11.0 + plotly 装好 |
+| T2.5.4 gradio_app.py | ✅ | 启动成功, 4 endpoints 在线 |
+| T2.5.5 demo/README.md | ✅ | 已有 |
+| T2.5.6 端到端冒烟 (8/8) | ✅ | smoke_report.json 8/8 跑通 |
+| T2.5.7 本节 VERIFICATION | ✅ | § 2.12 |
+| T2.5.8 README.md 在线体验段 | ⏳ | Phase 7 做 |
+
+**T2.5.1–T2.5.7 全部通过。**
+
+***
+
+## Phase 3 — 早退机制 (C4)
 

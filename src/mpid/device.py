@@ -20,6 +20,7 @@ torch is installed (used by the env smoke test).
 from __future__ import annotations
 
 import os
+import platform
 import shutil
 import subprocess
 from typing import Optional
@@ -37,11 +38,13 @@ def _import_torch():
 
 
 def _is_apple_silicon() -> bool:
-    """Detect Apple Silicon (M1/M2/.../M4). Works on any POSIX."""
-    if os.uname().sysname != "Darwin":
+    """Detect Apple Silicon (M1/M2/.../M4). Works on macOS, Linux, and Windows.
+
+    Uses ``platform`` stdlib (no ``os.uname``) so it is safe to call on Windows.
+    """
+    if platform.system() != "Darwin":
         return False
-    machine = os.uname().machine
-    return machine in ("arm64", "aarch64")
+    return platform.machine() in ("arm64", "aarch64")
 
 
 def _has_mps() -> bool:
@@ -149,8 +152,8 @@ def device_summary() -> dict:
     torch = _import_torch()
     info = {
         "python": torch.__version__,
-        "platform": os.uname().sysname,
-        "machine": os.uname().machine,
+        "platform": platform.system(),
+        "machine": platform.machine(),
         "is_apple_silicon": _is_apple_silicon(),
         "mps_built": _has_mps(),
         "mps_available": _has_mps(),

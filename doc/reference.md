@@ -1,52 +1,13 @@
 # MPID 项目参考手册 (Reference)
 
 > **文档类型**：FAQ / 参考手册
-> **文档版本**：v3.6
+> **文档版本**：v3.8
 > **创建日期**：2026-07-13
 > **用途**：项目执行过程中常见问题与基础概念速查
 >
-> **v3.6 变更**：
-> - 新增 **§3.9 项目交付物深度解析**章节（7 个子章节）
-> - 核心论点：**C4/C5/C6 是推理时优化，不是模型本身的改变**——只给微调过的 LoRA 不够，第三方还需要完整的推理代码
-> - 7 个交付物清单：3 个模型（base + LoRA + head）+ 4 个系统代码块（C4 + C5 + C6 + 调度器）
-> - 4 种分发方式对比：自包含文件夹（当前选）/ pip 包 / API 服务 / ONNX
-> - 关键架构认识：**"防御是系统的属性，不是模型的属性"**——LoRA + C4/C5/C6 缺一不可
-> - 2 个类比（医院 / 软件工程）加深理解
-> - 当前状态表 + T3.8/T3.9/T3.10 三个新任务建议
-> - 答辩一句话话术：完整包 vs 只发权重的对比
->
-> **v3.5 变更**：
-> - 新增 **Phase 3 — C4 早退机制**章节（7 个子章节：目标 / 涉及文件 / 手动校验步骤 / 验收清单 / 代码解读 / 常见坑 / 与下一阶段衔接）
-> - 新增 `src/mpid/early_exit.py` 模块（`EarlyExitConfig` / `should_early_exit` / `classify_with_early_exit` / `EarlyExitStats`）
-> - 新增 `tests/test_early_exit.py` 单测（13 个用例，pure-Python 全部通过）
-> - `scripts/eval.py` 新增 `--early-exit` / `--clean-threshold` / `--simulate-c5-c6-ms` 选项（T3.7）
-> - `scripts/infer.py` 新增 `--early-exit` / `--clean-threshold` flag（T3.6，CLI 占位）
-> - C4 端到端跑通：3 个产物（`early_exit_compare.{json,md}` + `early_exit_per_sample.jsonl`）
-> - 核心结论：C4 不引入新模型，复用 Phase 2 head，零训练成本；5 条 smoke 训练后 head 不会触发早退（符合预期，框架就位等真实训练）
->
-> **v3.4 变更**：
-> - §2.5 手动端到端校验从 7 步扩展到 8 步——新增 **Step 8（T2.11）** 作为 Phase 2 的"最终能力证明"
-> - Step 8 内容：跑 `eval.py --compare` 同时跑基线（随机初始化）和改造版（checkpoint 加载），输出 `comparison_report.md` + `comparison_delta.json`，macro F1 delta ≥ +0.20 才算 Phase 2 真正完成
-> - §2.6 校验清单同步增加 Step 8
-> - 原独立的 §2.11 章节已合并进 §2.5 Step 8
-> - §3.4.1 短期路线同步说明"统一对比机制"复用方式
->
-> **v3.3 变更**：
-> - 新增"第三部分：项目局限、扩展方向与未来展望"（§3）—— 专门为答辩 Q&A 和后续工作规划设计
-> - 8 个子章节覆盖：当前局限、为什么 LoRA 不挂视觉侧、未来 3 阶段（短/中/长期）可做的工作、预期效果提升、与开题报告目标对应、答辩常问 Q&A
-> - 附录 B 同步新增"卡片 6：未来工作路线图"
->
-> **v3.2 变更**：
-> - 新增"§2.E LoRA 原理与使用技巧"（核心概念速查）—— 介绍 LoRA 的数学原理、本项目（SmolVLM-500M）的具体配置、关键使用技巧与优劣势
->
-> **v3.1 变更**：
-> - 将 **Macro F1** 整合进"第二部分：核心概念速查"（新增 2.D 节），与威胁模型 / 数据集构造 / EDA 并列
-> - 核心概念章节目录改用字母编号（2.A / 2.B / 2.C / 2.D）以避免与 Phase 2 的 2.1-2.10 数字编号冲突
-> - 原"第三部分：Macro F1 完全指南" → 现"§2.D Macro F1 完全指南"
->
-> **v3.0 变更**：
-> - 新增"第二部分：核心概念速查"（威胁模型 / 数据集构造 / EDA），由原独立文件 `threat_model.md` 合并而来
-> - 详见各章节首段说明
+> **当前版本变更**（完整历史见 [附录 C：文档变更历史](#附录-c文档变更历史)）：
+> - **v3.8**：Phase 2 章节重组为三大块——§2.1–§2.5 整体架构（共享）/ §2.6–§2.12 Phase 2.1（smoke）/ §2.13–§2.19 Phase 2.2（实际可用）
+> - **v3.7**：根据 [tasks.md v2.3](tasks.md) 把 Phase 2 章节拆为 2.1（smoke 训练）与 2.2（真实训练），新增 §2.11 Phase 2.2 节覆盖 T2.13–T2.21 完整流程
 
 ---
 
@@ -57,6 +18,9 @@
   - [Phase 0 — 脚手架](#phase-0--脚手架)
   - [Phase 1 — 数据集构造（对应 C1 威胁模型）](#phase-1--数据集构造对应-c1-威胁模型)
   - [Phase 2 — VLM 端到端基线（对应 C2）](#phase-2--vlm-端到端基线对应-c2)
+    - [§2.1–§2.5 Phase 2 整体架构（两个子阶段共享）](#phase-2-整体架构21-25两个子阶段共享)
+    - [§2.6–§2.12 Phase 2.1 — Smoke 端到端离线模型](#phase-21--smoke-端到端离线模型26-212)
+    - [§2.13–§2.19 Phase 2.2 — 实际可用端到端模型](#phase-22--实际可用端到端模型213-219)
   - [Phase 3 — C4 早退机制（对应 C4 优化）](#phase-3--c4-早退机制对应-c4-优化)
 - [第二部分：核心概念速查](#第二部分核心概念速查)
   - [2.A 威胁模型（Threat Model）](#2a-威胁模型threat-model)
@@ -76,6 +40,7 @@
   - [3.9 项目交付物深度解析：给第三方的不仅是模型](#39-项目交付物深度解析给第三方的不仅是模型)
 - [附录 A：术语速查](#附录-a术语速查)
 - [附录 B：速查卡片](#附录-b速查卡片)
+- [附录 C：文档变更历史](#附录-c文档变更历史)
 
 ---
 
@@ -478,7 +443,18 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 
 ## Phase 2 — VLM 端到端基线（对应 C2）
 
-> **本章节是整个项目的核心。它合并了原 reference.md 第一部分（技术细节）与第二部分（框架 vs 能力辨析）。**
+> **本章节是整个项目的核心**。它合并了原 reference.md 第一部分（技术细节）与第二部分（框架 vs 能力辨析）。
+>
+> **本 Phase 拆分为两个子阶段**（对齐 [tasks.md v2.3](tasks.md)）：
+> - **§2.1–§2.5 Phase 2 整体架构**（共享）：VLM 适配器 / LoRA 注入 / 3 分类 head / 训练循环 / 离线打包的代码框架
+> - **§2.6–§2.12 Phase 2.1 — Smoke 端到端离线模型**：用 `max_train_records=5` 跑通整条管线，**不验证模型能力**
+> - **§2.13–§2.19 Phase 2.2 — 实际可用端到端模型**：用全量数据训出 Macro F1 ≥ 0.50 的 `lora_full.safetensors`，作为 C4/C5/C6 评估的合法 baseline
+>
+> 两个子阶段共用 §2.1–§2.5 的代码框架；训练数据量、目标指标、产出物不同。
+
+---
+
+## Phase 2 整体架构（§2.1–§2.5，两个子阶段共享）
 
 ### 2.1 一句话目标
 
@@ -496,11 +472,12 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 | [prompt.py](../src/mpid/data/prompt.py) | 3 分类 prompt 模板构造（"answer: clean/direct_injection/indirect_injection"） |
 | [dataset.py](../src/mpid/data/dataset.py) | JSONL → PyTorch `Dataset`，带 1024-entry LRU tokenize 缓存 |
 | [trainer.py](../src/mpid/train/trainer.py) | LoRA 注入 + 训练循环 + 评估 + 早停；class-weighted 交叉熵防 collapse |
-| [configs/baseline.yaml](../configs/baseline.yaml) | 训练超参（LoRA r=16, alpha=32, epochs, lr, device） |
-| [scripts/train.py](../scripts/train.py) | 训练入口 |
-| [scripts/eval.py](../scripts/eval.py) | 评估入口（输出 JSON 报告 + 混淆矩阵 + Markdown） |
+| [configs/baseline.yaml](../configs/baseline.yaml) | Phase 2.1 smoke 训练超参（LoRA r=16, alpha=32, epochs, lr, device） |
+| [configs/full.yaml](../configs/full.yaml) | Phase 2.2 真实训练配置（更大数据量、更保守 lr、`lora_full.safetensors`） |
+| [scripts/train.py](../scripts/train.py) | 训练入口（Phase 2.1 / 2.2 共用） |
+| [scripts/eval.py](../scripts/eval.py) | 评估入口（输出 JSON 报告 + 混淆矩阵 + Markdown；支持 `--compare`、`--compare-smoke-vs-full`、`--early-exit`） |
 | [scripts/measure_offline.py](../scripts/measure_offline.py) | 离线指标测量（包大小/冷启动/延迟/内存/网络流量） |
-| [scripts/package_offline.py](../scripts/package_offline.py) | 离线包打包（`mpid_offline/` 目录） |
+| [scripts/package_offline.py](../scripts/package_offline.py) | 离线包打包（`mpid_offline/` / `mpid_offline_v2/`） |
 | [scripts/smoke_offline.py](../scripts/smoke_offline.py) | 离线包冒烟：解包到临时目录 + 跑 infer.py |
 
 ### 2.3 架构总览
@@ -526,17 +503,17 @@ train/trainer.py                       (Linear 960 → 3 分类)
         │                                     ▼
         ▼                                logits [3]
 artifacts/baseline/                         │
-├── lora_baseline.safetensors               ▼
-├── train_summary.json               infer.py / eval.py
-├── report_baseline.json                  │
-└── confusion_matrix.json                 ▼
-                                     {"label": "direct",
-        ▼                              "risk": 0.87}
-package_offline.py
+├── lora_baseline.safetensors   ← Phase 2.1 产物
+├── lora_full.safetensors       ← Phase 2.2 产物
+├── train_summary.json               ▼
+├── report_baseline.json      infer.py / eval.py
+└── confusion_matrix.json           │
+        ▼                           ▼
+package_offline.py         {"label": "direct", "risk": 0.87}
         ▼
-mpid_offline/             ← 可分发的离线包（零网络依赖）
+mpid_offline/  (Phase 2.1) /  mpid_offline_v2/  (Phase 2.2)  ← 可分发的离线包
 ├── models/smolvlm-500m/
-├── artifacts/lora_baseline.safetensors
+├── artifacts/lora_*.safetensors
 ├── src/mpid/...                （源码副本）
 ├── infer.py                    （入口）
 ├── requirements.txt
@@ -571,16 +548,16 @@ label="direct", risk=0.87
 | [classification.py](../src/mpid/heads/classification.py) | 3 分类 Linear head：960 → 3 | `risk = probs.max()`（选中的那个类的置信度） |
 | [prompt.py](../src/mpid/data/prompt.py) | 3 分类 prompt 模板 | 强制模型只输出 `clean` / `direct_injection` / `indirect_injection` 之一 |
 | [public_loaders.py](../src/mpid/data/public_loaders.py) | 6 个数据集 → 统一 `Record` schema | 每个数据集的脏活（parquet/zip/CSV）都封在独立函数里；用 `Record` dataclass 强类型校验 |
-| [dataset.py](../src/mpid/data/dataset.py) | 把 JSONL → PyTorch Dataset | LRU 缓存（1024 条），避免重复 tokenize |
-| [trainer.py](../src/mpid/train/trainer.py) | LoRA 注入 + 训练循环 + 评估 + 早停 | class-weighted 交叉熵（防 collapse 到"direct"）；每 epoch 后做 Macro F1 评估 |
-| [package_offline.py](../scripts/package_offline.py) | 把模型 + LoRA + 源码 + infer.py 打成单一目录 | 生成 `MANIFEST.json` + `CHECKSUMS.txt` + sha256 |
+| [dataset.py](../src/mpid/data/dataset.py) | 把 JSONL → PyTorch Dataset | LRU 缓存（1024 条），避免重复 tokenize；Phase 2.2 用 `preload()` 预编码全部样本到 RAM |
+| [trainer.py](../src/mpid/train/trainer.py) | LoRA 注入 + 训练循环 + 评估 + 早停 | class-weighted 交叉熵（防 collapse 到"direct"）；每 epoch 后做 Macro F1 评估；Phase 2.2 加 NaN 防护 + mid-epoch save + SIGTERM handler |
+| [package_offline.py](../scripts/package_offline.py) | 把模型 + LoRA + 源码 + infer.py 打成单一目录 | 生成 `MANIFEST.json` + `CHECKSUMS.txt` + sha256；Phase 2.2 从 MANIFEST 读 checkpoint 名 |
 
-**几个需要特别留意的实现选择**：
+### 2.5 关键实现选择（两个子阶段共享）
 
 1. **CPU 而不是 MPS**（`configs/baseline.yaml` 中 `device: cpu`）
    - P0A-2 阶段发现 fp16 + MPS 出现 NaN
    - MPS+LoRA+gradient_checkpointing 联合下不稳定
-   - 所以 smoke baseline 走 CPU；正式训练再切回 MPS
+   - 所以 **Phase 2.1 smoke baseline 走 CPU**；Phase 2.2 真实训练在 MPS 跑，配 `lr=1e-5` 极保守 + NaN 防护
 
 2. **4-bit 量化不在 macOS 启用**
    - `bitsandbytes` 在 macOS 上的 wheel 是 CPU-only
@@ -595,11 +572,31 @@ label="direct", risk=0.87
    - `Image.new("RGB", (512, 512), (235, 235, 235))`
    - Idefics3 强制要求 `<image>` token，纯文本样本也得配占位图
 
-### 2.5 手动端到端校验（8 步）
+---
+
+## Phase 2.1 — Smoke 端到端离线模型（§2.6–§2.12）
+
+> **核心定位**：用 `max_train_records=5` 跑通整条管线，**证明"图 + 文 → 3 分类 + 风险分"链路是通的**。
+>
+> **关键边界**：5 条样本训出的 head **没有真实检测能力**——本阶段**不验证 Macro F1**，**不期望**训练指标好。本阶段**严禁用 `lora_baseline.safetensors` 跑 C4/C5/C6 评估**。
+>
+> **对应任务**：T2.1–T2.12（[tasks.md v2.3 §Phase 2.1](tasks.md#phase-21--vlm-端到端检测基线·smoke-训练对应-c2)）。
+>
+> **核心产出**：`artifacts/baseline/lora_baseline.safetensors`（管线就位证明）+ `mpid_offline/`（Phase 2.1 版离线包）。
+
+### 2.6 一句话目标
+
+**用 5 条样本跑通 SmolVLM-500M + LoRA + 3 分类 head 的端到端管线，产出可离线分发的 `mpid_offline/`，证明"图 + 文 → 3 分类 + 风险分"链路是通的；不验证模型能力。**
+
+### 2.7 涉及任务
+
+T2.1 VLM 推理抽象 → T2.2 Backbone 注册表 → T2.3 DetectorHead → T2.4 prompt 模板 → T2.5 trainer → T2.6 baseline.yaml → T2.7 跑 3 epoch → T2.8 x86 CPU 跨平台 → T2.9 eval.py → T2.10 measure_offline.py → T2.11 package_offline.py → T2.12 smoke_offline 冒烟。
+
+### 2.8 手动端到端校验（8 步）
 
 **前提**：Phase 0A / Phase 1 全部验收通过。
 
-> **8 步的整体设计**：前 5 步打通数据/模型/训练链路（**证明管线通**）；Step 6 验证评估与离线指标（**证明能产出报告**）；Step 7 验证打包与离线运行（**证明可分发**）；**Step 8（T2.11）跑基线 vs 改造版对比（**证明改造真的赋予了防注入能力**）**——这是 Phase 2 的最终验证，也是与 §2.7 框架 vs 能力辨析的"实证闭环"。
+> **8 步的整体设计**：前 5 步打通数据/模型/训练链路（**证明管线通**）；Step 6 验证评估与离线指标（**证明能产出报告**）；Step 7 验证打包与离线运行（**证明可分发**）；**Step 8（T2.11）跑基线 vs 改造版对比（**证明改造真的赋予了防注入能力**）**——这是 Phase 2.1 的最终验证，也是与 §2.10 框架 vs 能力辨析的"实证闭环"。
 
 #### Step 1: 环境冒烟（30 秒）
 
@@ -721,7 +718,7 @@ python scripts/train.py
 4. 评估能跑（Macro F1 输出）
 5. checkpoint 能保存（safetensors 格式）
 
-**这是 Phase 2 端到端校验最关键的一步**：证明"数据 → 训练 → 评估 → 保存"整条管线无 bug。
+**这是 Phase 2.1 端到端校验最关键的一步**：证明"数据 → 训练 → 评估 → 保存"整条管线无 bug。
 
 ---
 
@@ -810,7 +807,7 @@ python scripts/smoke_offline.py
 
 #### Step 8（T2.11）：最终能力证明 — 基线 vs 改造版对比（3-5 分钟）
 
-> **本步是 Phase 2 的"最终验证"**。前 7 步只证明"管线通、报告出、能打包"，但**不能证明"改造真的让模型有了防注入能力"**——因为单边 F1 在 5 条样本上必然接近随机。本步用**对比方式**回答这个核心问题。
+> **本步是 Phase 2.1 的"最终验证"**。前 7 步只证明"管线通、报告出、能打包"，但**不能证明"改造真的让模型有了防注入能力"**——因为单边 F1 在 5 条样本上必然接近随机。本步用**对比方式**回答这个核心问题。
 >
 > **核心思想**：在同一份注入样本上同时跑两个版本，量化"训练带来的提升"。
 
@@ -858,30 +855,6 @@ python scripts/eval.py --compare \
 [eval] wrote artifacts/baseline/comparison_report.md
 ```
 
-**`comparison_report.md` 示例**：
-
-```markdown
-# MPID Baseline vs Modified Comparison
-
-| Metric          | Baseline (untrained) | Modified (LoRA-trained) | Delta |
-|-----------------|----------------------|-------------------------|-------|
-| accuracy        | 0.3333               | 0.7333                  | +0.4000 |
-| macro F1        | 0.2222               | 0.6800                  | +0.4578 |
-| weighted F1     | 0.3333               | 0.7500                  | +0.4167 |
-| clean recall    | 0.40                 | 0.70                    | +0.30  |
-| direct recall   | 0.30                 | 0.80                    | +0.50  |
-| indirect recall | 0.20                 | 0.75                    | +0.55  |
-
-## Interpretation
-- 改造版在所有 3 个类别上的 recall 都显著高于基线 → LoRA 训练生效
-- 间接注入（最难的）提升最大（+0.55）→ 说明端到端学习捕捉到了非显式模式
-- 改造版 Macro F1 达到 0.68 → 已具备"基本"防注入能力
-
-## Pass / fail
-- macro F1 delta = +0.4578  → PASS (threshold: ≥ +0.20)
-- per-class recall improved by ≥ +0.20 on 3 / 3 classes  → PASS (threshold: ≥ 2)
-```
-
 **验收条件**：
 
 | 条件 | 通过判定 |
@@ -892,14 +865,15 @@ python scripts/eval.py --compare \
 | `comparison_delta.json` 完整 | ✅ 包含 macro_f1_delta / accuracy_delta / per_class_recall_delta |
 
 **通过的含义**：
-- ✅ = **Phase 2 真正完成了"赋予模型防注入能力"的目标**
-- ❌ = LoRA 配置或训练有 bug，需要回溯 Step 5 检查（是不是 epochs 不够 / 数据太少 / LoRA 配置错）
+- ✅ = **Phase 2.1 真正完成了"赋予模型防注入能力"的目标**（在 smoke 5 条样本尺度上证明 LoRA 训练 pipeline 有效）
+- ❌ = LoRA 配置或训练有 bug，需要回溯 Step 5 检查
 
-**对 C4-C6 的复用**：
+**对 Phase 2.2 / C4-C6 的复用**：
 本步建立的对比框架是后续所有算法优化的"统一裁判"：
 
 | 阶段 | 复用方式 |
 |---|---|
+| **Phase 2.2（真实训练）** | `eval.py --compare-smoke-vs-full` 对比 smoke baseline 与 full 模型（详见 §2.15 Step 4） |
 | **Phase 4（C5 规则前置）** | `eval.py --compare --checkpoint artifacts/c5_xxx.safetensors`，对比"仅 LoRA" vs "LoRA + C5 规则" |
 | **Phase 5（C6 跨模态）** | `eval.py --compare --val data/mpid-v1-crossmodal/test.jsonl`，验证 C6 是否在跨模态样本上提升 indirect recall |
 | **Phase 6（攻防基线评测）** | 与 PromptGuard 86M / Llama-Guard 7B 等基线做同形式对比 |
@@ -908,7 +882,7 @@ python scripts/eval.py --compare \
 
 ---
 
-### 2.6 端到端校验清单（贴墙版）
+### 2.9 端到端校验清单（贴墙版）
 
 | 步骤 | 命令 | 通过条件 | 关键观察点 |
 |---|---|---|---|
@@ -921,28 +895,28 @@ python scripts/eval.py --compare \
 | 7 | `python scripts/package_offline.py` & `smoke_offline.py` | `mpid_offline/` 存在 + 临时目录推理通 | `MANIFEST.json` + `CHECKSUMS.txt` 完整 |
 | **8** | `python scripts/eval.py --compare` | `comparison_report.md` 存在 + macro_f1_delta ≥ +0.20 | baseline F1 ≈ 0.22 → modified F1 ≈ 0.65+ |
 
-**全部 8 步通过 = Phase 2 端到端校验通过**。
+**全部 8 步通过 = Phase 2.1 端到端校验通过**。
 
-> **Step 8 是 Phase 2 的"最终能力证明"**——只有它通过了，才能说"模型具备了基本防注入能力"。详见 §2.5 Step 8。
+> **Step 8 是 Phase 2.1 的"最终能力证明"**——只有它通过了，才能说"模型具备了基本防注入能力（虽然只是 5 条 smoke 训练）"。详见 §2.8 Step 8。
 
 ---
 
-### 2.7 框架 vs 能力：核心辨析
+### 2.10 框架 vs 能力：核心辨析
 
-> **本节是整个 reference.md 最关键的一节。它回答一个问题：Phase 2 跑完后，模型到底有没有防注入能力？**
+> **本节是整个 reference.md 最关键的一节。它回答一个问题：Phase 2.1 跑完后，模型到底有没有防注入能力？**
 
-#### 2.7.1 概念上：你的理解对不对
+#### 2.10.1 概念上：你的理解对不对
 
-**理解完全正确**。Phase 2 在做的事就是**给基础模型加一个"防注入校验层"**：
+**理解完全正确**。Phase 2.1 在做的事就是**给基础模型加一个"防注入校验层"**：
 
 | 阶段 | 模型状态 |
 |---|---|
-| Phase 2 之前 | SmolVLM-500M 是通用视觉语言模型，能看图说话，不知道什么是"注入" |
-| Phase 2 之后 | 通用视觉语言模型 + LoRA 微调层 + 3 分类检测头，知道"这是不是注入" |
+| Phase 2.1 之前 | SmolVLM-500M 是通用视觉语言模型，能看图说话，不知道什么是"注入" |
+| Phase 2.1 之后 | 通用视觉语言模型 + LoRA 微调层 + 3 分类检测头，知道"这是不是注入" |
 
-#### 2.7.2 但"学会了"和"能干活"是两件事
+#### 2.10.2 但"学会了"和"能干活"是两件事
 
-**当前 smoke 配置下的真实状态**：
+**Phase 2.1 smoke 配置下的真实状态**：
 
 | 维度 | 现状 | 含义 |
 |---|---|---|
@@ -966,7 +940,7 @@ Macro F1 ≈ 0.3   （接近随机）
 
 **类比**：造了一台车，把车从生产线上开下来、点着了火、跑了一米——车是好的，但它还不能上路。
 
-#### 2.7.3 Phase 2 真正交付的是什么
+#### 2.10.3 Phase 2.1 真正交付的是什么
 
 | 交付物 | 性质 | 状态 |
 |---|---|---|
@@ -978,9 +952,9 @@ Macro F1 ≈ 0.3   （接近随机）
 | 离线打包（`mpid_offline/`） | **代码框架** | ✅ 完整 |
 | **实际学到的防注入知识** | **能力** | ❌ **零** |
 
-**一句话总结**：Phase 2 = **一个能用的"空模型 + 训练流程"**，不是"一个会防注入的模型"。
+**一句话总结**：Phase 2.1 = **一个能用的"空模型 + 训练流程"**，不是"一个会防注入的模型"。
 
-#### 2.7.4 为什么训练 5 条样本等于没训
+#### 2.10.4 为什么训练 5 条样本等于没训
 
 直觉上："训总比不训强吧？"
 
@@ -997,19 +971,9 @@ Macro F1 ≈ 0.3   （接近随机）
 
 5 条样本的梯度是**高度噪声**的，更新方向基本是随机的，**1 步就停**等于**0 步**。
 
-#### 2.7.5 什么时候才真的有"基本"防注入能力
+#### 2.10.5 什么时候才真的有"基本"防注入能力
 
-要走到"基本能防"，需要把 `configs/baseline.yaml` 改一下：
-
-```yaml
-training:
-  epochs: 3                          # 3-5 轮
-  max_train_records: 2000            # 至少 2k 条
-  max_val_records: 500
-  batch_size: 2
-```
-
-外加把 `device` 切到 `mps`（mac Apple Silicon）或 `cuda`（x86 + NVIDIA），速度会快 5-10 倍。
+要走到"基本能防"，需要扩训练数据并切到合适的设备——这正是 **Phase 2.2** 的工作目标。
 
 **训练完之后**：
 - Macro F1 大概 0.6-0.75（这是 500M 模型的天花板，**不是 0.95**）
@@ -1019,9 +983,9 @@ training:
 
 **这才是"基本能力"**——能挡掉 60-75% 的常见攻击，但不是铜墙铁壁。
 
-#### 2.7.6 即便训练好了，能力上限在哪
+#### 2.10.6 即便训练好了，能力上限在哪
 
-| 维度 | Phase 2 训好后 | 业界 SOTA |
+| 维度 | Phase 2.2 训好后 | 业界 SOTA |
 |---|---|---|
 | 模型规模 | 500M | 7B-70B |
 | Macro F1 | 0.6-0.75 | 0.90+ |
@@ -1031,7 +995,7 @@ training:
 
 **500M 模型的容量就那么大**，它学不会太复杂的模式。这不是 Phase 2 的问题，是**整个课题"轻量级"的固有取舍**——轻量 = 模型小 = 学到的东西有限。
 
-#### 2.7.7 在整个研究里，Phase 2 是什么位置
+#### 2.10.7 在整个研究里，Phase 2 是什么位置
 
 ```
 研究全貌
@@ -1039,40 +1003,41 @@ training:
 Phase 0A  准备（环境/模型/数据）    ← 工具就绪
 Phase 0    脚手架                   ← 代码骨架
 Phase 1    数据集构造               ← 数据就绪
-Phase 2    VLM 端到端基线          ← 【当前位置：框架就绪，能力为零】
+Phase 2.1  Smoke 端到端基线        ← 【当前位置：框架就绪，能力为零】
+Phase 2.2  实际可用基线            ← 【关键：这里开始有"真能力"了】
 Phase 3    C4 早退机制              ← 加速
-Phase 4    C5 规则前置过滤          ← 【关键：这里开始有"真能力"了】
+Phase 4    C5 规则前置过滤          ← 增强
 Phase 5    C6 跨模态自检            ← 增强
 Phase 6    攻防基线评测             ← 量化能力
 Phase 7    项目整理
 ```
 
-**Phase 2 之后的课题怎么"出能力"**：
+**Phase 2.1 之后的课题怎么"出能力"**：
 
-1. **Phase 4（规则前置过滤）不需要训练就能工作**
+1. **Phase 2.2（真实训练）**：扩数据到 200+ 样本 × 3 epoch，目标 Macro F1 ≥ 0.50
+2. **Phase 4（规则前置过滤）不需要训练就能工作**
    - 黑名单关键词、Unicode 异常检测 → 这些是**人写的规则**
    - 写完就生效，**F1 立即提升 0.1-0.2**
    - 这是"defense-in-depth"——不依赖 ML 模型也有基本防御
-
-2. **Phase 6（攻防基线评测）才有完整的"能力评估"**
+3. **Phase 6（攻防基线评测）才有完整的"能力评估"**
    - 在标准测试集上跑 Macro F1
    - 和 PromptGuard 等基线对比
    - 这时候才能下结论"我们的方法能防什么、防不住什么"
 
-#### 2.7.8 一句话总结
+#### 2.10.8 一句话总结
 
-> **Phase 2 = "在基准模型上加了一个防注入校验框架"，框架完整、能力为零。**
+> **Phase 2.1 = "在基准模型上加了一个防注入校验框架"，框架完整、能力为零。**
 >
-> - **框架完整**：✅ 这就是 Phase 2 的目标，它已经完成了
+> - **框架完整**：✅ 这就是 Phase 2.1 的目标，它已经完成了
 > - **能力为零**：❌ 5 条样本训出来的 LoRA 等于随机初始化，没有任何防注入能力
-> - **从框架到能力**：要靠**扩训练数据 + 调超参 + 多轮训练**（属于 Phase 6 的"训出真基线"工作）
+> - **从框架到能力**：靠 **Phase 2.2** 扩训练数据 + 调超参 + 多轮训练
 > - **真正的安全防御不只靠 ML**：课题里的**规则前置过滤（Phase 4）才是立即见效的部分**，它不依赖训练，写完就有用
 
-**结论**：Phase 2 把"引擎"装好了，但油箱里只有 5 滴油。要让车能跑远路，得加满油（扩数据）、换好轮胎（调超参）、走对的路线（规则 + ML 混合防御）。Phase 2 单独看，**功能上和没做差不多**；但放在整个研究里，**它是后续所有 Phase 的基础**。
+**结论**：Phase 2.1 把"引擎"装好了，但油箱里只有 5 滴油。Phase 2.2 把油加满（200 样本）、换好轮胎（调超参）、走对的路线（规则 + ML 混合防御）。Phase 2.1 单独看，**功能上和没做差不多**；但放在整个研究里，**它是后续所有 Phase 的基础**。
 
 ---
 
-### 2.8 常见坑
+### 2.11 常见坑（Phase 2.1 smoke 训练专属）
 
 1. **NaN 问题**：MPS + fp16 + LoRA 容易出 NaN → `configs/baseline.yaml` 强制 `dtype: float32` + `device: cpu`
 2. **空图像崩溃**：纯文本样本也得给占位图（512x512 浅灰）→ `VLMAdapter._get_placeholder_image()`
@@ -1083,41 +1048,224 @@ Phase 7    项目整理
 7. **CHECKSUMS.txt 校验失败**：`package_offline.py` 每次打包都重新算 SHA256，改了文件后必须重新打包
 8. **smoke_offline.py 找不到 JSON**：bitsandbytes 警告会打到 stdout，脚本会从 stdout 里"挑最后一行 `{...}`"作为结果，而不是要求严格 loads
 
-### 2.9 想真正训出模型该怎么办
+### 2.12 与下一阶段的衔接
 
-上面 7 步是"端到端 pipeline 验证"，**不期望** Macro F1 高。要真正训练出可用基线，需要改 `configs/baseline.yaml`：
+**Phase 2.1（smoke）验收通过**意味着：
+- 一条样本从"加载图 +文字"到"输出 3 分类标签 + 风险分"的整条管线已经跑通
+- `artifacts/baseline/lora_baseline.safetensors` 仅为"管线就位"证明——**5 条训出的 head 没有真实能力，不要用于 C4/C5/C6 评估**
+- `mpid_offline/`（Phase 2.1 版）可独立分发，但内置权重是 smoke
 
-```yaml
-training:
-  epochs: 3               # 从 1 改到 3
-  max_train_records: 2000  # 从 5 改到 2000（约 3-4 小时 on CPU）
-  max_val_records: 500
-  batch_size: 2
-```
+**Phase 2.1 → Phase 2.2**：
+- Phase 2.1 的 8 步端到端校验全过 → 进入 [§2.13 Phase 2.2](#213-一句话目标)（用全量数据训出真实训练模型）
+- 详见 §2.13 详细流程
 
-并且把 `device` 切到 `mps`（在 mac Apple Silicon 上）或 `cuda`（在 x86 + NVIDIA 上）。这一步**已经超出 Phase 2 的 smoke 范围**，属于"把基线训出来"的下一步工作（Phase 6 的 C3 攻防基线评测时会复用）。
-
-### 2.10 与下一阶段的衔接
-
-**Phase 2 验收通过**意味着：
-- 一条样本从"加载图 + 文字"到"输出 3 分类标签 + 风险分"的整条管线已经跑通
-- `artifacts/baseline/lora_baseline.safetensors` 可以作为后续 Phase 3/4/5/6 的基础权重
-- `mpid_offline/` 离线包可独立分发
-
-**Phase 3 会用到的 Phase 2 产出**：
+**Phase 3 会用到的 Phase 2.1 产出**：
 - `VLMAdapter` 的 `output_hidden_states=True` 接口 → 给 C4 早退机制暴露中间层 hidden state
 - `ClassificationHead` 的 3 分类接口 → 给 C4 中间层 head 复用
 
-**Phase 4 会用到的 Phase 2 产出**：
+**Phase 4 会用到的 Phase 2.1 产出**：
 - `VLMAdapter` 的 `forward()` → 给 C5 规则触发后的 VLM 精排阶段复用
 - `infer.py` 的 JSON 输出 schema → 给 C5 的"可解释输出"复用
 
-**Phase 5 会用到的 Phase 2 产出**：
+**Phase 5 会用到的 Phase 2.1 产出**：
 - `data/mpid-v1-crossmodal/` 来自 Phase 1 → 给 C6 跨模态训练用
 - `ClassificationHead` 双输出改造 → 给 C6 主输出 + 辅助输出复用
 
+> ⚠️ **重要提醒**：上述 C4/C5/C6 的"基础权重"在 Phase 2.1 阶段**不应**使用 `lora_baseline.safetensors`（能力为零）。正确做法是先用 Phase 2.2 训出 `lora_full.safetensors`，再用它跑 C4/C5/C6 评估（详见 §2.19）。
+
 ---
 
+## Phase 2.2 — 实际可用端到端模型（§2.13–§2.19）
+
+> **核心定位**：用全量数据训出 **Macro F1 ≥ 0.50** 的 `lora_full.safetensors`，作为 C4/C5/C6 三项优化的**合法 baseline**。
+>
+> **关键边界**：
+> - **Phase 2.1 跑通后**才进入本阶段
+> - 本阶段产出的 `lora_full.safetensors`（或 `lora_partial.safetensors` 兜底）**是 C4/C5/C6 评估的唯一合法 baseline**
+> - 训练在 **MPS** 上跑（mac Apple Silicon），用 `lr=1e-5` 极保守 + NaN 防护 + mid-epoch save
+>
+> **对应任务**：T2.13–T2.21（[tasks.md v2.3 §Phase 2.2](tasks.md#phase-22--真实数据全量微调对应-c2--续)）。
+>
+> **核心产出**：`artifacts/baseline/lora_full.safetensors`（或 `lora_partial.safetensors`）+ `mpid_offline_v2/`（Phase 2.2 版离线包）+ `comparison_full_vs_smoke.{json,md}`（T2.18 报告）。
+
+### 2.13 一句话目标
+
+**用全量数据（2000+ 样本 × 3 epoch）训出 Macro F1 ≥ 0.50 的 `lora_full.safetensors`，作为 C4/C5/C6 三项优化的对比基线。**
+
+### 2.14 涉及任务（T2.13–T2.21）
+
+| 任务 | 新增 / 修改 | 用途 |
+|---|---|---|
+| T2.13 | `scripts/download_data.py` 扩展 | 下载完整数据集（不只是 smoke 5 条） |
+| T2.14 | `scripts/build_phase1.py` | 重新跑全量数据 split |
+| T2.15 | `configs/full.yaml` | 真实训练配置（区别于 `configs/baseline.yaml`） |
+| T2.16 | `scripts/launch_train_full.sh` + `trainer.py`（加 `save_every` / signal handler） | 后台启动训练 + 进度保护 |
+| T2.17 | `scripts/eval.py`（`--checkpoint`） | 评估 `lora_full.safetensors` |
+| T2.18 | `scripts/eval.py`（`--compare-smoke-vs-full`） | smoke vs full 性能对比 |
+| T2.19 | 同 T2.16 在 x86 CPU 上复跑 | 跨平台一致性验证 |
+| T2.20 | `scripts/package_offline.py`（`--ckpt`） | 用 lora_full 重新打包 `mpid_offline_v2/` |
+| T2.21 | `scripts/smoke_offline.py` | 离线包冒烟 |
+
+### 2.15 手动端到端校验（5 步：T2.16 → T2.21）
+
+#### Step 1: 数据准备（T2.13–T2.15）
+
+```bash
+# 1) 下载完整数据集
+python scripts/download_data.py
+
+# 2) 重新生成全量 split（覆盖原 smoke 的 5/5/5）
+python scripts/build_phase1.py
+
+# 3) 写真实训练配置
+#   configs/full.yaml 中关键差异：
+#   - max_train_records: 200    # 受 Mac 硬件限制，从 2000 降到 200
+#   - epochs: 3
+#   - lr: 1e-5                  # 极保守，避免 MPS+grad-ckpt 出 NaN
+#   - checkpoint_name: lora_full.safetensors
+#   - max_train_seconds: 9000   # 2.5h 硬性 wall-clock budget
+#   - preload_dataset: true      # 预编码到 RAM，~0.8 GB
+```
+
+期望输出：
+- `data/mpid-v1/{train,val,test}.jsonl` 全量（≥ 25k 训练样本）
+- `data/mpid-v1/EDA_full.md` 重新生成
+- `configs/full.yaml` 存在
+
+#### Step 2: 后台启动训练（T2.16）
+
+```bash
+bash scripts/launch_train_full.sh
+# 启动后端：
+#   - PYTHONUNBUFFERED=1 + python -u → 实时刷新日志
+#   - PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 → 允许 MPS 全量分配
+#   - --save-every 20 → 每 20 step 保存一次 lora_partial.safetensors
+#   - --max-train-seconds 9000 → 2.5h 硬性 budget
+#   - PID 写入 logs/train_full.pid
+tail -f logs/train_full.log
+```
+
+期望输出（每 5 step 一行）：
+```
+[train] epoch 1/3 step 5/200 (global 1/600) loss=2.5642  step_dt=21.49s  ETA=12000s  total_elapsed=120s
+[train] epoch 1/3 step 10/200 (global 6/600) loss=2.2141 ...
+[train]   ! step 8 loss=nan — NaN/Inf detected, skipping optimizer step
+[train]   ↳ periodic save: lora_partial.safetensors (step 20)
+```
+
+**关键保护机制**（**T2.16 实施**）：
+- **NaN 防护**：MPS+LoRA+grad-ckpt 已知会偶发 NaN，trainer 在 backward 后、optimizer.step() 前检查；NaN 时跳过 step 并清零梯度（保护 LoRA 权重不被污染）
+- **进度可见**：每 5 step 打印 `loss` / `step_dt` / `ETA` / `total_elapsed`，不刷缓冲
+- **mid-epoch save**：`--save-every 20` 每 20 步存一次 partial，避免 epoch 边界前 OOM/被 kill 丢失
+- **SIGTERM/SIGINT handler**：人工 Ctrl-C 时自动保存 `lora_partial.safetensors`（Mac MPS 卡在 backward 时 SIGTERM 也无法立刻响应，但 partial 文件已在训练中写过）
+
+#### Step 3: 评估真实训练模型（T2.17）
+
+```bash
+python scripts/eval.py \
+    --config configs/full.yaml \
+    --checkpoint artifacts/baseline/lora_full.safetensors \
+    --max-records 100
+# 或评估 partial（训练未到 epoch 1 结束时）：
+python scripts/eval.py \
+    --config configs/full.yaml \
+    --checkpoint artifacts/baseline/lora_partial.safetensors \
+    --max-records 100
+```
+
+期望输出：`report_baseline.json` + `confusion_matrix.json` + `report_baseline.md`
+关键指标：**Macro F1 ≥ 0.50**（**Phase 2.2 硬性指标**）。
+
+#### Step 4: smoke vs full 对比（T2.18）
+
+```bash
+python scripts/eval.py \
+    --config configs/full.yaml \
+    --compare-smoke-vs-full \
+    --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors \
+    --full-checkpoint  artifacts/baseline/lora_full.safetensors \
+    --max-records 100
+```
+
+期望输出：`comparison_full_vs_smoke.{json,md}`，包含：
+- smoke 与 full 的 acc / macro F1 / per-class recall
+- delta 指标
+- **verdict** = "full strictly better than smoke on all metrics: YES" → Phase 2.2 训练确有提升
+
+#### Step 5: 离线包重打包 + 冒烟（T2.20–T2.21）
+
+```bash
+# 重新打包，--ckpt 用 lora_full
+python scripts/package_offline.py \
+    --backbone-dir models/smolvlm-500m \
+    --ckpt artifacts/baseline/lora_full.safetensors \
+    --out mpid_offline_v2 \
+    --src src
+# 期望：mpid_offline_v2/ 目录 ~989 MB (79 files)
+# 内部文件名由 MANIFEST.json 决定，自动指向 lora_full.safetensors
+
+# 冒烟测试
+python scripts/smoke_offline.py --pkg mpid_offline_v2
+# 期望：layout ok (7 files) + checksums ok (79 files) + infer.py 输出 JSON
+# 注意：infer.py 的 checkpoint 路径从 MANIFEST.json 读取，不写死
+```
+
+### 2.16 Phase 2.1 vs Phase 2.2 关键差异
+
+| 维度 | Phase 2.1（smoke） | Phase 2.2（真实训练） |
+|---|---|---|
+| 训练样本数 | `max_train_records=5` | `max_train_records=200`（受 Mac 限制，从 2000 降） |
+| 训练轮数 | `epochs=1` | `epochs=3` |
+| 目标指标 | **不验证**（避免误用） | **Macro F1 ≥ 0.50** 硬性指标 |
+| 输出 checkpoint | `lora_baseline.safetensors` | `lora_full.safetensors`（或 `lora_partial.safetensors` 兜底） |
+| 是否用于 C4/C5/C6 | ❌ 严禁 | ✅ 唯一合法 baseline |
+| 是否参与 T2.18 对比 | 作 smoke 对照 | 作 full 主对象 |
+| 离线包版本 | `mpid_offline/` | `mpid_offline_v2/` |
+| 跨平台验证 | T2.8（smoke） | T2.19（真实训练） |
+| 任务数 | T2.1–T2.12（12 个） | T2.13–T2.21（9 个新增） |
+| 训练设备 | CPU（dtype=float32） | MPS（dtype=默认） |
+| 学习率 | 2e-4 | 1e-5（极保守避免 NaN） |
+| 进度保护 | 无 | NaN 防护 + mid-epoch save + SIGTERM handler |
+
+### 2.17 验收清单
+
+- [ ] `configs/full.yaml` 存在且与 smoke 配置有显著差异（train records / lr / checkpoint_name）
+- [ ] T2.16 训练产出 `lora_full.safetensors`（或 budget 超时后的 `lora_partial.safetensors`）
+- [ ] T2.17 评估 Macro F1 **≥ 0.50**（**硬性**；如不达标，需在 x86/CUDA 环境复跑 T2.16 拿到完整 checkpoint）
+- [ ] T2.18 smoke vs full 对比报告存在，verdict = YES
+- [ ] T2.19 跨平台一致性：x86 CPU 跑同样配置，F1 差异 < 2%（如无可用 x86 机器则跳过此步）
+- [ ] T2.20 `mpid_offline_v2/` 目录 ~989 MB，内含 `lora_full.safetensors`
+- [ ] T2.21 冒烟测试通过：layout + checksums + infer.py 跑通
+- [ ] `mpid_offline_v2/` 已被 `.gitignore` 排除（`mpid_offline*/` glob 规则）
+
+### 2.18 已知坑（本项目 Mac MPS 环境踩过）
+
+1. **MPS backward 卡死**——MPS + LoRA + grad-ckpt 已知 issue；表现：训练 step 12+ 偶发卡在 `THPEngine_run_backward`，20+ 分钟无进度。应对：SIGTERM 不响应，只能 SIGKILL；`--save-every 20` + SIGINT handler 保证 `lora_partial.safetensors` 至少存在
+2. **NaN 损失**——同 MPS+grad-ckpt 组合，**4/600 step** 触发 NaN 防护。`lr=1e-5` 极保守 + NaN skip 保护 LoRA 权重不被污染
+3. **eval 全量 4046 条 OOM**——`--max-records 100` 或更小，分批跑；Mac 16 GB 内存跑不动
+4. **stdout 缓冲**——`python -u` + `PYTHONUNBUFFERED=1` + `_log(flush=True)` 三重保险，否则训练看似卡住
+5. **训练太慢**——200 样本 × 3 epoch 在 Mac MPS 上约 2.3h；原始 2000 样本目标需要 24h+，已下调到 200
+6. **`.gitignore` 需主动加** `mpid_offline*/` 排除 989 MB 离线包，否则 `git status` 会被淹
+
+### 2.19 与下一阶段的衔接
+
+**Phase 2.2 验收通过**意味着：
+- `artifacts/baseline/lora_full.safetensors`（或 `lora_partial.safetensors` 兜底）作为 Phase 3/4/5 评估的合法 baseline
+- `mpid_offline_v2/` 可独立分发（内置真实训练权重）
+- T2.18 报告证明"真实训练"相对"smoke 训练"有显著提升（verdict = YES）
+
+**Phase 3（C4 早退）** 现在才有可用 baseline 跑 T3.7（`eval.py --early-exit`）：
+```bash
+python scripts/eval.py \
+    --config configs/full.yaml \
+    --checkpoint artifacts/baseline/lora_full.safetensors \
+    --early-exit \
+    --clean-threshold 0.95
+```
+
+**Phase 4/5** 同理：用 `lora_full.safetensors` 替换原本的 `lora_baseline.safetensors` 作为评估输入。
+
+---
 ## Phase 3 — C4 早退机制（对应 C4 优化）
 
 > 对应开题报告 §3.6.1。
@@ -2917,11 +3065,100 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
 
 ---
 
+## 附录 C：文档变更历史
+
+> 本附录按倒序记录每次重要变更（最新在上），便于回溯每个章节内容的来源。
+> 之前的版本将变更摘要放在文档开头，自 **v3.7** 起统一迁移到本附录。
+
+### v3.8 (2026-07-15) — Phase 2 章节重组（按 2.1 / 2.2 拆分）
+
+**动机**：原 §2.1–§2.11 章节混在一起，"smoke 训练"和"真实训练"的内容穿插，阅读体验混乱；按用户反馈以 Phase 2.1 / Phase 2.2 为主线重组。
+
+**变更**：
+- **Phase 2 章节结构重组**为三大块：
+  - **§2.1–§2.5 Phase 2 整体架构**（两个子阶段共享）：一句话目标 / 涉及模块与文件 / 架构总览 / 各模块职责 / 关键实现选择
+  - **§2.6–§2.12 Phase 2.1 — Smoke 端到端离线模型**：一句话目标 / 涉及任务 / 8 步端到端校验 / 校验清单 / 框架 vs 能力辨析 / 常见坑 / 与 Phase 2.2 衔接
+  - **§2.13–§2.19 Phase 2.2 — 实际可用端到端模型**：一句话目标 / 涉及任务 / 5 步端到端校验 / 2.1 vs 2.2 差异 / 验收清单 / 已知坑 / 与下一阶段衔接
+- **§2.10（原）框架 vs 能力** → **§2.10（新）Phase 2.1 框架 vs 能力**：保留 8 个子节（2.10.1–2.10.8）原内容；明确为 Phase 2.1 smoke 训练阶段的辨析
+- **§2.11（原）Phase 2.2** → **§2.13–§2.19（新）Phase 2.2**：7 个子节重新编号为 2.13–2.19
+- **§2.8（原）常见坑** → **§2.11（新）Phase 2.1 常见坑**：明确为 smoke 训练专属
+- **§2.9（原）想真正训出模型该怎么办** → **§2.10.5（新）什么时候才真的有"基本"防注入能力**：整合进框架 vs 能力辨析
+- **§2.10（原）与下一阶段的衔接** → **§2.12（新）Phase 2.1 与下一阶段的衔接**：明确指向 Phase 2.2
+- **目录更新**：Phase 2 下新增 3 个子条目（整体架构 / Phase 2.1 / Phase 2.2）
+- 文档版本号 v3.7 → **v3.8**
+
+### v3.7 (2026-07-15) — Phase 2 拆分 + changelog 位置调整
+
+**动机**：对齐 [tasks.md v2.3](tasks.md) 的 Phase 2.1 / Phase 2.2 拆分，同时按用户反馈把 changelog 从开头迁移到附录。
+
+**变更**：
+- 新增 **§2.11 Phase 2.2 — 真实数据全量微调**（[链接](#211-phase-22--真实数据全量微调对应-c2--续)）
+  - 7 个子节：2.11.1 一句话目标 / 2.11.2 涉及模块与文件（T2.13–T2.21）/ 2.11.3 5 步端到端校验 / 2.11.4 2.1 vs 2.2 关键差异 / 2.11.5 验收清单 / 2.11.6 已知坑 / 2.11.7 与下一阶段的衔接
+  - 显式记录 Mac MPS 训练踩过的 6 个坑（MPS backward 卡死、NaN 损失、eval OOM、stdout 缓冲、训练太慢、`.gitignore` 维护）
+- 修订 **§2.10 与下一阶段的衔接**——加段首说明"§2.1–§2.10 描述 Phase 2.1（smoke 训练）；Phase 2.2 见 §2.11"
+- 修订 **§2.5 Step 8** 引用的"Phase 2 验收"语义——明确是 Phase 2.1（smoke）验收，C4/C5/C6 的合法 baseline 在 §2.11 才会得到
+- 修订 **目录**——Phase 2 下加 §2.11 子条目；新增附录 C 条目
+- 修订 **引用段**——`tasks.md v2.0` → `tasks.md v2.3`
+- **Changelog 位置调整**：v3.0–v3.6 的变更摘要从文档开头迁至本附录
+- 文档版本号 v3.6 → v3.7
+
+### v3.6 (2026-07-13) — 项目交付物深度解析
+
+- 新增 **§3.9 项目交付物深度解析**章节（7 个子章节）
+- 核心论点：**C4/C5/C6 是推理时优化，不是模型本身的改变**——只给微调过的 LoRA 不够，第三方还需要完整的推理代码
+- 7 个交付物清单：3 个模型（base + LoRA + head）+ 4 个系统代码块（C4 + C5 + C6 + 调度器）
+- 4 种分发方式对比：自包含文件夹（当前选）/ pip 包 / API 服务 / ONNX
+- 关键架构认识：**"防御是系统的属性，不是模型的属性"**——LoRA + C4/C5/C6 缺一不可
+- 2 个类比（医院 / 软件工程）加深理解
+- 当前状态表 + T3.8/T3.9/T3.10 三个新任务建议
+- 答辩一句话话术：完整包 vs 只发权重的对比
+
+### v3.5 — C4 早退机制（Phase 3）
+
+- 新增 **Phase 3 — C4 早退机制**章节（7 个子章节：目标 / 涉及文件 / 手动校验步骤 / 验收清单 / 代码解读 / 常见坑 / 与下一阶段衔接）
+- 新增 `src/mpid/early_exit.py` 模块（`EarlyExitConfig` / `should_early_exit` / `classify_with_early_exit` / `EarlyExitStats`）
+- 新增 `tests/test_early_exit.py` 单测（13 个用例，pure-Python 全部通过）
+- `scripts/eval.py` 新增 `--early-exit` / `--clean-threshold` / `--simulate-c5-c6-ms` 选项（T3.7）
+- `scripts/infer.py` 新增 `--early-exit` / `--clean-threshold` flag（T3.6，CLI 占位）
+- C4 端到端跑通：3 个产物（`early_exit_compare.{json,md}` + `early_exit_per_sample.jsonl`）
+- 核心结论：C4 不引入新模型，复用 Phase 2 head，零训练成本；5 条 smoke 训练后 head 不会触发早退（符合预期，框架就位等真实训练）
+
+### v3.4 — Phase 2 端到端校验 8 步化
+
+- §2.5 手动端到端校验从 7 步扩展到 8 步——新增 **Step 8（T2.11）** 作为 Phase 2 的"最终能力证明"
+- Step 8 内容：跑 `eval.py --compare` 同时跑基线（随机初始化）和改造版（checkpoint 加载），输出 `comparison_report.md` + `comparison_delta.json`，macro F1 delta ≥ +0.20 才算 Phase 2 真正完成
+- §2.6 校验清单同步增加 Step 8
+- 原独立的 §2.11 章节已合并进 §2.5 Step 8
+- §3.4.1 短期路线同步说明"统一对比机制"复用方式
+
+### v3.3 — 第三部分：项目局限与未来展望
+
+- 新增"第三部分：项目局限、扩展方向与未来展望"（§3）—— 专门为答辩 Q&A 和后续工作规划设计
+- 8 个子章节覆盖：当前局限、为什么 LoRA 不挂视觉侧、未来 3 阶段（短/中/长期）可做的工作、预期效果提升、与开题报告目标对应、答辩常问 Q&A
+- 附录 B 同步新增"卡片 6：未来工作路线图"
+
+### v3.2 — §2.E LoRA 原理与使用技巧
+
+- 新增"§2.E LoRA 原理与使用技巧"（核心概念速查）—— 介绍 LoRA 的数学原理、本项目（SmolVLM-500M）的具体配置、关键使用技巧与优劣势
+
+### v3.1 — Macro F1 整合
+
+- 将 **Macro F1** 整合进"第二部分：核心概念速查"（新增 2.D 节），与威胁模型 / 数据集构造 / EDA 并列
+- 核心概念章节目录改用字母编号（2.A / 2.B / 2.C / 2.D）以避免与 Phase 2 的 2.1-2.10 数字编号冲突
+- 原"第三部分：Macro F1 完全指南" → 现"§2.D Macro F1 完全指南"
+
+### v3.0 — 第二部分：核心概念速查
+
+- 新增"第二部分：核心概念速查"（威胁模型 / 数据集构造 / EDA），由原独立文件 `threat_model.md` 合并而来
+- 详见各章节首段说明
+
+---
+
 ## 引用
 
 - **本项目文档**：
   - [opening-report-vlm.md](opening-report-vlm.md) — VLM 端到端路线开题报告 v0.3
-  - [tasks.md](tasks.md) — 任务分解 v2.0
+  - [tasks.md](tasks.md) — 任务分解 v2.3（Phase 2 拆分为 2.1 smoke + 2.2 真实训练）
   - [reference.md § 2.A](reference.md#2a-威胁模型threat-model) — 威胁模型（已并入本文件）
   - [reference.md § 2.E](reference.md#2e-lora-原理与使用技巧) — LoRA 原理与使用技巧
   - [reference.md § 3](reference.md#第三部分项目局限扩展方向与未来展望) — 项目局限、扩展方向与未来展望（答辩 Q&A 弹药库）

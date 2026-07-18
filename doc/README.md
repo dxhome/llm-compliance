@@ -2,6 +2,16 @@
 
 本目录汇集本项目的全部正式文档。
 
+## 当前运行目录约定
+
+本项目的本地执行状态统一收敛到顶层 `runs/` 目录。旧的顶层本地目录 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 不应再新建或继续作为执行入口。
+
+- `runs/<run_id>/` 表示一次独立端到端执行，包含该次执行自己的 `configs/`、`data/`、`artifacts/`、`logs/`、`scripts/`、`execution_plan.*` 和 `execution_log.md`。
+- 具体 run 目录必须带时间后缀，例如 `runs/phase2_2_balanced_600_20260718_1955/`。
+- `runs/_datasets/`、`runs/_models/`、`runs/_templates/`、`runs/_manual/` 是共享的本地数据、模型、模板和手动输出目录。
+- 整个 `runs/` 已加入 `.gitignore`；其中的 run-local 配置、数据、checkpoint、日志、离线包和 launcher 都是本地执行资产，不进入 git。
+- 顶层 `scripts/` 只保留通用脚本；具体执行的 PowerShell launcher 放在 `runs/<run_id>/scripts/`，通用模板入口为 `scripts/run_phase2_workflow.ps1`。
+
 ## 文档清单
 
 | 文档 | 用途 | 读者 |
@@ -40,9 +50,9 @@
 | 文档 | 版本 | 最后更新 |
 |---|---|---|
 | opening-report-vlm.md | v0.3（独立自洽·轻量级 VLM 专用） | 2026-07-13 |
-| reference.md | v4.0（FAQ 速查·补充 Windows/macOS 分流命令与跨平台校正） | 2026-07-18 |
+| reference.md | v4.1（FAQ 速查·统一 runs 执行目录结构） | 2026-07-18 |
 | tasks.md | v2.0（对齐 vlm 开题报告 v0.3） | 2026-07-13 |
 | opening-report-formal.md | v1.2（级联方案·对照参考） | 2026-07-13 |
 | opening-report-reference.md | v0.2（参考存档） | 2026-07-13 |
 | VERIFICATION.md | v1.0 | 2026-07-13 |
-| README.md | v1.2 | 2026-07-13 |
+| README.md | v1.3 | 2026-07-18 |

@@ -31,7 +31,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL_ID = "HuggingFaceTB/SmolVLM-500M-Instruct"
-DEFAULT_LOCAL_DIR = REPO_ROOT / "models" / "smolvlm-500m"
+DEFAULT_LOCAL_DIR = REPO_ROOT / "runs" / "_models" / "smolvlm-500m"
 
 # File patterns to fetch. Using allow-list (not ignore-patterns) so we never
 # accidentally miss a required file. The list is validated against the hub

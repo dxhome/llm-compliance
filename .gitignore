@@ -142,6 +142,7 @@ cython_debug/
 # Datasets and model weights (large files; do not commit)
 /data
 /models
+/runs/
 
 # ML artifacts (large files; do not commit)
 artifacts/

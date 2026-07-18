@@ -1,7 +1,12 @@
 # 任务分解 (Tasks)
 
 > 与 [opening-report-vlm.md](opening-report-vlm.md) 严格对应。任务按 Phase 排序，标 `[P]` 优先级、`[D]` 依赖、`[T]` 预估时长。
-> 文档版本：v2.3（对齐 vlm 开题报告 v0.3 · SmolVLM-500M 单一 VLM 端到端 · C4/C5/C6 三项算法优化 · **Phase 3 V1 已完成**）
+> 文档版本：v2.4（对齐新的 `runs/` 本地执行目录结构；Phase 3 V1 已完成）
+>
+> **v2.4 变更**：
+> - 顶层只保留 `runs/` 作为本地执行目录；旧 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 不再作为执行入口
+> - 具体 run 使用带时间后缀的 `runs/<run_id>/`，run-local launcher 放入 `runs/<run_id>/scripts/`
+> - 顶层 `scripts/` 只保留通用脚本和 `scripts/run_phase2_workflow.ps1` 模板入口
 >
 > **v2.3 变更**：
 > - **Phase 2 拆分为 2.1（smoke 训练）和 2.2（真实训练）两个子阶段**
@@ -22,6 +27,23 @@
 > - 原 T5.1-T5.8 重命名为 T5B.1-T5B.8
 
 ---
+
+## 当前运行目录约定
+
+所有本地执行输出统一放在 `runs/` 下。
+
+- 顶层 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 已废弃，不应再创建。
+- 一次独立端到端执行对应一个带时间后缀的目录，例如 `runs/phase2_2_balanced_600_20260718_1955/`。
+- 每个 run 目录拥有自己的 `configs/`、可选 run-local `data/`、`artifacts/`、`logs/`、`scripts/`、`execution_plan.json`、`execution_plan.md`、`execution_log.md`、`status.json`。
+- 共享本地资产放在 `runs/_datasets/`、`runs/_models/`、`runs/_templates/`、`runs/_manual/`。
+- `runs/` 整体被 git 忽略；fresh clone 后不要假设 run-local 配置或 checkpoint 已存在。
+- 顶层 `scripts/` 只放通用脚本。具体 run 的 PowerShell launcher 放在 `runs/<run_id>/scripts/`；通用 launcher 模板是 `scripts/run_phase2_workflow.ps1`。
+
+Phase 2.2 推荐入口：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\launch.ps1
+```
 
 ## 任务总览
 
@@ -58,8 +80,8 @@
 ### P0A-2 基础模型准备：SmolVLM-500M
 
 - [ ] **TP2.1** 选型决策：`SmolVLM-500M`（约 5 亿参数，Apache 2.0，HuggingFace, COLM 2025） `[P:high][D:TP1.6]`
-- [ ] **TP2.2** 模型下载脚本 `scripts/download_models.py`，把 SmolVLM-500M 本地化到 `models/smolvlm-500m/` 目录，**完全离线可加载** `[P:high][D:TP2.1]`
-- [ ] **TP2.3** 模型加载冒烟 `scripts/smoke_model.py`：从 `models/smolvlm-500m` 加载 tokenizer + 模型，喂入 2-3 条 (image, text) 样例，输出 3 分类 logits shape 正确 `[P:high][D:TP2.2]`
+- [ ] **TP2.2** 模型下载脚本 `scripts/download_models.py`，把 SmolVLM-500M 本地化到 `runs/_models/smolvlm-500m/` 目录，**完全离线可加载** `[P:high][D:TP2.1]`
+- [ ] **TP2.3** 模型加载冒烟 `scripts/smoke_model.py`：从 `runs/_models/smolvlm-500m` 加载 tokenizer + 模型，喂入 2-3 条 (image, text) 样例，输出 3 分类 logits shape 正确 `[P:high][D:TP2.2]`
 - [ ] **TP2.4** 4-bit 量化加载验证：测试 `BitsAndBytesConfig(load_in_4bit=True)` 能成功加载 SmolVLM-500M `[P:high][D:TP2.3]`
 - [ ] **TP2.5** 离线加载验证：拔网 / 关代理后再跑 `smoke_model.py`，确认**零网络依赖** `[P:high][D:TP2.4]`
 - [ ] **TP2.6** 跨平台一致性：在 mac 与 x86 两个平台各跑一次 `smoke_model.py`，对比输出 logits shape 与数值范围是否一致 `[P:high][D:TP2.5]`
@@ -73,7 +95,7 @@
   - `xTRam1/safe-guard-prompt-injection`（多语种，~6k 条）
 - [ ] **TP3.2** 多模态注入样本：`JailbreakV-28K`（EN/CN，28k 条，多模态越狱样本） `[P:medium][D:TP1.6]`
 - [ ] **TP3.3** 干净负例：MMLU / CMMLU prompts（EN/CN，~2k）+ Flickr30k 图像描述（EN，~1k） `[P:medium][D:TP1.6]`
-- [ ] **TP3.4** 数据下载脚本 `scripts/download_data.py` 把上述公开集落地到 `data/raw/` 目录（**只下载不修改**） `[P:high][D:TP3.1-TP3.3]`
+- [ ] **TP3.4** 数据下载脚本 `scripts/download_data.py` 把上述公开集落地到 `runs/_datasets/raw/` 目录（**只下载不修改**） `[P:high][D:TP3.1-TP3.3]`
 - [ ] **TP3.5** 离线加载冒烟 `scripts/smoke_data.py`：
   - 每个公开集至少 5 条样本能完整读出
   - 字段（`text / prompt / image / label`）至少一个非空
@@ -100,7 +122,7 @@
 
 ## Phase 0 — 脚手架
 
-- [ ] **T0.1** 创建项目目录结构 `src/mpid/`、`scripts/`、`configs/`、`data/`、`models/`、`artifacts/` `[P:high][D:-]`
+- [ ] **T0.1** 创建项目目录结构 `src/mpid/`、`scripts/`、`tests/`，本地执行目录统一使用 `runs/` `[P:high][D:-]`
 - [ ] **T0.2** 实现 `src/mpid/device.py` 设备抽象，暴露 `get_device(prefer)` 函数；单元测试 M1 / Intel 两种环境各跑通 `[P:high][D:T0.1]`
 - [ ] **T0.3** 写 `src/mpid/__init__.py` 与 `scripts/train.py` / `scripts/eval.py` / `scripts/infer.py` 入口占位（仅 echo） `[P:medium][D:T0.1]`
 - [ ] **T0.4** 创建 venv 并跑通 `import mpid` smoke test `[P:high][D:T0.2]`
@@ -116,11 +138,11 @@
 - [ ] **T1.3** 编写 `src/mpid/data/public_loaders.py`，把 P0A-3 拉取的公开集统一为内部 schema `(text, image, label)` `[P:high][D:T1.2]`
 - [ ] **T1.4** 编写 `src/mpid/data/synthetic_image_injection.py`（可选）：输入干净图 + 攻击模板库，输出注入图像 + 标注 JSONL `[P:medium][D:T1.3]`
 - [ ] **T1.5** 实现 `src/mpid/data/split.py`，8:1:1 划分 + 类别均衡检查 `[P:high][D:T1.3]`
-- [ ] **T1.6** EDA 报告 `data/mpid-v1/EDA.md`：类别分布、语种分布、长度分布、典型样例 `[P:medium][D:T1.5]`
+- [ ] **T1.6** EDA 报告 `runs/_datasets/mpid-v1/EDA.md`：类别分布、语种分布、长度分布、典型样例 `[P:medium][D:T1.5]`
 - [ ] **T1.7** 数据质量自检：随机抽 20 条人工核对标签 `[P:high][D:T1.5]`
-- [ ] **T1.8** 自构造 `data/mpid-v1-crossmodal/` 子集（100+ 条，C6 用） `[P:high][D:T1.4]`
+- [ ] **T1.8** 自构造 `runs/_datasets/mpid-v1-crossmodal/` 子集（100+ 条，C6 用） `[P:high][D:T1.4]`
 
-**Phase 1 验收**：`data/mpid-v1/` 下有 `train.jsonl` / `val.jsonl` / `test.jsonl`，总样本 ≥ 1k，含 cross-modal 增强子集。
+**Phase 1 验收**：`runs/_datasets/mpid-v1/` 下有 `train.jsonl` / `val.jsonl` / `test.jsonl`，总样本 ≥ 1k，含 cross-modal 增强子集。
 
 ---
 
@@ -134,8 +156,8 @@
   - 支持 `device` 参数
   - 支持 `gradient_checkpointing`
   - 支持 `quantization_config`（4-bit）
-- [ ] **T2.6** 写 `configs/baseline.yaml` 训练配置（LoRA r=16, alpha=32, epochs=3, lr=2e-4） `[P:medium][D:T2.5]`
-- [ ] **T2.7** 在 MPS 上跑 3 epoch 训练，保存 `artifacts/lora_baseline.safetensors` `[P:high][D:T2.6]`
+- [ ] **T2.6** 写 `runs/_templates/configs/baseline.yaml` 训练配置（LoRA r=16, alpha=32, epochs=3, lr=2e-4） `[P:medium][D:T2.5]`
+- [ ] **T2.7** 在 MPS 上跑 3 epoch 训练，保存 `runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors` `[P:high][D:T2.6]`
 - [ ] **T2.8** 在 x86 CPU 上跑同样配置，验证跨平台一致（F1 差异 < 2%） `[P:high][D:T2.7]`
 - [ ] **T2.9** 编写 `scripts/eval.py`，输出 `report_baseline.json` + 混淆矩阵 `[P:high][D:T2.7]`
 - [ ] **T2.10** 编写 `scripts/measure_offline.py` 量化离线部署指标：
@@ -144,7 +166,7 @@
   - 单样本推理延迟 P50 / P95（ms）
   - 单样本推理峰值内存（MB）
   - 推理过程网络流量（应为 0）
-- [ ] **T2.11** 编写 `scripts/package_offline.py`：把 backbone 权重 + LoRA + tokenizer + 推理脚本 + 依赖清单打包到 `mpid_offline/` 目录 `[P:high][D:T2.10]`
+- [ ] **T2.11** 编写 `scripts/package_offline.py`：把 backbone 权重 + LoRA + tokenizer + 推理脚本 + 依赖清单打包到 `runs/<run_id>/artifacts/package/mpid_offline/` 目录 `[P:high][D:T2.10]`
   - 校验：目录内**无 `.git/` 引用、无网络初始化代码**
 - [ ] **T2.12** 离线包冒烟：解包 → 在目标机器跑通 `python mpid_offline/infer.py` 单样本推理 `[P:high][D:T2.11]`
 
@@ -187,15 +209,15 @@
   - **Flickr30k 完整图像**（annotations CSV 已下，补下 4.4 GB 图像 zip）
   - **JailbreakV-28K 完整 figstep 图像**（原 22000 行 cap 改为全量）
   - **JailbreakV-28K 完整 text-based 注入子集**（与 figstep 互补）
-  - 目标：总数据量 ≥ 25k 条（去重后）；下载到 `data/raw/`
+  - 目标：总数据量 ≥ 25k 条（去重后）；下载到 `runs/_datasets/raw/`
   - 进度条 + 断点续传 + sha256 校验
 - [ ] **T2.14** 重新跑 `scripts/build_phase1.py` 生成全量数据 split `[P:high][D:T2.13]`
-  - 全量 `data/mpid-v1/train.jsonl` / `val.jsonl` / `test.jsonl`（8:1:1，类别均衡）
+  - 全量 `runs/_datasets/mpid-v1/train.jsonl` / `val.jsonl` / `test.jsonl`（8:1:1，类别均衡）
   - 训练集 ≥ 20k 条、验证集 ≥ 2.5k、测试集 ≥ 2.5k
-  - 输出 `data/mpid-v1/EDA_full.md`（类别 / 语种 / 长度分布）
-  - cross-modal 增强子集 `data/mpid-v1-crossmodal/` ≥ 2k 条（C6 用）
-- [ ] **T2.15** 写 `configs/full.yaml` 真实训练配置 `[P:high][D:T2.14]`
-  - 复用 `configs/baseline.yaml` 的 LoRA 超参（r=16, alpha=32）
+  - 输出 `runs/_datasets/mpid-v1/EDA_full.md`（类别 / 语种 / 长度分布）
+  - cross-modal 增强子集 `runs/_datasets/mpid-v1-crossmodal/` ≥ 2k 条（C6 用）
+- [ ] **T2.15** 写 `runs/_templates/configs/full.yaml` 真实训练配置 `[P:high][D:T2.14]`
+  - 复用 `runs/_templates/configs/baseline.yaml` 的 LoRA 超参（r=16, alpha=32）
   - 训练规模：`max_train_records=2000`、`max_val_records=500`
   - 训练轮数：3 epoch，batch=2，grad_accum=4（effective batch=8）
   - 学习率：2e-4（LoRA 标准），warmup_ratio=0.1
@@ -203,11 +225,11 @@
 
 ### T2.16-T2.19 训练与跨平台验证
 
-- [ ] **T2.16** 在 mac MPS 上跑真实训练 2000 样本 × 3 epoch，保存 `artifacts/baseline/lora_full.safetensors` `[P:high][D:T2.15]`
+- [ ] **T2.16** 在 mac MPS 上跑真实训练 2000 样本 × 3 epoch，保存 `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` `[P:high][D:T2.15]`
   - 预计 1-3 小时（MacBook M1 CPU）/ 5-10 小时（x86 CPU）
-  - 输出 `artifacts/baseline/train_summary_full.json`（loss 曲线、val F1、训练时长）
+  - 输出 `runs/<run_id>/artifacts/checkpoints/train_summary_full.json`（loss 曲线、val F1、训练时长）
   - 早停 patience=3（连续 3 个 eval 点 val F1 不升则停）
-- [ ] **T2.17** 评估真实训练模型：`python scripts/eval.py --ckpt artifacts/baseline/lora_full.safetensors` `[P:high][D:T2.16]`
+- [ ] **T2.17** 评估真实训练模型：`python scripts/eval.py --ckpt runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` `[P:high][D:T2.16]`
   - 输出 `report_full.json` + `confusion_matrix_full.png`
   - **目标**：test set **Macro F1 ≥ 0.50**（clean / direct / indirect 三类平均）
   - 三类各自 Recall ≥ 0.40（不能有类完全学不到）
@@ -219,38 +241,38 @@
   - 同样配置（2000 样本 × 3 epoch）跑一遍 x86 CPU
   - 对比 x86 与 MPS 两份 `lora_full.safetensors` 在相同 test set 上的 Macro F1
   - **F1 差异 < 5%**（与 Phase 2.1 的 2% 标准不同——真实训练随机性更大，5% 可接受）
-  - 输出 `artifacts/baseline/cross_platform_full.json`
+  - 输出 `runs/<run_id>/artifacts/checkpoints/cross_platform_full.json`
 
 ### T2.20-T2.21 离线包更新
 
 - [ ] **T2.20** 重新打包离线包，使用 `lora_full.safetensors` `[P:high][D:T2.19]`
-  - 跑 `python scripts/package_offline.py --ckpt artifacts/baseline/lora_full.safetensors --out mpid_offline_v2/`
+  - 跑 `python scripts/package_offline.py --ckpt runs/<run_id>/artifacts/checkpoints/lora_full.safetensors --out runs/<run_id>/artifacts/package/mpid_offline/`
   - 校验目录内**无 `.git/` 引用、无网络初始化代码**（同 T2.11）
   - 输出 `package_offline_full.json`（含 lora 权重 sha256）
 - [ ] **T2.21** 离线包冒烟测试 `[P:high][D:T2.20]`
-  - 解包 `mpid_offline_v2/` 到临时目录
-  - 跑 `python mpid_offline_v2/infer.py` 单样本推理（5 条预置样本）
-  - 跑 `python scripts/measure_offline.py --package mpid_offline_v2` 量化离线指标
+  - 解包 `runs/<run_id>/artifacts/package/mpid_offline/` 到临时目录
+  - 跑 `python runs/<run_id>/artifacts/package/mpid_offline/infer.py` 单样本推理（5 条预置样本）
+  - 跑 `python scripts/measure_offline.py --package runs/<run_id>/artifacts/package/mpid_offline` 量化离线指标
   - 确认推理过程**零网络流量**
 
 **Phase 2.2 验收**：
-- 完整数据集已下载（≥ 25k 条去重后），`data/raw/` 有 Flickr30k 完整图像 + JailbreakV-28K 全量
+- 完整数据集已下载（≥ 25k 条去重后），`runs/_datasets/raw/` 有 Flickr30k 完整图像 + JailbreakV-28K 全量
 - 全量数据 split 生成：`train ≥ 20k` / `val ≥ 2.5k` / `test ≥ 2.5k`
-- 真实训练完成：`artifacts/baseline/lora_full.safetensors` 存在，`train_summary_full.json` 记录训练时长
+- 真实训练完成：`runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` 存在，`train_summary_full.json` 记录训练时长
 - **test set Macro F1 ≥ 0.50**（核心硬性指标，未达此值不进 Phase 3）
 - 跨平台一致性：x86 vs MPS F1 差异 < 5%
 - `lora_full.safetensors` 与 smoke 模型对比全指标优
-- 离线包 `mpid_offline_v2/` 解包后能单样本推理，零网络流量
+- 离线包 `runs/<run_id>/artifacts/package/mpid_offline/` 解包后能单样本推理，零网络流量
 
 **Phase 2.2 关键产物**：
-- `artifacts/baseline/lora_full.safetensors` — **生产级 LoRA + head 权重**（C4/C5/C6 评估基线）
-- `artifacts/baseline/train_summary_full.json` — 训练时长 / loss / val F1
-- `artifacts/baseline/report_full.json` — test set 评估报告
-- `artifacts/baseline/comparison_full_vs_smoke.json` — smoke vs 真实训练对比
-- `artifacts/baseline/cross_platform_full.json` — MPS vs x86 CPU 跨平台一致性
-- `data/raw/flickr30k-images/` + `data/raw/jailbreakv-28k/` — 完整数据集
-- `data/mpid-v1/{train,val,test}.jsonl` — 全量 split
-- `mpid_offline_v2/` — 基于 `lora_full` 的离线包
+- `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` — **生产级 LoRA + head 权重**（C4/C5/C6 评估基线）
+- `runs/<run_id>/artifacts/checkpoints/train_summary_full.json` — 训练时长 / loss / val F1
+- `runs/<run_id>/artifacts/checkpoints/report_full.json` — test set 评估报告
+- `runs/<run_id>/artifacts/checkpoints/comparison_full_vs_smoke.json` — smoke vs 真实训练对比
+- `runs/<run_id>/artifacts/checkpoints/cross_platform_full.json` — MPS vs x86 CPU 跨平台一致性
+- `runs/_datasets/raw/flickr30k-images/` + `runs/_datasets/raw/jailbreakv-28k/` — 完整数据集
+- `runs/_datasets/mpid-v1/{train,val,test}.jsonl` — 全量 split
+- `runs/<run_id>/artifacts/package/mpid_offline/` — 基于 `lora_full` 的离线包
 
 **下游依赖**：Phase 3（C4 早退）/ Phase 4（C5 规则前置）/ Phase 5A + 5B（C6 跨模态一致性）**全部依赖** `lora_full.safetensors` 作为基线。
 
@@ -265,7 +287,7 @@
 > **目录约定**：所有 demo 相关内容（脚本、依赖、样本、文档、截图）统一放在项目根的 **`demo/`** 目录下，**不**进 `scripts/` / `doc/` / `data/` / `report/` 等核心目录。`demo/` 是端到端自洽的子项目，依赖核心 `src/mpid/` 但本身不修改核心代码。
 
 - [ ] **T2.5.1** 在 `src/mpid/adapters/vlm.py` 的 `VLMAdapter` 上加 `generate(text, image, max_new_tokens)` 方法，供 demo 让 base VLM **按用户 prompt 自由生成**（不被 head 拦截的状态）`[P:high][D:T2.1]`
-- [ ] **T2.5.2** 写 `demo/samples.json`：从 `data/mpid-v1/test.jsonl` 选 8 条预置样本（clean ×3 / direct ×3 / indirect ×2），含 text、image path、label 元数据 `[P:high][D:T1.5]`
+- [ ] **T2.5.2** 写 `demo/samples.json`：从 `runs/_datasets/mpid-v1/test.jsonl` 选 8 条预置样本（clean ×3 / direct ×3 / indirect ×2），含 text、image path、label 元数据 `[P:high][D:T1.5]`
 - [ ] **T2.5.3** 写 `demo/requirements.txt`（gradio + plotly；与主 `requirements.txt` 分离；可通过 `pip install -r demo/requirements.txt` 安装）`[P:high][D:-]`
 - [ ] **T2.5.4** 写 `demo/gradio_app.py`：Gradio Blocks 应用，UI 布局包括：
   - 上方：8 个预置样本按钮（点选即填入 text + image）
@@ -331,7 +353,7 @@
 - [ ] **T4.3** 实现 `src/mpid/rules/registry.py`：规则文件可热加载（YAML/JSON） `[P:high][D:T4.1]`
 - [ ] **T4.4** 实现 `src/mpid/infer/refine.py`：规则引擎 → 触发策略（黑名单/白名单/可疑信号/无信号）→ VLM 精排 完整流程 `[P:high][D:T4.1-T4.3]`
 - [ ] **T4.5** 实现可解释输出：规则命中时输出"命中规则名 + 命中片段" `[P:high][D:T4.4]`
-- [ ] **T4.6** 写规则库 `configs/rules.yaml`：黑/白名单关键词 + Unicode / 结构 / 敏感指令 规则条目（≥ 20 条） `[P:medium][D:T4.2-T4.3]`
+- [ ] **T4.6** 写规则库 `runs/<run_id>/configs/rules.yaml`：黑/白名单关键词 + Unicode / 结构 / 敏感指令 规则条目（≥ 20 条） `[P:medium][D:T4.2-T4.3]`
 - [ ] **T4.7** 评估规则库在 clean 集 / injection 集上的命中率与误报率，**确保 clean 集 FPR 上升 ≤ 1%** `[P:high][D:T4.6]`
 - [ ] **T4.8** 写 `scripts/eval_c5.py`：规则命中率、规则拦截样本的 Recall、VLM 兜底样本的 F1、干净集 FPR、平均延迟 `[P:high][D:T4.7]`
 
@@ -375,10 +397,10 @@
   - **规则 3**：`has_ocr_injection AND semantic_mismatch` → 强制判 `indirect`
   - 输出：`CrossModalSignals(has_ocr_injection, semantic_mismatch, ocr_text, clip_score)`
   `[P:high][D:T5A.2-T5A.4]`
-- [ ] **T5A.6** 维护 `configs/crossmodal_rules.yaml`：中英文注入关键词库（≥ 50 条，"忽略指令" / "忽略以上" / "disregard" / "system prompt" / "DAN" 等） `[P:medium][D:T5A.5]`
+- [ ] **T5A.6** 维护 `runs/<run_id>/configs/crossmodal_rules.yaml`：中英文注入关键词库（≥ 50 条，"忽略指令" / "忽略以上" / "disregard" / "system prompt" / "DAN" 等） `[P:medium][D:T5A.5]`
 - [ ] **T5A.7** 接入 `scripts/infer.py` 完整流程：VLM 输出 → 若 `clean` 走 Phase 3 早退路径；若 `direct/indirect` 走 C5 规则路径；若 C5 命中 `indirect` 候选 → 走 C6 crossmodal 路径做二次确认 `[P:high][D:T5A.5]`
 - [ ] **T5A.8** 写 `scripts/eval_c6a.py`：cross-modal 子集 Recall、干净集 FPR（**核心约束：不上升**）、Macro F1、CLIP 相似度分布、OCR 召回率 `[P:high][D:T5A.7]`
-- [ ] **T5A.9** 跑 `scripts/eval.py --compare --checkpoint artifacts/c6a_xxx.safetensors`（与 Phase 4 对比，量化 5A 带来的提升） `[P:high][D:T5A.8]`
+- [ ] **T5A.9** 跑 `scripts/eval.py --compare --checkpoint runs/<run_id>/artifacts/checkpoints/c6a_xxx.safetensors`（与 Phase 4 对比，量化 5A 带来的提升） `[P:high][D:T5A.8]`
 
 **Phase 5A 验收**：
 - cross-modal 子集 Recall ≥ 60%（轻量版基线，5B 应更高）
@@ -399,11 +421,11 @@
 - [ ] **T5B.2** 实现 `src/mpid/heads/dual_output.py`：主输出（3 分类）+ 辅助输出（yes/no 二分类）双输出融合 `[P:high][D:T5B.1]`
 - [ ] **T5B.3** 扩展 `src/mpid/train/trainer.py`：增加辅助 prompt 的 loss 权重与训练流程 `aux_loss_weight=0.3` `[P:high][D:T5B.2]`
 - [ ] **T5B.4** 完善 `src/mpid/crossmodal/conflict_rules.py`：将 T5A.5 的规则升级——"辅助输出 = no" 也作为强信号叠加到 indirect 判定 `[P:high][D:T5B.2]`
-- [ ] **T5B.5** 维护 `configs/sensitive_words.yaml`（中英文敏感词列表）："退款"、"取消"、"同意"、"system" 等 `[P:medium][D:T5B.4]`
+- [ ] **T5B.5** 维护 `runs/<run_id>/configs/sensitive_words.yaml`（中英文敏感词列表）："退款"、"取消"、"同意"、"system" 等 `[P:medium][D:T5B.4]`
 - [ ] **T5B.6** 训练数据准备：在 cross-modal 子集上让辅助 prompt 学会判断"图文是否相关"，为每条 cross-modal 样本打辅助标签 `(text_relevant_to_image: yes/no)` `[P:high][D:T5B.3,T1.8]`
-- [ ] **T5B.7** 写 `configs/c6_crossmodal.yaml` + 在 cross-modal 子集上重训 LoRA（**比 Phase 2 多 1 个 epoch + 加 aux_loss**） + 保存 `artifacts/c6_crossmodal.safetensors` `[P:high][D:T5B.6]`
+- [ ] **T5B.7** 写 `runs/<run_id>/configs/c6_crossmodal.yaml` + 在 cross-modal 子集上重训 LoRA（**比 Phase 2 多 1 个 epoch + 加 aux_loss**） + 保存 `runs/<run_id>/artifacts/checkpoints/c6_crossmodal.safetensors` `[P:high][D:T5B.6]`
 - [ ] **T5B.8** 写 `scripts/eval_c6b.py`：cross-modal 子集 Recall（目标 ≥ 80%）、干净集 FPR（**核心约束：不上升**）、Macro F1、辅助 prompt 一致性 `[P:high][D:T5B.7]`
-- [ ] **T5B.9** 跑 `scripts/eval.py --compare --checkpoint artifacts/c6_crossmodal.safetensors`（与 5A 对比，量化 5B 相对 5A 的提升） `[P:high][D:T5B.8]`
+- [ ] **T5B.9** 跑 `scripts/eval.py --compare --checkpoint runs/<run_id>/artifacts/checkpoints/c6_crossmodal.safetensors`（与 5A 对比，量化 5B 相对 5A 的提升） `[P:high][D:T5B.8]`
 
 **Phase 5B 验收**：
 - cross-modal 子集 Recall ≥ 80%（比 5A 提升 ≥ 20%）
@@ -431,7 +453,7 @@
 ## Phase 7 — 项目整理
 
 - [ ] **T7.1** 完善 `README.md`：项目说明、快速开始、复现命令 `[P:high][D:T6.5]`
-- [ ] **T7.2** 写 `data/mpid-v1/README.md`：数据来源、统计、license 说明 `[P:medium][D:T1.5]`
+- [ ] **T7.2** 写 `runs/_datasets/mpid-v1/README.md`：数据来源、统计、license 说明 `[P:medium][D:T1.5]`
 - [ ] **T7.3** 整理 `scripts/`：train / eval / infer / c4 / c5 / c6 入口，CLI 完整 `[P:high][D:T6.5]`
 - [ ] **T7.4** 加 `Makefile` 或 `tox.ini` 提供 `make train / make eval` 入口 `[P:low][D:T7.3]`
 - [ ] **T7.5** 写 Model Card：`MODEL_CARD.md` 描述能力、局限、风险 `[P:high][D:T6.5]`

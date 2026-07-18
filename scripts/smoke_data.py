@@ -452,7 +452,7 @@ def _check_conformance(results: list[DatasetResult]) -> None:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--raw-dir", type=Path, default=REPO_ROOT / "data" / "raw")
+    p.add_argument("--raw-dir", type=Path, default=REPO_ROOT / "runs" / "_datasets" / "raw")
     p.add_argument("--samples", type=int, default=5,
                    help="How many records to sample per dataset (default 5)")
     p.add_argument("--only", nargs="+", default=None,

@@ -158,7 +158,7 @@
 针对离线边缘场景的工程约束，框架设计遵循以下原则：
 
 1. **零网络依赖**：运行时禁止任何 HTTP/外部 IO；OCR 引擎与 backbone 全部本地权重；
-2. **可打包分发**：训练完成后产出单一 `mpid_offline/` 目录；
+2. **可打包分发**：训练完成后产出单一 `runs/<run_id>/artifacts/package/mpid_offline/` 目录；
 3. **推理引擎可替换**：默认 PyTorch，可选 ONNX Runtime（CPU 推理加速）；
 4. **跨平台**：macOS Apple Silicon 与 x86 PC CPU 均验证。
 
@@ -250,7 +250,7 @@
 - 完整训练 / 评测 / 推理代码（开源协议：Apache 2.0）；
 - 公开数据集 `mpid-v1`（中英多模态注入样本，≥ 1k 样本，含 zero-width / cross-modal 增强子集）；
 - 1 份 LoRA 权重（级联式方案）；
-- 离线打包示例 `mpid_offline/` 目录；
+- 离线打包示例 `runs/<run_id>/artifacts/package/mpid_offline/` 目录；
 - **早退机制中间层分类头权重**（如 §3.6.1 实现 A1）；
 - **跨模态矛盾检测的 CLIP 特征抽取脚本**（如 §3.6.3 实现 B2）。
 

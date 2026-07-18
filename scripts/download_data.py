@@ -54,7 +54,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_RAW_DIR = REPO_ROOT / "data" / "raw"
+DEFAULT_RAW_DIR = REPO_ROOT / "runs" / "_datasets" / "raw"
 
 
 # ---------------------------------------------------------------------------

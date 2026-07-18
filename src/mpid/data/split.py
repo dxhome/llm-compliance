@@ -3,7 +3,7 @@
 Reads unified records from ``src.mpid.data.public_loaders.load_all``,
 splits them into train / val / test in a stratified manner (preserving
 the ``label`` distribution across the three splits), and writes
-JSONL files to ``data/mpid-v1/``.
+JSONL files to ``runs/_datasets/mpid-v1/``.
 
 Stratification is per-label, NOT per-(label, source). The reason is
 that the test set is supposed to reflect the real attack distribution;
@@ -16,8 +16,8 @@ Usage::
     from mpid.data.split import split_and_dump
 
     split_and_dump(
-        raw_dir=Path("data/raw"),
-        out_dir=Path("data/mpid-v1"),
+        raw_dir=Path("runs/_datasets/raw"),
+        out_dir=Path("runs/_datasets/mpid-v1"),
         seed=42,
         max_per_dataset={
             "safe_guard_prompt_injection": 1500,

@@ -16,7 +16,7 @@ under ``/tmp/mpid_offline_smoke_$pid/`` and removes it on exit.
 Usage::
 
     python scripts/smoke_offline.py
-    python scripts/smoke_offline.py --pkg mpid_offline
+    python scripts/smoke_offline.py --pkg runs/my_run/artifacts/package/mpid_offline
 """
 from __future__ import annotations
 
@@ -51,10 +51,15 @@ TEST_PAYLOADS = [
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="MPID offline package smoke (T2.12)")
     p.add_argument("--pkg", type=Path,
-                   default=REPO_ROOT / "mpid_offline",
+                   default=REPO_ROOT / "runs" / "_manual" / "artifacts" / "package" / "mpid_offline",
                    help="Path to the package directory built by package_offline.py")
     p.add_argument("--keep", action="store_true",
                    help="Keep the staged package after the smoke finishes")
+    p.add_argument("--stage-root", type=Path,
+                   default=REPO_ROOT / "runs" / "_manual" / "artifacts" / "package" / "offline_smoke_stage",
+                   help="Directory under which the movable package copy is staged")
+    p.add_argument("--no-stage", action="store_true",
+                   help="Treat --pkg as an already-staged movable package and skip copying")
     return p.parse_args()
 
 
@@ -65,17 +70,22 @@ def main() -> int:
               f"Run scripts/package_offline.py first.", file=sys.stderr)
         return 1
 
-    stage = Path(tempfile.mkdtemp(prefix="mpid_offline_smoke_"))
-    print(f"[smoke] staging {args.pkg} -> {stage}")
+    if args.no_stage:
+        stage = args.pkg.resolve()
+        print(f"[smoke] using pre-staged package at {stage}")
+    else:
+        args.stage_root.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix="mpid_offline_smoke_", dir=args.stage_root))
+        print(f"[smoke] staging {args.pkg} -> {stage}")
     # Copy only the package contents (no symlinks — fully self-contained).
-    for src in args.pkg.rglob("*"):
-        rel = src.relative_to(args.pkg)
-        dst = stage / rel
-        if src.is_dir():
-            dst.mkdir(parents=True, exist_ok=True)
-        else:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+        for src in args.pkg.rglob("*"):
+            rel = src.relative_to(args.pkg)
+            dst = stage / rel
+            if src.is_dir():
+                dst.mkdir(parents=True, exist_ok=True)
+            else:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
 
     # Sanity: MANIFEST + CHECKSUMS + infer.py + backbone + checkpoint.
     # The checkpoint filename is read from MANIFEST.json so this smoke
@@ -120,14 +130,14 @@ def main() -> int:
     for i, pl in enumerate(TEST_PAYLOADS):
         print(f"[smoke] payload {i+1}: {pl['text'][:50]}...")
         proc = subprocess.run(
-            ["python", str(stage / "infer.py")],
+            [sys.executable, str(stage / "infer.py")],
             input=json.dumps(pl), text=True, capture_output=True,
             cwd=str(stage), timeout=300,
         )
         if proc.returncode != 0:
             print(f"[smoke] FAILED: infer.py exit {proc.returncode}")
             print(f"  stdout: {proc.stdout}")
-            print(f"  stderr: {proc.stderr[:500]}")
+            print(f"  stderr: {proc.stderr[-2000:]}")
             fail += 1
             continue
         # Find the JSON object in stdout. We grab the last line
@@ -167,7 +177,9 @@ def main() -> int:
             continue
         print(f"[smoke]   ok: {out}")
 
-    if not args.keep:
+    if args.no_stage:
+        pass
+    elif not args.keep:
         shutil.rmtree(stage, ignore_errors=True)
     else:
         print(f"[smoke] kept stage at {stage}")

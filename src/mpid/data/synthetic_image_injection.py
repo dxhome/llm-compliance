@@ -25,13 +25,13 @@ fool a VLM by overriding the system prompt through visual content
 (indirect injection per ``doc/reference.md`` § 2.1.2).
 
 The output directory layout follows the rest of the project: PNG files
-under ``data/mpid-v1-crossmodal/images/`` and a manifest at
-``data/mpid-v1-crossmodal/manifest.jsonl``.
+under ``runs/_datasets/mpid-v1-crossmodal/images/`` and a manifest at
+``runs/_datasets/mpid-v1-crossmodal/manifest.jsonl``.
 
 Usage::
 
     python -m mpid.data.synthetic_image_injection \\
-        --n-samples 100 --out data/mpid-v1-crossmodal
+        --n-samples 100 --out runs/_datasets/mpid-v1-crossmodal
 """
 from __future__ import annotations
 
@@ -275,7 +275,7 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--n-samples", type=int, default=100)
     p.add_argument("--out", type=Path,
-                   default=Path("data/mpid-v1-crossmodal"))
+                   default=Path("runs/_datasets/mpid-v1-crossmodal"))
     p.add_argument("--base-pool", type=Path, default=None,
                    help="Optional directory of clean images to use as base. "
                         "If omitted, blank canvases are generated.")

@@ -99,6 +99,7 @@ class TrainConfig:
 
     early_stop_patience: int = 2
     log_every: int = 5             # default tighter so progress is visible on CPU
+    eval_after_epoch: bool = False # Phase 2.2 eval runs as a separate workflow step
     seed: int = 42
     # T2.16: phase 2.2 真实训练开关
     max_train_seconds: float = 0.0  # 0=不限制；>0 时单次 run 总时长上限（秒）
@@ -106,7 +107,7 @@ class TrainConfig:
     preload_dataset: bool = False   # 预编码所有样本到 RAM（牺牲 RAM 换时间）
     checkpoint_name: str = "lora_baseline.safetensors"  # T2.16 改为 lora_full.safetensors
     flush: bool = True              # 所有 print 强制 flush（避免缓冲）
-    save_every: int = 0            # >0 时每 N step 保存一次 partial checkpoint
+    save_every: int = 50           # >0 时每 N step 保存一次 partial checkpoint
                                     # 0 = 仅 epoch 结束或 budget 超时时保存
     partial_name: str = "lora_partial.safetensors"  # partial checkpoint 文件名
 
@@ -186,10 +187,16 @@ def evaluate(
     head: ClassificationHead,
     dataloader: DataLoader,
     device: str,
+    progress_every: int = 0,
+    progress_label: str = "eval",
 ) -> dict:
     model.eval()
     head.eval()
     all_pred, all_gold = [], []
+    seen = 0
+    total = len(dataloader.dataset) if hasattr(dataloader, "dataset") else None
+    t_eval0 = time.perf_counter()
+    t_warmup = None
     for batch in dataloader:
         batch = {k: v.to(device) if torch.is_tensor(v) else v
                  for k, v in batch.items()}
@@ -209,6 +216,56 @@ def evaluate(
         gold = batch["label"].cpu().tolist()
         all_pred.extend(pred)
         all_gold.extend(gold)
+        seen += len(gold)
+        if progress_every > 0 and seen % progress_every == 0:
+            t_now = time.perf_counter()
+            if t_warmup is None:
+                t_warmup = t_now
+                per_sample_s = float("nan")
+                eta_s = float("nan")
+            else:
+                elapsed_eval = t_now - t_warmup
+                per_sample_s = elapsed_eval / max(1, seen - progress_every)
+                eta_s = float("nan")
+                if total is not None:
+                    eta_s = per_sample_s * max(0, total - seen)
+            if total is not None:
+                _log(
+                    f"[{progress_label}] progress: {seen}/{total} samples  "
+                    f"step_dt={per_sample_s:.2f}s  "
+                    f"eval_elapsed={t_now-t_eval0:.1f}s  "
+                    f"ETA={eta_s:.0f}s"
+                )
+            else:
+                _log(
+                    f"[{progress_label}] progress: {seen} samples  "
+                    f"step_dt={per_sample_s:.2f}s  "
+                    f"eval_elapsed={t_now-t_eval0:.1f}s"
+                )
+    if progress_every > 0 and seen > 0 and seen % progress_every != 0:
+        t_now = time.perf_counter()
+        if t_warmup is None:
+            per_sample_s = float("nan")
+            eta_s = float("nan")
+        else:
+            elapsed_eval = t_now - t_warmup
+            per_sample_s = elapsed_eval / max(1, seen - progress_every)
+            eta_s = float("nan")
+            if total is not None:
+                eta_s = per_sample_s * max(0, total - seen)
+        if total is not None:
+            _log(
+                f"[{progress_label}] progress: {seen}/{total} samples  "
+                f"step_dt={per_sample_s:.2f}s  "
+                f"eval_elapsed={t_now-t_eval0:.1f}s  "
+                f"ETA={eta_s:.0f}s"
+            )
+        else:
+            _log(
+                f"[{progress_label}] progress: {seen} samples  "
+                f"step_dt={per_sample_s:.2f}s  "
+                f"eval_elapsed={t_now-t_eval0:.1f}s"
+            )
     # Aggregate.
     cm = confusion_matrix(all_gold, all_pred, labels=list(range(NUM_CLASSES)))
     report = classification_report(
@@ -546,36 +603,48 @@ def train(cfg: TrainConfig) -> TrainResult:
                     json.dump(summary, f, ensure_ascii=False, indent=2)
                 return res
 
-        # End of epoch: eval.
-        log(f"[train] epoch {epoch+1} train done; starting eval ...")
-        t_eval = time.perf_counter()
-        ev = evaluate(peft_model, head, val_dl, cfg.device)
-        dt_eval = time.perf_counter() - t_eval
-        macro_f1 = ev["report"]["macro avg"]["f1-score"]
-        acc = ev["report"]["accuracy"]
-        log(f"[train] epoch {epoch+1}: val Macro F1={macro_f1:.4f}  "
-            f"acc={acc:.4f}  (eval in {dt_eval:.1f}s, "
-            f"total_elapsed={time.perf_counter()-t0_total:.1f}s)")
-        res.history.append({"epoch": epoch,
-                            "val_macro_f1": macro_f1,
-                            "val_accuracy": acc,
-                            "confusion_matrix": ev["confusion_matrix"],
-                            "report": ev["report"]})
+        # End of epoch: save immediately. Eval is usually too expensive
+        # for CPU training, so Phase 2.2 runs it as a separate workflow step.
+        if bool(getattr(cfg, "eval_after_epoch", False)):
+            log(f"[train] epoch {epoch+1} train done; starting eval ...")
+            t_eval = time.perf_counter()
+            ev = evaluate(peft_model, head, val_dl, cfg.device)
+            dt_eval = time.perf_counter() - t_eval
+            macro_f1 = ev["report"]["macro avg"]["f1-score"]
+            acc = ev["report"]["accuracy"]
+            log(f"[train] epoch {epoch+1}: val Macro F1={macro_f1:.4f}  "
+                f"acc={acc:.4f}  (eval in {dt_eval:.1f}s, "
+                f"total_elapsed={time.perf_counter()-t0_total:.1f}s)")
+            res.history.append({"epoch": epoch,
+                                "val_macro_f1": macro_f1,
+                                "val_accuracy": acc,
+                                "confusion_matrix": ev["confusion_matrix"],
+                                "report": ev["report"]})
+        else:
+            log(f"[train] epoch {epoch+1} train done; skipping eval "
+                f"(eval_after_epoch=False)")
+            macro_f1 = 0.0
+            res.history.append({"epoch": epoch,
+                                "val_macro_f1": None,
+                                "val_accuracy": None,
+                                "confusion_matrix": [],
+                                "report": {},
+                                "note": "eval_skipped"})
+
         # Always save the latest epoch's checkpoint so that even a
-        # sub-threshold run (tiny smoke, extreme imbalance) yields
-        # an artefact. We also keep the "best so far" semantics
-        # by overwriting if the new F1 is strictly better.
+        # no-eval or sub-threshold run yields an artefact.
         log(f"[train] saving checkpoint {cfg.checkpoint_name} ...")
         save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
-        if macro_f1 > res.best_macro_f1:
-            res.best_macro_f1 = macro_f1
-            res.best_epoch = epoch
-            patience_left = cfg.early_stop_patience
-        else:
-            patience_left -= 1
-            if patience_left <= 0:
-                log(f"[train] early stop at epoch {epoch+1} (best epoch {res.best_epoch+1})")
-                break
+        if bool(getattr(cfg, "eval_after_epoch", False)):
+            if macro_f1 > res.best_macro_f1:
+                res.best_macro_f1 = macro_f1
+                res.best_epoch = epoch
+                patience_left = cfg.early_stop_patience
+            else:
+                patience_left -= 1
+                if patience_left <= 0:
+                    log(f"[train] early stop at epoch {epoch+1} (best epoch {res.best_epoch+1})")
+                    break
 
     phase("phase 6/6 收尾 + 写 train_summary.json")
     # Final summary
@@ -594,8 +663,12 @@ def train(cfg: TrainConfig) -> TrainResult:
     }
     with open(out_dir / "train_summary.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
-    log(f"[train] DONE  best Macro F1 = {res.best_macro_f1:.4f} at epoch {res.best_epoch+1}, "
-        f"total time = {time.perf_counter()-t0_total:.1f}s")
+    if bool(getattr(cfg, "eval_after_epoch", False)):
+        log(f"[train] DONE  best Macro F1 = {res.best_macro_f1:.4f} at epoch {res.best_epoch+1}, "
+            f"total time = {time.perf_counter()-t0_total:.1f}s")
+    else:
+        log(f"[train] DONE  eval skipped; checkpoint saved as {cfg.checkpoint_name}, "
+            f"total time = {time.perf_counter()-t0_total:.1f}s")
     return res
 
 

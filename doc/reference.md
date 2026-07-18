@@ -1,11 +1,13 @@
 # MPID 项目参考手册 (Reference)
 
 > **文档类型**：FAQ / 参考手册
-> **文档版本**：v4.0
+> **文档版本**：v4.2
 > **创建日期**：2026-07-13
 > **用途**：项目执行过程中常见问题与基础概念速查
 >
 > **当前版本变更**（完整历史见 [附录 C：文档变更历史](#附录-c文档变更历史)）：
+> - **v4.2**：新增 Phase 2.5 成果可视化 Demo 章节，按新的 `runs/` 目录结构补充 Gradio 演示、8 条预置样本、demo smoke、截图与验证产物的执行约定。
+> - **v4.1**：本地执行状态统一收敛到 `runs/`；废弃顶层 `configs/`、`data/`、`models/`、`artifacts/`、`logs/`；run-specific launcher 移入 `runs/<run_id>/scripts/`；补充带时间后缀的 run id 与共享 `_datasets` / `_models` / `_templates` / `_manual` 目录约定。
 > - **v4.0**：全面梳理 `reference.md` 里的平台相关命令，明确区分 Windows PowerShell 与 macOS/Linux；将 `ls` / `head` / `cat` / `wc` / `source` / `bash` 等易卡住的步骤改为双平台写法或跨平台 Python 命令
 > - **v3.9**：补充 Phase 2.2 的可复制执行流程，覆盖 `benchmark_100`、`full_500`、`full_800`、断点续跑参数，以及一键 PowerShell 启动脚本
 > - **v3.8**：Phase 2 章节重组为三大块——§2.1–§2.5 整体架构（共享）/ §2.6–§2.12 Phase 2.1（smoke）/ §2.13–§2.19 Phase 2.2（实际可用）
@@ -18,6 +20,31 @@
 
 ---
 
+## 当前运行目录约定
+
+项目现在只保留一个顶层本地执行目录：`runs/`。
+
+- `runs/<run_id>/` 表示一次隔离的端到端执行。具体 run id 必须带时间后缀，例如 `phase2_2_balanced_600_20260718_1955`。
+- 一个 run 目录拥有自己的 `configs/`、可选 run-local `data/`、`artifacts/`、`logs/`、`scripts/`、`execution_plan.json`、`execution_plan.md`、`execution_log.md` 和 `status.json`。
+- 共享本地缓存和模板位于 `runs/_datasets/`、`runs/_models/`、`runs/_templates/`、`runs/_manual/`。
+- 顶层 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 已废弃。如果历史命令仍提到这些目录，执行前应转换到对应的 `runs/` 路径。
+- 整个 `runs/` 被 git 忽略，这是有意设计：大数据、模型权重、checkpoint、离线包、日志和 run-local launcher 都属于本地执行资产。
+- 顶层 `scripts/` 只保留通用脚本。通用 PowerShell workflow launcher 是 `scripts/run_phase2_workflow.ps1`；具体 run 的 launcher 位于 `runs/<run_id>/scripts/launch.ps1`。
+
+常用路径：
+
+| 用途 | 当前路径 |
+|---|---|
+| 共享原始数据集 | `runs/_datasets/raw/` |
+| 共享 Phase 1 数据集 | `runs/_datasets/mpid-v1/` |
+| 共享 cross-modal 数据集 | `runs/_datasets/mpid-v1-crossmodal/` |
+| 共享 backbone 权重 | `runs/_models/smolvlm-500m/` |
+| 共享配置模板 | `runs/_templates/configs/` |
+| 单次 run 配置 | `runs/<run_id>/configs/train.yaml` |
+| 单次 run 日志 | `runs/<run_id>/logs/` |
+| 单次 run checkpoint | `runs/<run_id>/artifacts/checkpoints/` |
+| 离线包 | `runs/<run_id>/artifacts/package/mpid_offline/` |
+
 ## 目录
 
 - [第一部分：Phase 详解](#第一部分phase-详解)
@@ -28,6 +55,7 @@
     - [§2.1–§2.5 Phase 2 整体架构（两个子阶段共享）](#phase-2-整体架构21-25两个子阶段共享)
     - [§2.6–§2.12 Phase 2.1 — Smoke 端到端离线模型](#phase-21--smoke-端到端离线模型26-212)
     - [§2.13–§2.19 Phase 2.2 — 实际可用端到端模型](#phase-22--实际可用端到端模型213-219)
+    - [§2.20–§2.26 Phase 2.5 — 成果可视化 Demo](#phase-25--成果可视化-demo220-226)
   - [Phase 3 — C4 早退机制（对应 C4 优化）](#phase-3--c4-早退机制对应-c4-优化)
 - [第二部分：核心概念速查](#第二部分核心概念速查)
   - [2.A 威胁模型（Threat Model）](#2a-威胁模型threat-model)
@@ -79,9 +107,9 @@
 | [.gitignore](../.gitignore) | 屏蔽 `./data` 与 `./models`（大文件不进 git） | TP1.3 |
 | [device.py](../src/mpid/device.py) | 设备抽象：`get_device(prefer)` 自动选 mps/cuda/cpu | TP1.7 |
 | [smoke_env.py](../scripts/smoke_env.py) | 4 步冒烟：import / device / tensor / tokenizer | TP1.6 |
-| [download_models.py](../scripts/download_models.py) | SmolVLM-500M 本地化到 `models/smolvlm-500m/` | TP2.2 |
+| [download_models.py](../scripts/download_models.py) | SmolVLM-500M 本地化到 `runs/_models/smolvlm-500m/` | TP2.2 |
 | [smoke_model.py](../scripts/smoke_model.py) | 5 步冒烟：本地文件 / tokenizer / processor+model / forward / head shape | TP2.3 |
-| [download_data.py](../scripts/download_data.py) | 6 个公开集落地到 `data/raw/<short_name>/` | TP3.4 |
+| [download_data.py](../scripts/download_data.py) | 6 个公开集落地到 `runs/_datasets/raw/<short_name>/` | TP3.4 |
 | [smoke_data.py](../scripts/smoke_data.py) | 6 步冒烟：每个数据集读 5 条 + 课题符合性自检 | TP3.5 |
 
 ### 0A.3 手动校验步骤
@@ -137,18 +165,18 @@ python scripts/download_models.py
 **期望输出**：
 ```
 [download] model_id = HuggingFaceTB/SmolVLM-500M-Instruct
-[download] local    = <repo>/models/smolvlm-500m
+[download] local    = <repo>/runs/_models/smolvlm-500m
 [download] allow    = 16 patterns
 [download] remote matched N/M files:
              - config.json
              - generation_config.json
              - model.safetensors
              ...
-[download] OK: N files, 1000-2000 MB on disk at <repo>/models/smolvlm-500m
+[download] OK: N files, 1000-2000 MB on disk at <repo>/runs/_models/smolvlm-500m
 ```
 
 **关键观察**：
-- 下载完成后 `models/smolvlm-500m/` 目录有 config.json / model.safetensors / tokenizer.json / processor_config.json 等
+- 下载完成后 `runs/_models/smolvlm-500m/` 目录有 config.json / model.safetensors / tokenizer.json / processor_config.json 等
 - 文件大小约 1-2 GB（500M 参数 × 2 bytes/fp16 ≈ 1GB）
 - 脚本是**幂等**的：重跑不会重新下载
 
@@ -197,7 +225,7 @@ python scripts/download_data.py
 
 **关键观察**：
 - 6 个数据集全部 OK
-- `data/raw/<short_name>/` 下有 parquet/CSV/zip
+- `runs/_datasets/raw/<short_name>/` 下有 parquet/CSV/zip
 
 ---
 
@@ -245,8 +273,8 @@ python scripts/smoke_data.py
 
 **Phase 0A 验收通过**意味着：
 - `src/mpid/device.py` 可以直接被 `train.py` import
-- `models/smolvlm-500m/` 已就位，`smoke_model.py` 的 4 步逻辑会被 train.py 复用
-- `data/raw/` 6 个数据集已就位，下一步 Phase 1 会读取它们构造统一 JSONL
+- `runs/_models/smolvlm-500m/` 已就位，`smoke_model.py` 的 4 步逻辑会被 train.py 复用
+- `runs/_datasets/raw/` 6 个数据集已就位，下一步 Phase 1 会读取它们构造统一 JSONL
 
 ---
 
@@ -304,15 +332,17 @@ llm-compliance/
 ├── src/mpid/           ← 源码包
 │   ├── device.py
 │   └── __init__.py
-├── scripts/            ← 入口
+├── scripts/            ← 通用入口脚本
 │   ├── train.py        (空占位)
 │   ├── eval.py         (空占位)
 │   ├── infer.py        (空占位)
 │   └── ...
-├── configs/            ← YAML 配置（Phase 2 开始填）
-├── data/               ← 数据（gitignore）
-├── models/             ← 模型（gitignore）
-└── artifacts/          ← 训练产出（gitignore）
+├── runs/               ← 本地执行目录（gitignore）
+│   ├── _datasets/      ← 共享数据
+│   ├── _models/        ← 共享模型
+│   ├── _templates/     ← 共享模板
+│   └── <run_id>/       ← 单次执行配置/日志/产物/launcher
+└── tests/
 ```
 
 Phase 1 会在 `src/mpid/data/` 下加 `public_loaders.py` / `split.py` 等模块。Phase 2 会在 `src/mpid/{adapters,backbones,heads,train}/` 下加完整 VLM 训练栈。
@@ -357,15 +387,15 @@ python scripts/build_phase1.py
   generated 120 synthetic indirect records
 
 [3/4] EDA ...
-  wrote data/mpid-v1/EDA.md
+  wrote runs/_datasets/mpid-v1/EDA.md
 
 [4/4] QC sample (T1.7) ...
-  wrote data/mpid-v1/qc_sample.jsonl (60 records)
+  wrote runs/_datasets/mpid-v1/qc_sample.jsonl (60 records)
 ```
 
 **产出文件清单**：
 ```
-data/mpid-v1/
+runs/_datasets/mpid-v1/
 ├── train.jsonl          # 训练集
 ├── val.jsonl            # 验证集
 ├── test.jsonl           # 测试集
@@ -373,7 +403,7 @@ data/mpid-v1/
 ├── EDA.md               # 自动生成的探索性数据分析报告
 └── qc_sample.jsonl      # 60 条人工抽检样本（每类 ~20 条）
 
-data/mpid-v1-crossmodal/
+runs/_datasets/mpid-v1-crossmodal/
 ├── train.jsonl
 ├── val.jsonl
 ├── test.jsonl
@@ -384,13 +414,13 @@ data/mpid-v1-crossmodal/
 
 **验证文件**（下面命令 Windows / macOS 通用）：
 ```bash
-python -c "from pathlib import Path; [print(p) for p in sorted(Path('data/mpid-v1').iterdir())]; print('---'); [print(p) for p in sorted(Path('data/mpid-v1-crossmodal').iterdir())]"
+python -c "from pathlib import Path; [print(p) for p in sorted(Path('runs/_datasets/mpid-v1').iterdir())]; print('---'); [print(p) for p in sorted(Path('runs/_datasets/mpid-v1-crossmodal').iterdir())]"
 # 应看到上述所有文件
 
-python -c "from pathlib import Path; print(Path('data/mpid-v1/train.jsonl').read_text(encoding='utf-8').splitlines()[0])"
+python -c "from pathlib import Path; print(Path('runs/_datasets/mpid-v1/train.jsonl').read_text(encoding='utf-8').splitlines()[0])"
 # 应看到一条 JSON: {\"id\":\"...\", \"text\":\"...\", \"label\":\"clean|direct|indirect\", \"source\":\"...\", \"lang\":\"...\", \"image\":null, \"metadata\":{...}}
 
-python -c "from pathlib import Path; print(Path('data/mpid-v1/split_summary.json').read_text(encoding='utf-8'))"
+python -c "from pathlib import Path; print(Path('runs/_datasets/mpid-v1/split_summary.json').read_text(encoding='utf-8'))"
 # 应看到 by_label / by_source / by_lang 三个维度的统计
 ```
 
@@ -398,12 +428,12 @@ python -c "from pathlib import Path; print(Path('data/mpid-v1/split_summary.json
 
 | 项 | 通过条件 |
 |---|---|
-| 三个 split 存在 | `data/mpid-v1/{train,val,test}.jsonl` 都在 |
-| 总样本 ≥ 1k | `python -c "from pathlib import Path; files=['train','val','test']; print(sum(len(Path(f'data/mpid-v1/{x}.jsonl').read_text(encoding='utf-8').splitlines()) for x in files))"` 输出 ≥ 1000 |
+| 三个 split 存在 | `runs/_datasets/mpid-v1/{train,val,test}.jsonl` 都在 |
+| 总样本 ≥ 1k | `python -c "from pathlib import Path; files=['train','val','test']; print(sum(len(Path(f'runs/_datasets/mpid-v1/{x}.jsonl').read_text(encoding='utf-8').splitlines()) for x in files))"` 输出 ≥ 1000 |
 | 类别覆盖 | `split_summary.json` 中 by_label 包含 `clean / direct / indirect` 三类 |
 | 语种覆盖 | by_lang 包含 `en` 与 `zh` |
-| 跨模态子集 | `data/mpid-v1-crossmodal/` 有 train/val/test 三个 JSONL + images 目录 |
-| EDA 报告 | `data/mpid-v1/EDA.md` 存在且含 9 个章节 |
+| 跨模态子集 | `runs/_datasets/mpid-v1-crossmodal/` 有 train/val/test 三个 JSONL + images 目录 |
+| EDA 报告 | `runs/_datasets/mpid-v1/EDA.md` 存在且含 9 个章节 |
 | 课题符合性 | EDA §9 已知问题里记录的 5 个决策 |
 
 ### 1.5 常见坑
@@ -447,15 +477,15 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 ### 1.7 与下一阶段的衔接
 
 **Phase 1 验收通过**意味着：
-- `data/mpid-v1/train.jsonl` 可被 `MPIDJsonlDataset` 读取
+- `runs/_datasets/mpid-v1/train.jsonl` 可被 `MPIDJsonlDataset` 读取
 - `Record` schema（`id / text / image / label / source / lang / metadata`）已固化，后续所有模块都依赖这个 schema
-- `data/mpid-v1-crossmodal/` 已就位，等 Phase 5 C6 训练时用
+- `runs/_datasets/mpid-v1-crossmodal/` 已就位，等 Phase 5 C6 训练时用
 
 **Phase 2 会用到的 Phase 1 产出**：
-- `data/mpid-v1/train.jsonl` → Phase 2 训练数据
-- `data/mpid-v1/val.jsonl` → Phase 2 训练过程中的 Macro F1 评估
-- `data/mpid-v1/test.jsonl` → Phase 2 最终评估 + Phase 6 攻防基线对比
-- `data/mpid-v1/EDA.md` → 写作技术报告时的引用素材
+- `runs/_datasets/mpid-v1/train.jsonl` → Phase 2 训练数据
+- `runs/_datasets/mpid-v1/val.jsonl` → Phase 2 训练过程中的 Macro F1 评估
+- `runs/_datasets/mpid-v1/test.jsonl` → Phase 2 最终评估 + Phase 6 攻防基线对比
+- `runs/_datasets/mpid-v1/EDA.md` → 写作技术报告时的引用素材
 
 ---
 
@@ -463,12 +493,13 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 
 > **本章节是整个项目的核心**。它合并了原 reference.md 第一部分（技术细节）与第二部分（框架 vs 能力辨析）。
 >
-> **本 Phase 拆分为两个子阶段**（对齐 [tasks.md v2.3](tasks.md)）：
+> **本 Phase 拆分为两个训练子阶段 + 一个演示交付阶段**（对齐 [tasks.md v2.3](tasks.md)）：
 > - **§2.1–§2.5 Phase 2 整体架构**（共享）：VLM 适配器 / LoRA 注入 / 3 分类 head / 训练循环 / 离线打包的代码框架
 > - **§2.6–§2.12 Phase 2.1 — Smoke 端到端离线模型**：用 `max_train_records=5` 跑通整条管线，**不验证模型能力**
 > - **§2.13–§2.19 Phase 2.2 — 实际可用端到端模型**：用全量数据训出 Macro F1 ≥ 0.50 的 `lora_full.safetensors`，作为 C4/C5/C6 评估的合法 baseline
+> - **§2.20–§2.26 Phase 2.5 — 成果可视化 Demo**：用 Gradio 把 Base VLM 与 MPID 检测链路并排展示，作为答辩 / 演示 / 非技术验收入口
 >
-> 两个子阶段共用 §2.1–§2.5 的代码框架；训练数据量、目标指标、产出物不同。
+> Phase 2.1 / 2.2 共用 §2.1–§2.5 的代码框架；Phase 2.5 不改变模型训练逻辑，只复用已产出的 checkpoint、backbone 和推理接口做可视化交付。
 
 ---
 
@@ -485,31 +516,31 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 | 文件 | 角色 |
 |---|---|
 | [vlm.py](../src/mpid/adapters/vlm.py) | VLM 适配器：封装 SmolVLM-500M，暴露 `forward(text, image) → {logits, last_hidden}` |
-| [registry.py](../src/mpid/backbones/registry.py) | Backbone 注册表：`"smolvlm-500m"` → `models/smolvlm-500m/` 路径 |
+| [registry.py](../src/mpid/backbones/registry.py) | Backbone 注册表：`"smolvlm-500m"` → `runs/_models/smolvlm-500m/` 路径 |
 | [classification.py](../src/mpid/heads/classification.py) | 3 分类 head：Linear(960 → 3) + risk score |
 | [prompt.py](../src/mpid/data/prompt.py) | 3 分类 prompt 模板构造（"answer: clean/direct_injection/indirect_injection"） |
 | [dataset.py](../src/mpid/data/dataset.py) | JSONL → PyTorch `Dataset`，带 1024-entry LRU tokenize 缓存 |
 | [trainer.py](../src/mpid/train/trainer.py) | LoRA 注入 + 训练循环 + 评估 + 早停；class-weighted 交叉熵防 collapse |
-| [configs/baseline.yaml](../configs/baseline.yaml) | Phase 2.1 smoke 训练超参（LoRA r=16, alpha=32, epochs, lr, device） |
-| [configs/full.yaml](../configs/full.yaml) | Phase 2.2 真实训练配置（更大数据量、更保守 lr、`lora_full.safetensors`） |
+| [runs/_templates/configs/baseline.yaml](../runs/_templates/configs/baseline.yaml) | Phase 2.1 smoke 训练超参（LoRA r=16, alpha=32, epochs, lr, device） |
+| [runs/_templates/configs/full.yaml](../runs/_templates/configs/full.yaml) | Phase 2.2 真实训练配置（更大数据量、更保守 lr、`lora_full.safetensors`） |
 | [scripts/train.py](../scripts/train.py) | 训练入口（Phase 2.1 / 2.2 共用） |
 | [scripts/eval.py](../scripts/eval.py) | 评估入口（输出 JSON 报告 + 混淆矩阵 + Markdown；支持 `--compare`、`--compare-smoke-vs-full`、`--early-exit`） |
 | [scripts/measure_offline.py](../scripts/measure_offline.py) | 离线指标测量（包大小/冷启动/延迟/内存/网络流量） |
-| [scripts/package_offline.py](../scripts/package_offline.py) | 离线包打包（`mpid_offline/` / `mpid_offline_v2/`） |
+| [scripts/package_offline.py](../scripts/package_offline.py) | 离线包打包（`runs/<run_id>/artifacts/package/mpid_offline/`） |
 | [scripts/smoke_offline.py](../scripts/smoke_offline.py) | 离线包冒烟：解包到临时目录 + 跑 infer.py |
 
 ### 2.3 架构总览
 
 ```
-原始数据 (data/raw/...)         模型权重 (models/smolvlm-500m/)
+原始数据 (runs/_datasets/raw/...)         模型权重 (runs/_models/smolvlm-500m/)
         │                                  │
         ▼                                  ▼
 public_loaders.py              backbones/registry.py
-（6 个数据集 → Record 统一 schema）  (smolvlm-500m → models/ 路径)
+（6 个数据集 → Record 统一 schema）  (smolvlm-500m → runs/_models 路径)
         │                                  │
         ▼                                  ▼
 data/split.py ──► train/val/test JSONL      VLMAdapter
-                (data/mpid-v1/*.jsonl)      (adapters/vlm.py)
+                (runs/_datasets/mpid-v1/*.jsonl)      (adapters/vlm.py)
                                                 │
                                                 ▼
 data/dataset.py ◄── 运行时按需构建           hidden_states[-1]
@@ -520,7 +551,7 @@ train/trainer.py                       (Linear 960 → 3 分类)
    LoRA 注入 + 训练循环 + 评估                  │
         │                                     ▼
         ▼                                logits [3]
-artifacts/baseline/                         │
+runs/<run_id>/artifacts/checkpoints/                         │
 ├── lora_baseline.safetensors   ← Phase 2.1 产物
 ├── lora_full.safetensors       ← Phase 2.2 产物
 ├── train_summary.json               ▼
@@ -529,9 +560,9 @@ artifacts/baseline/                         │
         ▼                           ▼
 package_offline.py         {"label": "direct", "risk": 0.87}
         ▼
-mpid_offline/  (Phase 2.1) /  mpid_offline_v2/  (Phase 2.2)  ← 可分发的离线包
-├── models/smolvlm-500m/
-├── artifacts/lora_*.safetensors
+runs/<run_id>/artifacts/package/mpid_offline/  ← 可分发的离线包
+├── runs/_models/smolvlm-500m/
+├── artifacts/checkpoints/lora_*.safetensors
 ├── src/mpid/...                （源码副本）
 ├── infer.py                    （入口）
 ├── requirements.txt
@@ -562,7 +593,7 @@ label="direct", risk=0.87
 | 模块 | 做了什么 | 关键设计 |
 |---|---|---|
 | [vlm.py](../src/mpid/adapters/vlm.py) | 把 SmolVLM-500M 包成统一接口 `forward(text, image) → {logits, last_hidden}` | 自动补 `<image>` token；取最后一个非 pad 位置的 hidden state（不是字面最后一个 token） |
-| [registry.py](../src/mpid/backbones/registry.py) | `"smolvlm-500m"` → `models/smolvlm-500m/` 本地路径映射 | 强制 `local_files_only=True`，**绝不上网** |
+| [registry.py](../src/mpid/backbones/registry.py) | `"smolvlm-500m"` → `runs/_models/smolvlm-500m/` 本地路径映射 | 强制 `local_files_only=True`，**绝不上网** |
 | [classification.py](../src/mpid/heads/classification.py) | 3 分类 Linear head：960 → 3 | `risk = probs.max()`（选中的那个类的置信度） |
 | [prompt.py](../src/mpid/data/prompt.py) | 3 分类 prompt 模板 | 强制模型只输出 `clean` / `direct_injection` / `indirect_injection` 之一 |
 | [public_loaders.py](../src/mpid/data/public_loaders.py) | 6 个数据集 → 统一 `Record` schema | 每个数据集的脏活（parquet/zip/CSV）都封在独立函数里；用 `Record` dataclass 强类型校验 |
@@ -572,7 +603,7 @@ label="direct", risk=0.87
 
 ### 2.5 关键实现选择（两个子阶段共享）
 
-1. **CPU 而不是 MPS**（`configs/baseline.yaml` 中 `device: cpu`）
+1. **CPU 而不是 MPS**（`runs/_templates/configs/baseline.yaml` 中 `device: cpu`）
    - P0A-2 阶段发现 fp16 + MPS 出现 NaN
    - MPS+LoRA+gradient_checkpointing 联合下不稳定
    - 所以 **Phase 2.1 smoke baseline 走 CPU**；Phase 2.2 真实训练在 MPS 跑，配 `lr=1e-5` 极保守 + NaN 防护
@@ -600,11 +631,11 @@ label="direct", risk=0.87
 >
 > **对应任务**：T2.1–T2.12（[tasks.md v2.3 §Phase 2.1](tasks.md#phase-21--vlm-端到端检测基线·smoke-训练对应-c2)）。
 >
-> **核心产出**：`artifacts/baseline/lora_baseline.safetensors`（管线就位证明）+ `mpid_offline/`（Phase 2.1 版离线包）。
+> **核心产出**：`runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors`（管线就位证明）+ `runs/<run_id>/artifacts/package/mpid_offline/`（Phase 2.1 版离线包）。
 
 ### 2.6 一句话目标
 
-**用 5 条样本跑通 SmolVLM-500M + LoRA + 3 分类 head 的端到端管线，产出可离线分发的 `mpid_offline/`，证明"图 + 文 → 3 分类 + 风险分"链路是通的；不验证模型能力。**
+**用 5 条样本跑通 SmolVLM-500M + LoRA + 3 分类 head 的端到端管线，产出可离线分发的 `runs/<run_id>/artifacts/package/mpid_offline/`，证明"图 + 文 → 3 分类 + 风险分"链路是通的；不验证模型能力。**
 
 ### 2.7 涉及任务
 
@@ -652,7 +683,7 @@ python scripts/smoke_model.py
 ```
 
 **它验证了什么**：
-- `models/smolvlm-500m/` 目录完整
+- `runs/_models/smolvlm-500m/` 目录完整
 - 模型能离线加载（`local_files_only=True`）
 - 一张随机图 + 一段文字能完成 forward
 - 隐藏状态 shape 正确
@@ -680,13 +711,13 @@ python scripts/build_phase1.py
 
 **期望输出**（节选）：
 ```
-[phase1] reading 6 datasets from data/raw/
+[phase1] reading 6 datasets from runs/_datasets/raw/
 [phase1] total records: 15420
 [phase1] label histogram: {'clean': 3200, 'direct': 11000, 'indirect': 1220}
-[phase1] wrote data/mpid-v1/train.jsonl (12336)
-[phase1] wrote data/mpid-v1/val.jsonl   (1542)
-[phase1] wrote data/mpid-v1/test.jsonl  (1542)
-[phase1] EDA: data/mpid-v1/EDA.md
+[phase1] wrote runs/_datasets/mpid-v1/train.jsonl (12336)
+[phase1] wrote runs/_datasets/mpid-v1/val.jsonl   (1542)
+[phase1] wrote runs/_datasets/mpid-v1/test.jsonl  (1542)
+[phase1] EDA: runs/_datasets/mpid-v1/EDA.md
 ```
 
 **它做了什么**：
@@ -697,9 +728,9 @@ python scripts/build_phase1.py
 
 **验证文件存在**（下面命令 Windows / macOS 通用）：
 ```bash
-python -c "from pathlib import Path; [print(p.name) for p in sorted(Path('data/mpid-v1').iterdir())]"
+python -c "from pathlib import Path; [print(p.name) for p in sorted(Path('runs/_datasets/mpid-v1').iterdir())]"
 # 应看到: train.jsonl, val.jsonl, test.jsonl, EDA.md
-python -c "from pathlib import Path; print(Path('data/mpid-v1/train.jsonl').read_text(encoding='utf-8').splitlines()[0])"
+python -c "from pathlib import Path; print(Path('runs/_datasets/mpid-v1/train.jsonl').read_text(encoding='utf-8').splitlines()[0])"
 # 应看到一条 JSON: {\"id\":\"...\", \"text\":\"...\", \"label\":\"clean|direct|indirect\", ...}
 ```
 
@@ -711,7 +742,7 @@ python -c "from pathlib import Path; print(Path('data/mpid-v1/train.jsonl').read
 python scripts/train.py
 ```
 
-**配置**（来自 `configs/baseline.yaml`）：
+**配置**（来自 `runs/_templates/configs/baseline.yaml`）：
 - 1 epoch / 5 训练样本 / 5 验证样本
 - LoRA r=16, alpha=32, target=q/k/v/o_proj
 - batch_size=1, lr=2e-4
@@ -726,14 +757,14 @@ python scripts/train.py
 [train] total trainable params: 1,575,747
 [train] epoch 0 step 5/5 loss=... (...)
 [train] epoch 0: val Macro F1=... acc=... (eval in ...s)
-[train] saved artifacts/baseline/lora_baseline.safetensors (1500 tensors)
+[train] saved runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors (1500 tensors)
 [train] best Macro F1 = ... at epoch 0
 ```
 
 **关键观察点**：
 - **LoRA params ≈ 1.5M**：符合预期（占 500M 的 0.3%）
 - **Head params = 2,883**：Linear(960, 3) → 960×3 + 3 = 2,883，正确
-- **checkpoint 文件存在**：可运行 `python -c "from pathlib import Path; p=Path('artifacts/baseline/lora_baseline.safetensors'); print(p.exists(), round(p.stat().st_size/1024/1024, 2) if p.exists() else 'missing')"`；应看到文件存在且大小为几十 MB
+- **checkpoint 文件存在**：可运行 `python -c "from pathlib import Path; p=Path('runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors'); print(p.exists(), round(p.stat().st_size/1024/1024, 2) if p.exists() else 'missing')"`；应看到文件存在且大小为几十 MB
 
 **5 个样本 → 1 epoch 的训练指标本身没有意义**（相当于随机猜测），但这一步的目的**不是得到好模型**，而是验证：
 
@@ -761,9 +792,9 @@ python scripts/measure_offline.py
 ```
 [eval] val size: 5
 [eval] accuracy=0.4000  macro F1=0.3000  weighted F1=0.3000
-[eval] wrote artifacts/baseline/report_baseline.json
-[eval] wrote artifacts/baseline/confusion_matrix.json
-[eval] wrote artifacts/baseline/report_baseline.md
+[eval] wrote runs/<run_id>/artifacts/checkpoints/report_baseline.json
+[eval] wrote runs/<run_id>/artifacts/checkpoints/confusion_matrix.json
+[eval] wrote runs/<run_id>/artifacts/checkpoints/report_baseline.md
 ```
 
 **measure_offline.py 期望输出**（节选）：
@@ -819,10 +850,10 @@ python scripts/smoke_offline.py
 ```
 
 **smoke_offline.py 做的事**（详见 [smoke_offline.py](../scripts/smoke_offline.py)）：
-- 把 `mpid_offline/` 复制到**系统临时目录**下的 `mpid_offline_smoke_xxxxx/`
+- 把 `runs/<run_id>/artifacts/package/mpid_offline/` 复制到**系统临时目录**下的 `mpid_offline_smoke_xxxxx/`
   - Windows 通常对应 `%TEMP%`
   - macOS / Linux 通常对应 `/tmp`
-- 验证必需文件存在：`infer.py / requirements.txt / MANIFEST.json / CHECKSUMS.txt / models/smolvlm-500m/config.json / artifacts/lora_baseline.safetensors / src/mpid/__init__.py`
+- 验证必需文件存在：`infer.py / requirements.txt / MANIFEST.json / CHECKSUMS.txt / runs/_models/smolvlm-500m/config.json / runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors / src/mpid/__init__.py`
 - 重新计算 SHA256 校验和，对比 `CHECKSUMS.txt`
 - 跑 3 条测试 payload：direct 注入 / clean 提问 / indirect 注入
 - 验证 stdout 是 JSON 且 schema 正确：`{"label": "clean|direct|indirect", "risk": 0~1}`
@@ -853,9 +884,9 @@ python scripts/eval.py --compare
 
 # 手动指定 checkpoint + 注入样本
 python scripts/eval.py --compare \
-    --checkpoint artifacts/baseline/lora_baseline.safetensors \
-    --val        data/mpid-v1/val.jsonl \
-    --out        artifacts/baseline
+    --checkpoint runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors \
+    --val        runs/_datasets/mpid-v1/val.jsonl \
+    --out        runs/<run_id>/artifacts/checkpoints
 ```
 
 **期望输出**（节选）：
@@ -876,10 +907,10 @@ python scripts/eval.py --compare \
 [eval] recall delta  [    clean]: +0.30
 [eval] recall delta  [   direct]: +0.50
 [eval] recall delta  [ indirect]: +0.55
-[eval] wrote artifacts/baseline/baseline_report.json
-[eval] wrote artifacts/baseline/modified_report.json
-[eval] wrote artifacts/baseline/comparison_delta.json
-[eval] wrote artifacts/baseline/comparison_report.md
+[eval] wrote runs/<run_id>/artifacts/checkpoints/baseline_report.json
+[eval] wrote runs/<run_id>/artifacts/checkpoints/modified_report.json
+[eval] wrote runs/<run_id>/artifacts/checkpoints/comparison_delta.json
+[eval] wrote runs/<run_id>/artifacts/checkpoints/comparison_report.md
 ```
 
 **验收条件**：
@@ -901,8 +932,8 @@ python scripts/eval.py --compare \
 | 阶段 | 复用方式 |
 |---|---|
 | **Phase 2.2（真实训练）** | `eval.py --compare-smoke-vs-full` 对比 smoke baseline 与 full 模型（详见 §2.15 Step 4） |
-| **Phase 4（C5 规则前置）** | `eval.py --compare --checkpoint artifacts/c5_xxx.safetensors`，对比"仅 LoRA" vs "LoRA + C5 规则" |
-| **Phase 5（C6 跨模态）** | `eval.py --compare --val data/mpid-v1-crossmodal/test.jsonl`，验证 C6 是否在跨模态样本上提升 indirect recall |
+| **Phase 4（C5 规则前置）** | `eval.py --compare --checkpoint runs/<run_id>/artifacts/checkpoints/c5_xxx.safetensors`，对比"仅 LoRA" vs "LoRA + C5 规则" |
+| **Phase 5（C6 跨模态）** | `eval.py --compare --val runs/_datasets/mpid-v1-crossmodal/test.jsonl`，验证 C6 是否在跨模态样本上提升 indirect recall |
 | **Phase 6（攻防基线评测）** | 与 PromptGuard 86M / Llama-Guard 7B 等基线做同形式对比 |
 
 **关键点**：所有对比都跑同一个 `eval.py --compare`、同一个数据 split、同一份指标计算代码——**保证不同算法之间的可比性**。
@@ -916,10 +947,10 @@ python scripts/eval.py --compare \
 | 1 | `python scripts/smoke_env.py` | 4/4 OK | `get_device()` 返回正确设备 |
 | 2 | `python scripts/smoke_model.py` | 5/5 PASS | hidden_states shape = (1, T, 960), logits = (1, 3) |
 | 3 | `python scripts/smoke_data.py` | 6/6 PASS + 5/5 checklist ✅ | 6 个数据集都加载成功 |
-| 4 | `python scripts/build_phase1.py` | `data/mpid-v1/{train,val,test}.jsonl` 存在 | 样本数 + 类别直方图 |
-| 5 | `python scripts/train.py` | `artifacts/baseline/lora_baseline.safetensors` 存在 | LoRA params ≈ 1.5M, head = 2,883 |
+| 4 | `python scripts/build_phase1.py` | `runs/_datasets/mpid-v1/{train,val,test}.jsonl` 存在 | 样本数 + 类别直方图 |
+| 5 | `python scripts/train.py` | `runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors` 存在 | LoRA params ≈ 1.5M, head = 2,883 |
 | 6 | `python scripts/eval.py` & `measure_offline.py` | JSON 报告 + network.offline_only=true | rx/tx_delta = 0 |
-| 7 | `python scripts/package_offline.py` & `smoke_offline.py` | `mpid_offline/` 存在 + 临时目录推理通 | `MANIFEST.json` + `CHECKSUMS.txt` 完整 |
+| 7 | `python scripts/package_offline.py` & `smoke_offline.py` | `runs/<run_id>/artifacts/package/mpid_offline/` 存在 + 临时目录推理通 | `MANIFEST.json` + `CHECKSUMS.txt` 完整 |
 | **8** | `python scripts/eval.py --compare` | `comparison_report.md` 存在 + macro_f1_delta ≥ +0.20 | baseline F1 ≈ 0.22 → modified F1 ≈ 0.65+ |
 
 **全部 8 步通过 = Phase 2.1 端到端校验通过**。
@@ -976,7 +1007,7 @@ Macro F1 ≈ 0.3   （接近随机）
 | LoRA 注入逻辑 | **代码框架** | ✅ 完整 |
 | 数据流（raw → JSONL → Dataset） | **代码框架** | ✅ 完整 |
 | 训练循环 + 评估 + 早停 | **代码框架** | ✅ 完整 |
-| 离线打包（`mpid_offline/`） | **代码框架** | ✅ 完整 |
+| 离线打包（`runs/<run_id>/artifacts/package/mpid_offline/`） | **代码框架** | ✅ 完整 |
 | **实际学到的防注入知识** | **能力** | ❌ **零** |
 
 **一句话总结**：Phase 2.1 = **一个能用的"空模型 + 训练流程"**，不是"一个会防注入的模型"。
@@ -1066,7 +1097,7 @@ Phase 7    项目整理
 
 ### 2.11 常见坑（Phase 2.1 smoke 训练专属）
 
-1. **NaN 问题**：MPS + fp16 + LoRA 容易出 NaN → `configs/baseline.yaml` 强制 `dtype: float32` + `device: cpu`
+1. **NaN 问题**：MPS + fp16 + LoRA 容易出 NaN → `runs/_templates/configs/baseline.yaml` 强制 `dtype: float32` + `device: cpu`
 2. **空图像崩溃**：纯文本样本也得给占位图（512x512 浅灰）→ `VLMAdapter._get_placeholder_image()`
 3. **类别不平衡**：数据集 80% 是 direct，不做 class weighting 会 collapse 到"direct"全输出 → `compute_class_weights`
 4. **数据泄漏**：JailbreakV-28K 的 image_path 指向未下载的 `llm_transfer_attack/`，脚本会 fallback 到 figstep 目录
@@ -1079,8 +1110,8 @@ Phase 7    项目整理
 
 **Phase 2.1（smoke）验收通过**意味着：
 - 一条样本从"加载图 +文字"到"输出 3 分类标签 + 风险分"的整条管线已经跑通
-- `artifacts/baseline/lora_baseline.safetensors` 仅为"管线就位"证明——**5 条训出的 head 没有真实能力，不要用于 C4/C5/C6 评估**
-- `mpid_offline/`（Phase 2.1 版）可独立分发，但内置权重是 smoke
+- `runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors` 仅为"管线就位"证明——**5 条训出的 head 没有真实能力，不要用于 C4/C5/C6 评估**
+- `runs/<run_id>/artifacts/package/mpid_offline/`（Phase 2.1 版）可独立分发，但内置权重是 smoke
 
 **Phase 2.1 → Phase 2.2**：
 - Phase 2.1 的 8 步端到端校验全过 → 进入 [§2.13 Phase 2.2](#213-一句话目标)（用全量数据训出真实训练模型）
@@ -1095,7 +1126,7 @@ Phase 7    项目整理
 - `infer.py` 的 JSON 输出 schema → 给 C5 的"可解释输出"复用
 
 **Phase 5 会用到的 Phase 2.1 产出**：
-- `data/mpid-v1-crossmodal/` 来自 Phase 1 → 给 C6 跨模态训练用
+- `runs/_datasets/mpid-v1-crossmodal/` 来自 Phase 1 → 给 C6 跨模态训练用
 - `ClassificationHead` 双输出改造 → 给 C6 主输出 + 辅助输出复用
 
 > ⚠️ **重要提醒**：上述 C4/C5/C6 的"基础权重"在 Phase 2.1 阶段**不应**使用 `lora_baseline.safetensors`（能力为零）。正确做法是先用 Phase 2.2 训出 `lora_full.safetensors`，再用它跑 C4/C5/C6 评估（详见 §2.19）。
@@ -1113,7 +1144,7 @@ Phase 7    项目整理
 >
 > **对应任务**：T2.13–T2.21（[tasks.md v2.3 §Phase 2.2](tasks.md#phase-22--真实数据全量微调对应-c2--续)）。
 >
-> **核心产出**：`artifacts/baseline/lora_full.safetensors`（或 `lora_partial.safetensors`）+ `mpid_offline_v2/`（Phase 2.2 版离线包）+ `comparison_full_vs_smoke.{json,md}`（T2.18 报告）。
+> **核心产出**：`runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`（或 `lora_partial.safetensors`）+ `runs/<run_id>/artifacts/package/mpid_offline/`（Phase 2.2 版离线包）+ `comparison_full_vs_smoke.{json,md}`（T2.18 报告）。
 
 ### 2.13 一句话目标
 
@@ -1125,12 +1156,12 @@ Phase 7    项目整理
 |---|---|---|
 | T2.13 | `scripts/download_data.py` 扩展 | 下载完整数据集（不只是 smoke 5 条） |
 | T2.14 | `scripts/build_phase1.py` | 重新跑全量数据 split |
-| T2.15 | `configs/full.yaml` | 真实训练配置（区别于 `configs/baseline.yaml`） |
-| T2.16 | `scripts/launch_train_full.sh`（macOS / Linux）或 `scripts/launch_phase2_2_full_500.ps1` / `scripts/launch_phase2_2_full_800.ps1`（Windows）+ `trainer.py`（加 `save_every` / signal handler） | 按平台后台启动训练 + 进度保护 |
+| T2.15 | `runs/_templates/configs/full.yaml` | 真实训练配置（区别于 `runs/_templates/configs/baseline.yaml`） |
+| T2.16 | `runs/phase2_2_full_500_20260718_1956/scripts/launch_train_full.sh`（macOS / Linux）或 `runs/phase2_2_full_500_20260718_1956/scripts/launch.ps1` / `runs/phase2_2_full_800_20260718_1956/scripts/launch.ps1`（Windows）+ `trainer.py`（加 `save_every` / signal handler） | 按平台后台启动训练 + 进度保护 |
 | T2.17 | `scripts/eval.py`（`--checkpoint`） | 评估 `lora_full.safetensors` |
 | T2.18 | `scripts/eval.py`（`--compare-smoke-vs-full`） | smoke vs full 性能对比 |
 | T2.19 | 同 T2.16 在 x86 CPU 上复跑 | 跨平台一致性验证 |
-| T2.20 | `scripts/package_offline.py`（`--ckpt`） | 用 lora_full 重新打包 `mpid_offline_v2/` |
+| T2.20 | `scripts/package_offline.py`（`--ckpt`） | 用 lora_full 重新打包 `runs/<run_id>/artifacts/package/mpid_offline/` |
 | T2.21 | `scripts/smoke_offline.py` | 离线包冒烟 |
 
 ### 2.15 手动端到端校验（5 步：T2.16 → T2.21）
@@ -1145,7 +1176,7 @@ python scripts/download_data.py
 python scripts/build_phase1.py
 
 # 3) 写真实训练配置
-#   configs/full.yaml 中关键差异：
+#   runs/_templates/configs/full.yaml 中关键差异：
 #   - max_train_records: 200    # 受 Mac 硬件限制，从 2000 降到 200
 #   - epochs: 3
 #   - lr: 1e-5                  # 极保守，避免 MPS+grad-ckpt 出 NaN
@@ -1155,9 +1186,9 @@ python scripts/build_phase1.py
 ```
 
 期望输出：
-- `data/mpid-v1/{train,val,test}.jsonl` 全量（≥ 25k 训练样本）
-- `data/mpid-v1/EDA_full.md` 重新生成
-- `configs/full.yaml` 存在
+- `runs/_datasets/mpid-v1/{train,val,test}.jsonl` 全量（≥ 25k 训练样本）
+- `runs/_datasets/mpid-v1/EDA_full.md` 重新生成
+- `runs/_templates/configs/full.yaml` 存在
 
 #### Step 2: 后台启动训练（T2.16）
 
@@ -1170,8 +1201,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\launch_phase2_2_full_800.ps1
 
 ```bash
 # macOS / Linux：继续使用 shell 脚本入口
-bash scripts/launch_train_full.sh
-tail -f logs/train_full.log
+bash runs/phase2_2_full_500_20260718_1956/scripts/launch_train_full.sh
+tail -f runs/<run_id>/logs/03_train.log
 ```
 
 **启动脚本背后做的事**：
@@ -1179,7 +1210,7 @@ tail -f logs/train_full.log
 - `--save-every`：周期性保存 partial checkpoint
 - `--max-train-seconds`：训练时间 budget 保护
 - `SIGINT` / `SIGTERM` handler：中断时先写出 partial checkpoint 再退出
-- Windows PowerShell 版本会把每一步的 stdout / stderr 归档到 `logs/phase2_2_full_500/` 或 `logs/phase2_2_full_800/`
+- Windows PowerShell 版本会把每一步的 stdout / stderr 归档到 `runs/phase2_2_full_500_20260718_1956/logs/` 或 `runs/phase2_2_full_800_20260718_1956/logs/`
 
 期望输出（每 5 step 一行）：
 ```
@@ -1199,13 +1230,13 @@ tail -f logs/train_full.log
 
 ```bash
 python scripts/eval.py \
-    --config configs/full.yaml \
-    --checkpoint artifacts/baseline/lora_full.safetensors \
+    --config runs/_templates/configs/full.yaml \
+    --checkpoint runs/<run_id>/artifacts/checkpoints/lora_full.safetensors \
     --max-records 100
 # 或评估 partial（训练未到 epoch 1 结束时）：
 python scripts/eval.py \
-    --config configs/full.yaml \
-    --checkpoint artifacts/baseline/lora_partial.safetensors \
+    --config runs/_templates/configs/full.yaml \
+    --checkpoint runs/<run_id>/artifacts/checkpoints/lora_partial.safetensors \
     --max-records 100
 ```
 
@@ -1216,10 +1247,10 @@ python scripts/eval.py \
 
 ```bash
 python scripts/eval.py \
-    --config configs/full.yaml \
+    --config runs/_templates/configs/full.yaml \
     --compare-smoke-vs-full \
-    --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors \
-    --full-checkpoint  artifacts/baseline/lora_full.safetensors \
+    --smoke-checkpoint runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors \
+    --full-checkpoint  runs/<run_id>/artifacts/checkpoints/lora_full.safetensors \
     --max-records 100
 ```
 
@@ -1233,15 +1264,15 @@ python scripts/eval.py \
 ```bash
 # 重新打包，--ckpt 用 lora_full
 python scripts/package_offline.py \
-    --backbone-dir models/smolvlm-500m \
-    --ckpt artifacts/baseline/lora_full.safetensors \
-    --out mpid_offline_v2 \
+    --backbone-dir runs/_models/smolvlm-500m \
+    --ckpt runs/<run_id>/artifacts/checkpoints/lora_full.safetensors \
+    --out runs/<run_id>/artifacts/package/mpid_offline \
     --src src
-# 期望：mpid_offline_v2/ 目录 ~989 MB (79 files)
+# 期望：runs/<run_id>/artifacts/package/mpid_offline/ 目录 ~989 MB (79 files)
 # 内部文件名由 MANIFEST.json 决定，自动指向 lora_full.safetensors
 
 # 冒烟测试
-python scripts/smoke_offline.py --pkg mpid_offline_v2
+python scripts/smoke_offline.py --pkg runs/<run_id>/artifacts/package/mpid_offline
 # 期望：layout ok (7 files) + checksums ok (79 files) + infer.py 输出 JSON
 # 注意：infer.py 的 checkpoint 路径从 MANIFEST.json 读取，不写死
 ```
@@ -1254,7 +1285,7 @@ python scripts/smoke_offline.py --pkg mpid_offline_v2
 ```bash
 # 1) 100 条 benchmark，确认环境、日志与步速正常
 python -X utf8 -u scripts/train.py \
-  --config configs/benchmark_100.yaml \
+  --config runs/benchmark_100_20260718_1940/configs/train.yaml \
   --preload-dataset \
   --max-train-steps 20 \
   --checkpoint-name lora_benchmark_100.safetensors \
@@ -1262,7 +1293,7 @@ python -X utf8 -u scripts/train.py \
 
 # 2) 500 条正式训练
 python -X utf8 -u scripts/train.py \
-  --config configs/full_500_restart.yaml \
+  --config runs/phase2_2_full_500_20260718_1956/configs/train.yaml \
   --preload-dataset \
   --save-every 100 \
   --max-train-seconds 172800 \
@@ -1271,29 +1302,29 @@ python -X utf8 -u scripts/train.py \
 
 # 3) 单模型评估
 python -X utf8 scripts/eval.py \
-  --config configs/full_500_restart.yaml \
-  --checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors \
-  --out artifacts/full_500_restart
+  --config runs/phase2_2_full_500_20260718_1956/configs/train.yaml \
+  --checkpoint runs/phase2_2_full_500_20260718_1956/artifacts/lora_full_500_restart.safetensors \
+  --out runs/phase2_2_full_500_20260718_1956/artifacts
 
 # 4) 与 smoke baseline 对比
 python -X utf8 scripts/eval.py \
-  --config configs/full_500_restart.yaml \
+  --config runs/phase2_2_full_500_20260718_1956/configs/train.yaml \
   --compare-smoke-vs-full \
-  --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors \
-  --full-checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors \
-  --out artifacts/full_500_restart
+  --smoke-checkpoint runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors \
+  --full-checkpoint runs/phase2_2_full_500_20260718_1956/artifacts/lora_full_500_restart.safetensors \
+  --out runs/phase2_2_full_500_20260718_1956/artifacts
 
 # 5) 重新打离线包并冒烟
 python -X utf8 scripts/package_offline.py \
-  --ckpt artifacts/full_500_restart/lora_full_500_restart.safetensors \
-  --out mpid_offline_v2
-python -X utf8 scripts/smoke_offline.py --pkg mpid_offline_v2
+  --ckpt runs/phase2_2_full_500_20260718_1956/artifacts/lora_full_500_restart.safetensors \
+  --out runs/<run_id>/artifacts/package/mpid_offline
+python -X utf8 scripts/smoke_offline.py --pkg runs/<run_id>/artifacts/package/mpid_offline
 ```
 
 **方案 B：直接跑 800 条**
 ```bash
 python -X utf8 -u scripts/train.py \
-  --config configs/full_800.yaml \
+  --config runs/phase2_2_full_800_20260718_1956/configs/train.yaml \
   --preload-dataset \
   --save-every 100 \
   --max-train-seconds 172800 \
@@ -1301,21 +1332,21 @@ python -X utf8 -u scripts/train.py \
   --partial-name lora_full_800.safetensors
 
 python -X utf8 scripts/eval.py \
-  --config configs/full_800.yaml \
-  --checkpoint artifacts/full_800/lora_full_800.safetensors \
-  --out artifacts/full_800
+  --config runs/phase2_2_full_800_20260718_1956/configs/train.yaml \
+  --checkpoint runs/phase2_2_full_800_20260718_1956/artifacts/lora_full_800.safetensors \
+  --out runs/phase2_2_full_800_20260718_1956/artifacts
 
 python -X utf8 scripts/eval.py \
-  --config configs/full_800.yaml \
+  --config runs/phase2_2_full_800_20260718_1956/configs/train.yaml \
   --compare-smoke-vs-full \
-  --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors \
-  --full-checkpoint artifacts/full_800/lora_full_800.safetensors \
-  --out artifacts/full_800
+  --smoke-checkpoint runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors \
+  --full-checkpoint runs/phase2_2_full_800_20260718_1956/artifacts/lora_full_800.safetensors \
+  --out runs/phase2_2_full_800_20260718_1956/artifacts
 
 python -X utf8 scripts/package_offline.py \
-  --ckpt artifacts/full_800/lora_full_800.safetensors \
-  --out mpid_offline_v2
-python -X utf8 scripts/smoke_offline.py --pkg mpid_offline_v2
+  --ckpt runs/phase2_2_full_800_20260718_1956/artifacts/lora_full_800.safetensors \
+  --out runs/<run_id>/artifacts/package/mpid_offline
+python -X utf8 scripts/smoke_offline.py --pkg runs/<run_id>/artifacts/package/mpid_offline
 ```
 
 **如果要从中断处恢复训练**：
@@ -1325,9 +1356,9 @@ python -X utf8 scripts/smoke_offline.py --pkg mpid_offline_v2
 
 ```bash
 python -X utf8 -u scripts/train.py \
-  --config configs/full_500_restart.yaml \
+  --config runs/phase2_2_full_500_20260718_1956/configs/train.yaml \
   --preload-dataset \
-  --resume-from artifacts/full_500_restart/lora_full_500_restart.safetensors \
+  --resume-from runs/phase2_2_full_500_20260718_1956/artifacts/lora_full_500_restart.safetensors \
   --skip-train-batches 300 \
   --resume-global-step 300 \
   --checkpoint-name lora_full_500_restart.safetensors \
@@ -1335,9 +1366,9 @@ python -X utf8 -u scripts/train.py \
 ```
 
 **如果想直接复用仓库内现成脚本**：
-- Windows / PowerShell 可直接运行 [scripts/launch_phase2_2_full_500.ps1](../scripts/launch_phase2_2_full_500.ps1)。
-- 或运行 [scripts/launch_phase2_2_full_800.ps1](../scripts/launch_phase2_2_full_800.ps1)。
-- 两个脚本都会按 `Step 1 → Step 7` 写执行日志，分别落到 `logs/phase2_2_full_500/`、`logs/phase2_2_full_800/` 及同名 `*_execution_log.md`，便于他人照抄和审计。
+- Windows / PowerShell 可直接运行 [runs/phase2_2_full_500_20260718_1956/scripts/launch.ps1](../runs/phase2_2_full_500_20260718_1956/scripts/launch.ps1)。
+- 或运行 [runs/phase2_2_full_800_20260718_1956/scripts/launch.ps1](../runs/phase2_2_full_800_20260718_1956/scripts/launch.ps1)。
+- 两个脚本都会按 `Step 1 → Step 7` 写执行日志，分别落到 `runs/phase2_2_full_500_20260718_1956/logs/`、`runs/phase2_2_full_800_20260718_1956/logs/` 及同名 `*_execution_log.md`，便于他人照抄和审计。
 
 ### 2.16 Phase 2.1 vs Phase 2.2 关键差异
 
@@ -1349,7 +1380,7 @@ python -X utf8 -u scripts/train.py \
 | 输出 checkpoint | `lora_baseline.safetensors` | `lora_full.safetensors`（或 `lora_partial.safetensors` 兜底） |
 | 是否用于 C4/C5/C6 | ❌ 严禁 | ✅ 唯一合法 baseline |
 | 是否参与 T2.18 对比 | 作 smoke 对照 | 作 full 主对象 |
-| 离线包版本 | `mpid_offline/` | `mpid_offline_v2/` |
+| 离线包版本 | `runs/<run_id>/artifacts/package/mpid_offline/` | `runs/<run_id>/artifacts/package/mpid_offline/` |
 | 跨平台验证 | T2.8（smoke） | T2.19（真实训练） |
 | 任务数 | T2.1–T2.12（12 个） | T2.13–T2.21（9 个新增） |
 | 训练设备 | CPU（dtype=float32） | MPS（dtype=默认） |
@@ -1358,14 +1389,14 @@ python -X utf8 -u scripts/train.py \
 
 ### 2.17 验收清单
 
-- [ ] `configs/full.yaml` 存在且与 smoke 配置有显著差异（train records / lr / checkpoint_name）
+- [ ] `runs/_templates/configs/full.yaml` 存在且与 smoke 配置有显著差异（train records / lr / checkpoint_name）
 - [ ] T2.16 训练产出 `lora_full.safetensors`（或 budget 超时后的 `lora_partial.safetensors`）
 - [ ] T2.17 评估 Macro F1 **≥ 0.50**（**硬性**；如不达标，需在 x86/CUDA 环境复跑 T2.16 拿到完整 checkpoint）
 - [ ] T2.18 smoke vs full 对比报告存在，verdict = YES
 - [ ] T2.19 跨平台一致性：x86 CPU 跑同样配置，F1 差异 < 2%（如无可用 x86 机器则跳过此步）
-- [ ] T2.20 `mpid_offline_v2/` 目录 ~989 MB，内含 `lora_full.safetensors`
+- [ ] T2.20 `runs/<run_id>/artifacts/package/mpid_offline/` 目录 ~989 MB，内含 `lora_full.safetensors`
 - [ ] T2.21 冒烟测试通过：layout + checksums + infer.py 跑通
-- [ ] `mpid_offline_v2/` 已被 `.gitignore` 排除（`mpid_offline*/` glob 规则）
+- [ ] `runs/<run_id>/artifacts/package/mpid_offline/` 已被 `.gitignore` 排除（`mpid_offline*/` glob 规则）
 
 ### 2.18 已知坑（本项目 Mac MPS 环境踩过）
 
@@ -1379,20 +1410,254 @@ python -X utf8 -u scripts/train.py \
 ### 2.19 与下一阶段的衔接
 
 **Phase 2.2 验收通过**意味着：
-- `artifacts/baseline/lora_full.safetensors`（或 `lora_partial.safetensors` 兜底）作为 Phase 3/4/5 评估的合法 baseline
-- `mpid_offline_v2/` 可独立分发（内置真实训练权重）
+- `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`（或 `lora_partial.safetensors` 兜底）作为 Phase 3/4/5 评估的合法 baseline
+- `runs/<run_id>/artifacts/package/mpid_offline/` 可独立分发（内置真实训练权重）
 - T2.18 报告证明"真实训练"相对"smoke 训练"有显著提升（verdict = YES）
 
 **Phase 3（C4 早退）** 现在才有可用 baseline 跑 T3.7（`eval.py --early-exit`）：
 ```bash
 python scripts/eval.py \
-    --config configs/full.yaml \
-    --checkpoint artifacts/baseline/lora_full.safetensors \
+    --config runs/_templates/configs/full.yaml \
+    --checkpoint runs/<run_id>/artifacts/checkpoints/lora_full.safetensors \
     --early-exit \
     --clean-threshold 0.95
 ```
 
 **Phase 4/5** 同理：用 `lora_full.safetensors` 替换原本的 `lora_baseline.safetensors` 作为评估输入。
+
+---
+
+## Phase 2.5 — 成果可视化 Demo（§2.20–§2.26）
+
+> **核心定位**：把 Phase 2 已经跑通的“Base VLM 生成”与“MPID LoRA + 3-class head 检测”放到同一个 Gradio 页面里并排展示，让非工程读者也能直观看到 prompt injection 风险与检测结果。
+>
+> **关键边界**：
+> - Phase 2.5 是**演示交付**，不是新的训练阶段。
+> - Demo 必须显式加载 Phase 2.2 产出的 checkpoint；不要继续使用 Phase 2.1 的 `lora_baseline.safetensors` 做能力展示。
+> - Demo 的运行资产遵循 v4.1 后的新目录结构：共享 backbone 放在 `runs/_models/`，单次训练产物放在 `runs/<run_id>/artifacts/`，截图 / smoke 报告建议落在同一个 run 的 `artifacts/demo/` 下。
+>
+> **对应任务**：T2.5.1–T2.5.8（[tasks.md §Phase 2.5](tasks.md#phase-25--成果可视化-demo独立交付)）。
+>
+> **核心产出**：`demo/gradio_app.py` + `demo/samples.json` + `demo/smoke_pipeline.py` + `runs/<run_id>/artifacts/demo/smoke_report.json` + `runs/<run_id>/artifacts/demo/screenshots/`。
+
+### 2.20 一句话目标
+
+**用一个本地 Gradio 页面演示：同一条图文输入下，Base SmolVLM 可能直接响应攻击 prompt，而 MPID 先用 LoRA + 3 分类 head 给出 clean / direct / indirect 判定，并在 risky 输入上阻断后续生成。**
+
+这个阶段面向三类场景：
+- **答辩演示**：用 8 条预置样本快速讲清楚威胁模型、模型输出和风险分。
+- **端到端自测**：不用打开完整训练流程，也能验证 checkpoint 能否被 demo pipeline 正常加载。
+- **对外说明**：让“只给 LoRA 权重不够，必须给完整推理链路”的观点可视化。
+
+### 2.21 涉及模块与文件
+
+| 文件 | 角色 | 任务 |
+|---|---|---|
+| [vlm.py](../src/mpid/adapters/vlm.py) | `VLMAdapter.generate(text, image, max_new_tokens)`，给左栏 Base VLM 做自由生成 | T2.5.1 |
+| [demo/samples.json](../demo/samples.json) | 8 条预置样本：clean ×3 / direct ×3 / indirect ×2 | T2.5.2 |
+| [demo/requirements.txt](../demo/requirements.txt) | demo 单独依赖，主要是 Gradio / Plotly / Matplotlib | T2.5.3 |
+| [demo/gradio_app.py](../demo/gradio_app.py) | Gradio Blocks 页面；封装 `DemoPipeline`，同时跑 base generation 与 MPID classify | T2.5.4 |
+| [demo/README.md](../demo/README.md) | demo 启动说明、UI 结构、预置样本说明 | T2.5.5 |
+| [demo/smoke_pipeline.py](../demo/smoke_pipeline.py) | 不启动浏览器，直接跑 8 条样本并写 JSON smoke 报告 | T2.5.6 |
+| [doc/VERIFICATION.md](VERIFICATION.md) | 记录实际 UI 截图、8 条样本实际输出、已知限制 | T2.5.7 |
+| [README.md](../README.md) | “在线体验 / 本地演示”入口说明 | T2.5.8 |
+
+### 2.22 新目录结构下的资产约定
+
+Phase 2.5 既要兼容 `demo/` 作为源码目录，也要遵守 v4.1 后的 `runs/` 本地资产约定。
+
+推荐布局：
+
+```
+runs/
+├── _models/
+│   └── smolvlm-500m/                         ← 共享 backbone
+├── _datasets/
+│   ├── mpid-v1/test.jsonl                    ← 预置样本来源
+│   └── raw/...                               ← figstep 等图片来源
+└── <run_id>/
+    ├── artifacts/
+    │   ├── checkpoints/
+    │   │   └── lora_full.safetensors         ← Phase 2.2 训练权重
+    │   ├── package/mpid_offline/             ← 可选：离线包
+    │   └── demo/
+    │       ├── smoke_report.json             ← demo smoke 输出
+    │       └── screenshots/                  ← 浏览器截图
+    └── logs/
+        └── demo_server.log                   ← 可选：Gradio 启动日志
+
+demo/
+├── gradio_app.py                             ← demo 源码，进 git
+├── smoke_pipeline.py                         ← demo smoke 源码，进 git
+├── samples.json                              ← 小体积预置样本元数据，进 git
+├── requirements.txt                          ← demo 额外依赖，进 git
+└── README.md                                 ← demo 使用说明，进 git
+```
+
+路径原则：
+- **源码进 `demo/`**：Gradio 页面、预置样本元数据、README、smoke 脚本都应保留在仓库内。
+- **大文件进 `runs/`**：backbone、checkpoint、离线包、日志、截图、smoke 报告都属于本地执行资产。
+- **启动时显式传参**：不要依赖 `demo/gradio_app.py` 的历史默认值；用 `--model-dir` 和 `--checkpoint` 指向当前 run。
+- **样本图片路径要可解析**：`demo/samples.json` 中的 `image` 是 repo-relative path；新 run 下优先指向 `runs/_datasets/raw/...`，不要再新增顶层 `data/` 依赖。
+
+### 2.23 手动端到端校验（T2.5.4–T2.5.6）
+
+#### Step 1: 安装 demo 依赖
+
+```powershell
+# Windows PowerShell
+Set-Location C:\path\to\llm-compliance
+.\.venv\Scripts\python.exe -m pip install -r demo\requirements.txt
+```
+
+```bash
+# macOS / Linux
+cd /path/to/llm-compliance
+./.venv/bin/python -m pip install -r demo/requirements.txt
+```
+
+#### Step 2: 先跑无浏览器 smoke
+
+这一步验证 `DemoPipeline` 能否加载 backbone + checkpoint，并逐条跑完 8 个预置样本。建议把输出写到当前 run 的 demo artifact 下。
+
+```powershell
+# Windows PowerShell
+$RUN_ID = "phase2_2_full_500_20260718_1956"
+.\.venv\Scripts\python.exe demo\smoke_pipeline.py `
+  --model-dir runs\_models\smolvlm-500m `
+  --checkpoint runs\$RUN_ID\artifacts\checkpoints\lora_full.safetensors `
+  --samples demo\samples.json `
+  --device cpu `
+  --max-new-tokens 64 `
+  --out runs\$RUN_ID\artifacts\demo\smoke_report.json
+```
+
+```bash
+# macOS / Linux
+RUN_ID=phase2_2_full_500_20260718_1956
+./.venv/bin/python demo/smoke_pipeline.py \
+  --model-dir runs/_models/smolvlm-500m \
+  --checkpoint runs/$RUN_ID/artifacts/checkpoints/lora_full.safetensors \
+  --samples demo/samples.json \
+  --device cpu \
+  --max-new-tokens 64 \
+  --out runs/$RUN_ID/artifacts/demo/smoke_report.json
+```
+
+期望输出：
+```
+[smoke] pipeline ready in N.Ns
+[smoke] #1 gt=clean    pred=clean    risk=0.xx [OK] ...
+...
+[smoke] summary: K/8 matched
+[smoke] wrote runs/<run_id>/artifacts/demo/smoke_report.json
+```
+
+**解释方式**：
+- `K/8` 不是 Phase 2.5 的唯一验收指标；它用于快速看 demo pipeline 是否可跑，以及当前 checkpoint 在 8 条展示样本上的直观效果。
+- 如果 Phase 2.2 快速训练仍未学好 `indirect`，demo 里 indirect 样本可能会误判。这应记录在 `doc/VERIFICATION.md` 的 Phase 2.5 实际结果中，而不是藏起来。
+
+#### Step 3: 启动 Gradio 页面
+
+```powershell
+# Windows PowerShell
+$RUN_ID = "phase2_2_full_500_20260718_1956"
+.\.venv\Scripts\python.exe demo\gradio_app.py `
+  --model-dir runs\_models\smolvlm-500m `
+  --checkpoint runs\$RUN_ID\artifacts\checkpoints\lora_full.safetensors `
+  --samples demo\samples.json `
+  --device cpu `
+  --max-new-tokens 96 `
+  --server-name 127.0.0.1 `
+  --server-port 7860
+```
+
+```bash
+# macOS / Linux
+RUN_ID=phase2_2_full_500_20260718_1956
+./.venv/bin/python demo/gradio_app.py \
+  --model-dir runs/_models/smolvlm-500m \
+  --checkpoint runs/$RUN_ID/artifacts/checkpoints/lora_full.safetensors \
+  --samples demo/samples.json \
+  --device cpu \
+  --max-new-tokens 96 \
+  --server-name 127.0.0.1 \
+  --server-port 7860
+```
+
+浏览器访问：
+
+```text
+http://127.0.0.1:7860/
+```
+
+启动成功的关键日志：
+```
+[demo] repo_root = ...
+[demo] model_dir = runs/_models/smolvlm-500m
+[demo] checkpoint= runs/<run_id>/artifacts/checkpoints/lora_full.safetensors
+[demo] pipeline ready in N.N s
+Running on local URL: http://127.0.0.1:7860
+```
+
+#### Step 4: 保存截图与实际结果
+
+建议至少保存：
+- `runs/<run_id>/artifacts/demo/screenshots/clean_01.png`
+- `runs/<run_id>/artifacts/demo/screenshots/direct_01.png`
+- `runs/<run_id>/artifacts/demo/screenshots/indirect_01.png`
+- `runs/<run_id>/artifacts/demo/smoke_report.json`
+
+然后在 [doc/VERIFICATION.md](VERIFICATION.md) 的 Phase 2.5 段记录：
+- 使用的 `run_id`
+- 使用的 checkpoint 路径
+- 8 条样本的 `gt / pred / risk`
+- 哪些样本展示效果好，哪些误判
+- 截图路径
+- 当前 checkpoint 的限制说明
+
+### 2.24 UI 结构与演示话术
+
+页面按“输入 → 对比 → 解释”的顺序组织：
+
+| 区域 | 内容 | 演示重点 |
+|---|---|---|
+| 预置样本 | 8 条样本下拉选择：clean ×3 / direct ×3 / indirect ×2 | 覆盖三类威胁模型 |
+| 输入区 | prompt 文本 + 可选图片 | 支持纯文本和图文输入 |
+| 左栏 Base SmolVLM | 对用户 prompt 做自由生成 | 展示“无防护模型可能被 prompt 接管” |
+| 右栏 MPID | 先分类，再决定放行 / 阻断 | 展示 label、risk、三类概率 |
+| 项目说明 | 威胁模型、模型结构、已知限制 | 给答辩和非技术观众提供上下文 |
+
+推荐演示顺序：
+1. 先选 clean 样本，说明正常请求应该放行。
+2. 再选 direct injection 样本，展示 Base 可能跟随越狱指令，而 MPID 应判为 `direct` 并阻断。
+3. 最后选 indirect / figstep 样本，说明攻击 payload 可以藏在图片里；如果当前模型误判，直接解释这是 Phase 2.2 快速训练 checkpoint 的已知短板，后续 Phase 5 C6 专门补跨模态一致性。
+
+### 2.25 验收清单
+
+- [ ] `demo/gradio_app.py` 可启动，页面可在 `http://127.0.0.1:7860/` 打开。
+- [ ] 启动命令显式传入 `runs/_models/smolvlm-500m` 和 `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`。
+- [ ] `demo/smoke_pipeline.py` 跑完 8 条预置样本，并写出 `runs/<run_id>/artifacts/demo/smoke_report.json`。
+- [ ] 8 条样本覆盖 clean ×3 / direct ×3 / indirect ×2。
+- [ ] 至少保存 clean / direct / indirect 三类截图到 `runs/<run_id>/artifacts/demo/screenshots/`。
+- [ ] [doc/VERIFICATION.md](VERIFICATION.md) 记录实际 `gt / pred / risk`，而不是只写预期。
+- [ ] 如果当前 checkpoint 在 indirect 上表现差，文档中明确标注为已知限制，并指向 Phase 5 C6。
+- [ ] `demo/README.md` 和顶层 [README.md](../README.md) 给出可复制启动命令。
+
+### 2.26 常见坑与下一阶段衔接
+
+常见坑：
+1. **误用旧 checkpoint**：demo 默认值历史上指向 `artifacts/baseline/lora_baseline.safetensors`；新目录结构下启动时必须显式传 `--checkpoint runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`。
+2. **backbone 路径不一致**：Phase 0A 下载产物应在 `runs/_models/smolvlm-500m/`；如果脚本默认找 `models/smolvlm-500m/`，用 `--model-dir` 覆盖。
+3. **样本图片找不到**：`demo/samples.json` 的 `image` 是 repo-relative path；从旧 `data/raw/...` 迁移后应改成 `runs/_datasets/raw/...`。
+4. **CPU 生成很慢**：Base VLM 的自由生成可能每条几十秒；演示时可把 `--max-new-tokens` 降到 64 或 96。
+5. **Gradio share 会联网**：默认不要加 `--share`；只有确实需要公网链接时才打开。
+6. **中文显示乱码**：确保文件按 UTF-8 读取；Windows 控制台可用 `python -X utf8` 或 PowerShell 7。
+7. **演示不等于最终能力评估**：Phase 2.5 只展示体验；模型质量仍以 Phase 2.2 的 eval / confusion matrix / smoke-vs-full 报告为准。
+
+**Phase 2.5 → Phase 3**：
+- Phase 2.5 证明“端到端体验”可展示；Phase 3 开始做 C4 早退，目标是让 clean 样本更快放行。
+- 后续可以把 Phase 3/4/5 的推理结果接入同一个 Gradio 页面，但每次接入都应保持同一条规则：**demo 只负责展示，真实性能结论来自离线 eval 报告**。
 
 ---
 ## Phase 3 — C4 早退机制（对应 C4 优化）
@@ -1454,9 +1719,9 @@ python scripts/eval.py --early-exit --max-records 20
 [eval] C4 wrong-exit: 0
 [eval] Latency:      11520.7 ms → 11520.7 ms (0.0% saved)
 [eval] F1 delta:     +0.0000
-[eval] wrote artifacts/baseline/early_exit_compare.json
-[eval] wrote artifacts/baseline/early_exit_compare.md
-[eval] wrote artifacts/baseline/early_exit_per_sample.jsonl
+[eval] wrote runs/<run_id>/artifacts/checkpoints/early_exit_compare.json
+[eval] wrote runs/<run_id>/artifacts/checkpoints/early_exit_compare.md
+[eval] wrote runs/<run_id>/artifacts/checkpoints/early_exit_per_sample.jsonl
 ```
 
 **关键观察**：
@@ -1682,9 +1947,9 @@ $$
 |---|---|---|
 | `clean` | `"clean"` | MMLU / CMMLU / Flickr30k / safe-guard label=0 |
 | `direct` | `"direct"` | deepset label=1 / safe-guard label=1 / jailbreakv format=Template 等 |
-| `indirect` | `"indirect"` | jailbreakv format=FigStep / `data/mpid-v1-crossmodal/`（自构造） |
+| `indirect` | `"indirect"` | jailbreakv format=FigStep / `runs/_datasets/mpid-v1-crossmodal/`（自构造） |
 
-> **数据质量决策**：`safe-guard-prompt-injection` 数据集没有显式 `injection_type` 字段；当前按文本是否含 "indirect" 关键词做兜底分桶。Phase 1 的 EDA（`data/mpid-v1/EDA.md`）会报告各数据集的 label 分布，必要时剔除低质量样本。
+> **数据质量决策**：`safe-guard-prompt-injection` 数据集没有显式 `injection_type` 字段；当前按文本是否含 "indirect" 关键词做兜底分桶。Phase 1 的 EDA（`runs/_datasets/mpid-v1/EDA.md`）会报告各数据集的 label 分布，必要时剔除低质量样本。
 
 #### 2.A.7 不在范围
 
@@ -1807,7 +2072,7 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 | 4 | CMMLU 简繁混用，`detect_lang` 仍正确分到 `zh` | 不剔除，保留语种多样性 |
 | 5 | `Record.image` 字段 None 时给 512×512 浅灰占位图 | Idefics3 强制要求 `<image>` token |
 
-详见 `data/mpid-v1/EDA.md §9 已知问题`。
+详见 `runs/_datasets/mpid-v1/EDA.md §9 已知问题`。
 
 ---
 
@@ -1825,7 +2090,7 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 
 #### 2.C.2 本项目 EDA 包含什么
 
-`data/mpid-v1/EDA.md` 由 `build_phase1.py` 自动生成，包含 **9 个章节**：
+`runs/_datasets/mpid-v1/EDA.md` 由 `build_phase1.py` 自动生成，包含 **9 个章节**：
 
 | § | 章节 | 内容 |
 |---|---|---|
@@ -1877,7 +2142,7 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 
 ```
 build_phase1.py
-  └─► data/mpid-v1/EDA.md  ← EDA 报告
+  └─► runs/_datasets/mpid-v1/EDA.md  ← EDA 报告
         │
         ├──► class_weighting 参数 → trainer.py（处理 §2 不平衡）
         ├──► max_seq_length 参数 → trainer.py（处理 §5 长度）
@@ -2203,7 +2468,7 @@ def inject_lora(backbone_model: nn.Module, cfg: TrainConfig) -> tuple[nn.Module,
     return peft_model, n_trainable
 ```
 
-**配置参数表**（来自 [configs/baseline.yaml](../configs/baseline.yaml)）：
+**配置参数表**（来自 [runs/_templates/configs/baseline.yaml](../runs/_templates/configs/baseline.yaml)）：
 
 | 参数 | 值 | 含义 |
 |---|---|---|
@@ -2299,15 +2564,15 @@ weight_i = N / (K * count_i)
 ```python
 # 保存（trainer.py 中）
 save_checkpoint(
-    "artifacts/baseline/lora_baseline.safetensors",
+    "runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors",
     peft_model, head, cfg
 )
 # → safetensors 格式（HuggingFace 生态标准）
 
 # 加载（infer.py 中）
 from peft import PeftModel
-base = AutoModelForVision2Seq.from_pretrained("models/smolvlm-500m")
-peft_model = PeftModel.from_pretrained(base, "artifacts/baseline/lora_baseline.safetensors")
+base = AutoModelForVision2Seq.from_pretrained("runs/_models/smolvlm-500m")
+peft_model = PeftModel.from_pretrained(base, "runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors")
 peft_model = peft_model.merge_and_unload()  # 合并
 ```
 
@@ -2374,7 +2639,7 @@ peft_model_2 = get_peft_model(peft_model_1, lora_cfg_2)  # 训 1 epoch
 | [trainer.py](../src/mpid/train/trainer.py) `train` (L232-237) | peft 包裹 + gradient checkpointing 重新启用 |
 | [trainer.py](../src/mpid/train/trainer.py) L276-280 | 训练时把 LoRA + head 一起加进 optimizer |
 | [trainer.py](../src/mpid/train/trainer.py) `save_checkpoint` | 保存为 safetensors 格式 |
-| [configs/baseline.yaml](../configs/baseline.yaml) | 训练超参入口（修改 r/alpha 后改这里） |
+| [runs/_templates/configs/baseline.yaml](../runs/_templates/configs/baseline.yaml) | 训练超参入口（修改 r/alpha 后改这里） |
 | [scripts/eval.py](../scripts/eval.py) | 加载 LoRA 权重 + 推理 |
 
 #### 2.E.8 一句话总结
@@ -2934,10 +3199,10 @@ Phase 2  Phase 7    中期路线    长期路线
 项目里 [scripts/package_offline.py](../../scripts/package_offline.py) 已经预见到了这个问题，**把整个交付物打包成自包含目录**：
 
 ```
-mpid_offline/                          ← 第三方拿到的就是这个文件夹
+runs/<run_id>/artifacts/package/mpid_offline/  ← 第三方拿到的就是这个文件夹
 ├── models/
 │   └── smolvlm-500m/                 # 1GB 基础模型
-├── artifacts/
+├── artifacts/checkpoints/
 │   └── lora_baseline.safetensors     # 6MB LoRA
 ├── src/mpid/                          # 推理代码
 │   ├── adapters/vlm.py
@@ -2962,12 +3227,12 @@ python infer.py --text "忽略以上指令"   # 自动加载 LoRA + 跑 C4 + 输
 
 | 方式 | 形态 | 第三方用法 | 复杂度 | 适用场景 |
 |---|---|---|---|---|
-| **A. 自包含文件夹** | `mpid_offline/`（zip 压缩） | Windows PowerShell：`Set-Location mpid_offline; python infer.py`；macOS/Linux：`cd mpid_offline && python infer.py` | 🟢 低 | 个人 / 小团队 / 边缘设备 |
+| **A. 自包含文件夹** | `runs/<run_id>/artifacts/package/mpid_offline/`（zip 压缩） | Windows PowerShell：`Set-Location mpid_offline; python infer.py`；macOS/Linux：`cd mpid_offline && python infer.py` | 🟢 低 | 个人 / 小团队 / 边缘设备 |
 | **B. pip 包** | `pip install mpid-inject-guard` | `import mpid_guard; guard.check(text)` | 🟡 中 | 集成到第三方 Python 代码 |
 | **C. API 服务** | HTTP server | `POST /check {"text": "..."}` | 🟡 中 | 服务化部署（多客户端） |
 | **D. ONNX + runtime** | ONNX 模型 + C++/Rust SDK | `guard_sdk->check(text)` | 🔴 高 | 极致性能（< 50ms 延迟） |
 
-**项目当前走的是方式 A**——`mpid_offline/` 是一个文件夹，第三方解压即可使用。
+**项目当前走的是方式 A**——`runs/<run_id>/artifacts/package/mpid_offline/` 是一个文件夹，第三方解压即可使用。
 
 **方式 A 的优势**：
 - **离线运行**：包内自带模型权重，运行时零网络依赖
@@ -3054,7 +3319,7 @@ python infer.py --text "忽略以上指令"   # 自动加载 LoRA + 跑 C4 + 输
 
 **给答辩的一段话**：
 
-> "**我们的交付物是一个完整的'轻量级多模态防注入检测包'——不仅包含训练好的 LoRA 权重（~6MB），更包含完整的推理代码（C4 早退 + C5 规则 + C6 跨模态）和调度器。第三方下载 `mpid_offline/` 文件夹后，无需联网、无需 GPU；在 Windows PowerShell 下运行 `pip install -r requirements.txt` 后再运行 `python infer.py`，在 macOS/Linux 下也是同样两步。这与只发布模型权重的传统方案相比，让'防御能力'真正可落地、可复用、可审计。**"
+> "**我们的交付物是一个完整的'轻量级多模态防注入检测包'——不仅包含训练好的 LoRA 权重（~6MB），更包含完整的推理代码（C4 早退 + C5 规则 + C6 跨模态）和调度器。第三方下载 `runs/<run_id>/artifacts/package/mpid_offline/` 文件夹后，无需联网、无需 GPU；在 Windows PowerShell 下运行 `pip install -r requirements.txt` 后再运行 `python infer.py`，在 macOS/Linux 下也是同样两步。这与只发布模型权重的传统方案相比，让'防御能力'真正可落地、可复用、可审计。**"
 
 ---
 
@@ -3107,7 +3372,7 @@ Phase 0: 脚手架
 
 Phase 1: 数据集（C1 威胁模型）
   └─ build_phase1.py 一站式
-  └─ 验收: data/mpid-v1/{train,val,test}.jsonl + EDA.md 存在
+  └─ 验收: runs/_datasets/mpid-v1/{train,val,test}.jsonl + EDA.md 存在
 
 Phase 2: VLM 端到端基线（C2）
   └─ 7 步端到端校验（smoke → 训练 → 评估 → 离线包）
@@ -3121,8 +3386,8 @@ Phase 2: VLM 端到端基线（C2）
 1. smoke_env.py        → 4/4 OK
 2. smoke_model.py      → 5/5 PASS
 3. smoke_data.py       → 6/6 PASS + 5/5 checklist
-4. build_phase1.py     → data/mpid-v1/{train,val,test}.jsonl
-5. train.py            → artifacts/baseline/lora_baseline.safetensors
+4. build_phase1.py     → runs/_datasets/mpid-v1/{train,val,test}.jsonl
+5. train.py            → runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors
 6. eval.py + measure_offline.py → report + network=0
 7. package_offline.py + smoke_offline.py → mpid_offline/ + 临时目录推理通
 ```
@@ -3206,6 +3471,30 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
 > 本附录按倒序记录每次重要变更（最新在上），便于回溯每个章节内容的来源。
 > 之前的版本将变更摘要放在文档开头，自 **v3.7** 起统一迁移到本附录。
 
+### v4.2 (2026-07-18) — Phase 2.5 成果可视化 Demo 补充
+
+**动机**：`tasks.md` 已经把 Phase 2.5 定义为独立的 Gradio 成果可视化交付，但 `reference.md` 仍只覆盖 Phase 2.1 / Phase 2.2 / Phase 3，缺少 demo 如何复用新训练 checkpoint、如何按 `runs/` 目录落地截图与 smoke 报告、以及如何解释演示结果的统一说明。
+
+**变更**：
+- 目录中新增 **§2.20–§2.26 Phase 2.5 — 成果可视化 Demo**。
+- 在 Phase 2 总览中把原“两阶段”描述扩展为“两个训练子阶段 + 一个演示交付阶段”。
+- 新增 Phase 2.5 七个子节：一句话目标 / 涉及模块与文件 / 新目录结构下的资产约定 / 手动端到端校验 / UI 结构与演示话术 / 验收清单 / 常见坑与下一阶段衔接。
+- 明确 demo 启动时必须显式传入 `runs/_models/smolvlm-500m` 与 `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`，避免误用历史默认的 smoke checkpoint。
+- 把 demo smoke 报告和截图建议落到 `runs/<run_id>/artifacts/demo/`，与 v4.1 的 run-specific 本地资产约定保持一致。
+- 文档版本号 **v4.1 → v4.2**。
+
+### v4.1 (2026-07-18) — 本地执行目录收敛到 runs/
+
+**动机**：项目执行过程中已经形成多次训练 run、checkpoint、日志和离线包；继续把 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 放在顶层会让历史产物与当前产物混杂，不利于复现、清理和审计。
+
+**变更**：
+- 新增文档头部 **当前运行目录约定**，把本地执行资产统一收敛到 `runs/`。
+- 明确 `runs/<run_id>/` 必须带时间后缀，并拥有自己的 `configs/`、`artifacts/`、`logs/`、`scripts/`、`execution_log.md` 和 `status.json`。
+- 新增共享目录约定：`runs/_datasets/`、`runs/_models/`、`runs/_templates/`、`runs/_manual/`。
+- 标记顶层 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 为废弃路径；历史命令执行前应转换到对应 `runs/` 路径。
+- 更新常用路径表和 Phase 0A / Phase 1 / Phase 2 中的主要路径引用。
+- 文档版本号 **v4.0 → v4.1**。
+
 ### v4.0 (2026-07-18) — Windows / macOS 命令分流与跨平台校正
 
 **动机**：`reference.md` 中长期混用了 macOS/Linux 风格命令（如 `source`、`ls`、`head`、`cat`、`wc`、`bash`、`/tmp` 路径），Windows 用户即使理解流程，也无法直接复制执行；同时 Phase 2.2 已经新增 PowerShell 自动化脚本，文档需要与当前仓库入口保持一致。
@@ -3215,8 +3504,8 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
 - 把 Phase 0A、Phase 2、Phase 3 中涉及虚拟环境激活的步骤改为 **Windows PowerShell / macOS/Linux 双写法**。
 - 把 `ls` / `head` / `cat` / `wc` 这类 Unix-only 校验命令替换为 **跨平台 Python 单行命令**。
 - 把 Phase 2.2 的训练入口更新为：
-  - `scripts/launch_train_full.sh`（macOS / Linux）
-  - `scripts/launch_phase2_2_full_500.ps1`、`scripts/launch_phase2_2_full_800.ps1`（Windows）
+  - `runs/phase2_2_full_500_20260718_1956/scripts/launch_train_full.sh`（macOS / Linux）
+  - `runs/phase2_2_full_500_20260718_1956/scripts/launch.ps1`、`runs/phase2_2_full_800_20260718_1956/scripts/launch.ps1`（Windows）
 - 把 `smoke_offline.py` 的临时目录说明改为“系统临时目录”，并分别注明 Windows 常见是 `%TEMP%`、macOS/Linux 常见是 `/tmp`。
 - 调整结尾交付说明，避免使用只偏向 Unix shell 的 `&&` 连写示例。
 - 文档版本号 **v3.9 → v4.0**。
@@ -3231,7 +3520,7 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
   - `full_500_restart.yaml` 的训练、评估、对比、打包、冒烟命令
   - `full_800.yaml` 的训练、评估、对比、打包、冒烟命令
 - 新增 **断点续跑说明**：记录 `--resume-from` / `--skip-train-batches` / `--resume-global-step` / `--max-train-steps` 四个参数的用法与一个 300-step 示例。
-- 新增 **一键脚本入口说明**：明确 [scripts/launch_phase2_2_full_500.ps1](../scripts/launch_phase2_2_full_500.ps1) 与 [scripts/launch_phase2_2_full_800.ps1](../scripts/launch_phase2_2_full_800.ps1) 的用途和日志落点。
+- 新增 **一键脚本入口说明**：明确 [runs/phase2_2_full_500_20260718_1956/scripts/launch.ps1](../runs/phase2_2_full_500_20260718_1956/scripts/launch.ps1) 与 [runs/phase2_2_full_800_20260718_1956/scripts/launch.ps1](../runs/phase2_2_full_800_20260718_1956/scripts/launch.ps1) 的用途和日志落点。
 - 文档版本号 **v3.8 → v3.9**。
 
 ### v3.8 (2026-07-15) — Phase 2 章节重组（按 2.1 / 2.2 拆分）

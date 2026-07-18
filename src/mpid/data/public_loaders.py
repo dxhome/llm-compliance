@@ -1,6 +1,6 @@
 """Unified public-dataset loaders (Phase 1 / T1.3).
 
-Each function reads from ``data/raw/<short_name>/`` (preserved verbatim
+Each function reads from ``runs/_datasets/raw/<short_name>/`` (preserved verbatim
 by ``scripts/download_data.py``) and yields records in the canonical
 MPID schema::
 

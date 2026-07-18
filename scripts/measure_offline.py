@@ -21,9 +21,9 @@ peak.
 Usage::
 
     python scripts/measure_offline.py
-    python scripts/measure_offline.py --checkpoint artifacts/baseline/lora_baseline.safetensors \
-                                      --config configs/baseline.yaml \
-                                      --out artifacts/baseline/measure_offline.json
+    python scripts/measure_offline.py --checkpoint runs/_templates/artifacts/checkpoints/lora_baseline.safetensors \
+                                      --config runs/_templates/configs/baseline.yaml \
+                                      --out runs/_manual/artifacts/measure_offline.json
 """
 from __future__ import annotations
 
@@ -234,11 +234,11 @@ def measure(checkpoint: Path, cfg_path: Path, n_warmup: int = 2,
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="MPID offline metrics (T2.10)")
     p.add_argument("--config", type=Path,
-                   default=REPO_ROOT / "configs" / "baseline.yaml")
+                   default=REPO_ROOT / "runs" / "_templates" / "configs" / "baseline.yaml")
     p.add_argument("--checkpoint", type=Path,
-                   default=REPO_ROOT / "artifacts" / "baseline" / "lora_baseline.safetensors")
+                   default=REPO_ROOT / "runs" / "_templates" / "artifacts" / "checkpoints" / "lora_baseline.safetensors")
     p.add_argument("--out", type=Path,
-                   default=REPO_ROOT / "artifacts" / "baseline" / "measure_offline.json")
+                   default=REPO_ROOT / "runs" / "_manual" / "artifacts" / "measure_offline.json")
     p.add_argument("--warmup", type=int, default=2)
     p.add_argument("--samples", type=int, default=20)
     return p.parse_args()

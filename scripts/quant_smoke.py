@@ -17,7 +17,7 @@ Backends tried, in order:
 Usage::
 
     python scripts/quant_smoke.py
-    python scripts/quant_smoke.py --out artifacts/quantization.json
+    python scripts/quant_smoke.py --out runs/_manual/artifacts/quantization.json
 """
 from __future__ import annotations
 

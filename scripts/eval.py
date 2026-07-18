@@ -43,11 +43,11 @@ Usage::
 
     # Single-model (backward-compatible)
     python scripts/eval.py
-    python scripts/eval.py --checkpoint artifacts/baseline/lora_baseline.safetensors
+    python scripts/eval.py --checkpoint runs/_templates/artifacts/checkpoints/lora_baseline.safetensors
 
     # Comparison (T2.11)
     python scripts/eval.py --compare
-    python scripts/eval.py --compare --val data/mpid-v1-crossmodal/test.jsonl
+    python scripts/eval.py --compare --val runs/_datasets/mpid-v1-crossmodal/test.jsonl
 
     # Early-exit comparison (T3.7)
     python scripts/eval.py --early-exit
@@ -58,13 +58,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 from typing import Optional
 
 import torch
 import yaml
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -94,18 +95,34 @@ from mpid.data.dataset import MPIDJsonlDataset, collate
 # Config
 # ---------------------------------------------------------------------------
 
+def _resolve_input_path(value: str | Path, base_dir: Path) -> Path:
+    p = Path(value)
+    if p.is_absolute():
+        return p
+    from_config = (base_dir / p).resolve()
+    if from_config.exists():
+        return from_config
+    return (REPO_ROOT / p).resolve()
+
+
+def _resolve_output_path(value: str | Path, base_dir: Path) -> Path:
+    p = Path(value)
+    return p if p.is_absolute() else (base_dir / p).resolve()
+
+
 def build_train_config_from_yaml(path: Path) -> TrainConfig:
     """Reuse the same YAML schema as ``train.py``."""
     with open(path, encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
+    base_dir = path.resolve().parent
     defaults = cfg.get("defaults", {}) or {}
     lora = cfg.get("lora", {}) or {}
     training = cfg.get("training", {}) or {}
     io = cfg.get("io", {}) or {}
     return TrainConfig(
-        train_jsonl=io["train_jsonl"],
-        val_jsonl=io["val_jsonl"],
-        out_dir=io.get("out_dir", "artifacts/baseline"),
+        train_jsonl=str(_resolve_input_path(io["train_jsonl"], base_dir)),
+        val_jsonl=str(_resolve_input_path(io["val_jsonl"], base_dir)),
+        out_dir=str(_resolve_output_path(io.get("out_dir", "artifacts/eval"), base_dir)),
         backbone_name=defaults.get("backbone_name", "smolvlm-500m"),
         dtype=defaults.get("dtype", "float32"),
         device=defaults.get("device", "cpu"),
@@ -135,10 +152,10 @@ def build_train_config_from_yaml(path: Path) -> TrainConfig:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="MPID evaluator (T2.9 / T2.11)")
     p.add_argument("--config", type=Path,
-                   default=REPO_ROOT / "configs" / "baseline.yaml",
+        default=REPO_ROOT / "runs" / "_templates" / "configs" / "baseline.yaml",
                    help="YAML config (same schema as train.py)")
     p.add_argument("--checkpoint", type=Path,
-                   default=REPO_ROOT / "artifacts" / "baseline" / "lora_baseline.safetensors",
+        default=REPO_ROOT / "runs" / "_templates" / "artifacts" / "checkpoints" / "lora_baseline.safetensors",
                    help="LoRA+head checkpoint (used by single & compare modes)")
     p.add_argument("--val", type=Path, default=None,
                    help="Override val JSONL (else uses config io.val_jsonl)")
@@ -146,6 +163,16 @@ def parse_args() -> argparse.Namespace:
                    help="Override output dir (else uses config io.out_dir)")
     p.add_argument("--max-records", type=int, default=None,
                    help="Cap the number of eval records (debugging)")
+    p.add_argument("--stratified-max-records", type=int, default=None,
+                   help="Cap eval records with deterministic stratified sampling "
+                        "across the 3 labels.")
+    p.add_argument("--sample-seed", type=int, default=42,
+                   help="Random seed for stratified sampling (default: 42).")
+    p.add_argument("--chunk-size", type=int, default=0,
+                   help="Evaluate in independent chunks of this many records; "
+                        "each chunk writes its own complete artifacts.")
+    p.add_argument("--chunk-output-dir", type=Path, default=None,
+                   help="Directory for per-chunk artifacts (default: out/chunks).")
     p.add_argument("--compare", action="store_true",
                    help="T2.11: run baseline (untrained) vs modified (LoRA-trained) "
                         "and emit a side-by-side comparison report.")
@@ -154,11 +181,10 @@ def parse_args() -> argparse.Namespace:
                         "vs the full model (lora_full.safetensors) on the same "
                         "test set. Both are loaded and evaluated.")
     p.add_argument("--smoke-checkpoint", type=Path, default=None,
-                   help="T2.18: smoke checkpoint (default: "
-                        "artifacts/baseline/lora_baseline.safetensors)")
+                   help="T2.18: smoke checkpoint. Default is the run-local "
+                        "artifacts/checkpoints/lora_baseline.safetensors when available.")
     p.add_argument("--full-checkpoint", type=Path, default=None,
-                   help="T2.18: full checkpoint (default: "
-                        "artifacts/baseline/lora_full.safetensors)")
+                   help="T2.18: full checkpoint. Default is --checkpoint.")
     p.add_argument("--early-exit", action="store_true",
                    help="T3.7: run the SAME model twice — once with C4 disabled "
                         "(full path) and once with C4 enabled (early-exit path) — "
@@ -190,13 +216,131 @@ def _build_adapter_and_lora(cfg: TrainConfig):
 
 def _build_dataloader_with_processor(processor, val_path: Path,
                                      device: str, batch_size: int,
-                                     max_records: Optional[int]) -> DataLoader:
+                                     max_records: Optional[int],
+                                     stratified_max_records: Optional[int] = None,
+                                     sample_seed: int = 42) -> DataLoader:
     val_ds = MPIDJsonlDataset(
         Path(val_path), processor=processor, device=device,
         max_records=max_records,
     )
-    return DataLoader(val_ds, batch_size=batch_size, shuffle=False,
-                      collate_fn=collate, num_workers=0), val_ds
+    effective_ds = val_ds
+    if stratified_max_records is not None and 0 < stratified_max_records < len(val_ds):
+        sampled_indices = _build_stratified_indices(
+            val_ds.records,
+            stratified_max_records,
+            seed=sample_seed,
+        )
+        effective_ds = Subset(val_ds, sampled_indices)
+        sampled_counts: dict[str, int] = {}
+        for idx in sampled_indices:
+            label = val_ds.records[idx]["label"]
+            sampled_counts[label] = sampled_counts.get(label, 0) + 1
+        print(
+            "[eval] stratified sample enabled: "
+            f"{len(sampled_indices)}/{len(val_ds)} records "
+            f"(seed={sample_seed}, counts={sampled_counts})"
+        )
+    return DataLoader(effective_ds, batch_size=batch_size, shuffle=False,
+                      collate_fn=collate, num_workers=0), effective_ds
+
+
+def _build_stratified_indices(records: list[dict], target_n: int, seed: int) -> list[int]:
+    """Return deterministic stratified sample indices with all labels covered."""
+    by_label: dict[str, list[int]] = {label: [] for label in LABEL_ORDER}
+    for idx, record in enumerate(records):
+        label = record.get("label")
+        if label in by_label:
+            by_label[label].append(idx)
+
+    available_labels = [label for label in LABEL_ORDER if by_label[label]]
+    if not available_labels:
+        return list(range(min(target_n, len(records))))
+
+    rng = random.Random(seed)
+    for indices in by_label.values():
+        rng.shuffle(indices)
+
+    total_available = sum(len(by_label[label]) for label in available_labels)
+    target_n = min(target_n, total_available)
+    if target_n <= len(available_labels):
+        chosen_labels = available_labels[:target_n]
+        selected = [by_label[label][0] for label in chosen_labels]
+        rng.shuffle(selected)
+        return selected
+
+    counts = {label: 1 for label in available_labels}
+    remaining = target_n - len(available_labels)
+    quotas: list[tuple[float, str]] = []
+    for label in available_labels:
+        pool_size = len(by_label[label])
+        extra_capacity = pool_size - 1
+        if extra_capacity <= 0:
+            continue
+        ideal_extra = remaining * (pool_size / total_available)
+        allocated = min(extra_capacity, int(ideal_extra))
+        counts[label] += allocated
+        quotas.append((ideal_extra - allocated, label))
+
+    assigned = sum(counts.values())
+    remaining = target_n - assigned
+    if remaining > 0:
+        for _, label in sorted(quotas, reverse=True):
+            if remaining <= 0:
+                break
+            extra_capacity = len(by_label[label]) - counts[label]
+            if extra_capacity <= 0:
+                continue
+            take = min(extra_capacity, remaining)
+            counts[label] += take
+            remaining -= take
+
+    if remaining > 0:
+        for label in available_labels:
+            if remaining <= 0:
+                break
+            extra_capacity = len(by_label[label]) - counts[label]
+            if extra_capacity <= 0:
+                continue
+            take = min(extra_capacity, remaining)
+            counts[label] += take
+            remaining -= take
+
+    selected: list[int] = []
+    for label in available_labels:
+        selected.extend(by_label[label][:counts[label]])
+    rng.shuffle(selected)
+    return selected
+
+
+def _iter_chunk_datasets(dataset, chunk_size: int):
+    """Yield (1-based chunk_index, chunk_dataset) pairs."""
+    if chunk_size <= 0:
+        yield 1, dataset
+        return
+    n = len(dataset)
+    for start in range(0, n, chunk_size):
+        stop = min(start + chunk_size, n)
+        yield (start // chunk_size) + 1, Subset(dataset, list(range(start, stop)))
+
+
+def _eval_from_predictions(y_gold: list[int], y_pred: list[int]) -> dict:
+    from sklearn.metrics import classification_report, confusion_matrix
+
+    cm = confusion_matrix(y_gold, y_pred, labels=list(range(NUM_CLASSES)))
+    report = classification_report(
+        y_gold,
+        y_pred,
+        labels=list(range(NUM_CLASSES)),
+        target_names=LABEL_ORDER,
+        output_dict=True,
+        zero_division=0,
+    )
+    return {
+        "confusion_matrix": cm.tolist(),
+        "report": report,
+        "y_pred": y_pred,
+        "y_gold": y_gold,
+    }
 
 
 def _build_probe_processor(cfg: TrainConfig):
@@ -256,8 +400,17 @@ def _make_markdown_report(report: dict, cm: list, n: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-def run_single_model(cfg: TrainConfig, checkpoint: Path, val_path: Path,
-                     out_dir: Path, max_records: Optional[int]) -> int:
+def run_single_model(
+    cfg: TrainConfig,
+    checkpoint: Path,
+    val_path: Path,
+    out_dir: Path,
+    max_records: Optional[int],
+    stratified_max_records: Optional[int] = None,
+    sample_seed: int = 42,
+    chunk_size: int = 0,
+    chunk_output_dir: Optional[Path] = None,
+) -> int:
     """Original single-model eval — kept for backward compatibility."""
     print(f"[eval] config:     {args_config_str(checkpoint, val_path, out_dir)}")
     print(f"[eval] loading adapter on {cfg.device} ...")
@@ -281,11 +434,64 @@ def run_single_model(cfg: TrainConfig, checkpoint: Path, val_path: Path,
     # comparison mode).
     probe = _build_probe_processor(cfg)
     val_dl, val_ds = _build_dataloader_with_processor(
-        probe.processor, val_path, cfg.device, cfg.batch_size, max_records
+        probe.processor,
+        val_path,
+        cfg.device,
+        cfg.batch_size,
+        max_records,
+        stratified_max_records=stratified_max_records,
+        sample_seed=sample_seed,
     )
     print(f"[eval] val size: {len(val_ds)}")
 
-    ev = evaluate(peft_model, head, val_dl, cfg.device)
+    if chunk_size > 0:
+        chunk_output_dir = chunk_output_dir or (out_dir / "chunks")
+        chunk_output_dir.mkdir(parents=True, exist_ok=True)
+        all_gold: list[int] = []
+        all_pred: list[int] = []
+        for chunk_idx, chunk_ds in _iter_chunk_datasets(val_ds, chunk_size):
+            chunk_dir = chunk_output_dir / f"single_model_group_{chunk_idx:03d}"
+            chunk_dir.mkdir(parents=True, exist_ok=True)
+            print(
+                f"[eval] === chunk {chunk_idx} single-model eval "
+                f"({len(chunk_ds)} records) -> {chunk_dir} ==="
+            )
+            chunk_dl = DataLoader(
+                chunk_ds,
+                batch_size=cfg.batch_size,
+                shuffle=False,
+                collate_fn=collate,
+                num_workers=0,
+            )
+            chunk_ev = evaluate(
+                peft_model,
+                head,
+                chunk_dl,
+                cfg.device,
+                progress_every=5,
+                progress_label=f"eval-g{chunk_idx:03d}",
+            )
+            _write_single_model_artifacts(
+                chunk_ev,
+                chunk_ds,
+                cfg,
+                chunk_dir,
+                checkpoint,
+                val_path,
+            )
+            all_gold.extend(chunk_ev["y_gold"])
+            all_pred.extend(chunk_ev["y_pred"])
+            print(f"[eval] === chunk {chunk_idx} single-model eval done ===")
+        ev = _eval_from_predictions(all_gold, all_pred)
+    else:
+        ev = evaluate(
+            peft_model,
+            head,
+            val_dl,
+            cfg.device,
+            progress_every=5,
+            progress_label="eval",
+        )
     _write_single_model_artifacts(ev, val_ds, cfg, out_dir, checkpoint, val_path)
     return 0
 
@@ -361,9 +567,16 @@ def _build_loaded_model(cfg: TrainConfig, checkpoint: Path) -> tuple:
     return peft_model, head, n_lora, n_head
 
 
-def _run_one_model(peft_model, head, val_dl, val_ds, cfg) -> dict:
+def _run_one_model(peft_model, head, val_dl, val_ds, cfg, progress_label: str = "eval") -> dict:
     """Run a single eval pass and return a normalized summary dict."""
-    ev = evaluate(peft_model, head, val_dl, cfg.device)
+    ev = evaluate(
+        peft_model,
+        head,
+        val_dl,
+        cfg.device,
+        progress_every=5,
+        progress_label=progress_label,
+    )
     report = ev["report"]
     cm = ev["confusion_matrix"]
     return {
@@ -472,8 +685,15 @@ def _interpret(delta: dict) -> str:
     return "\n".join(bits)
 
 
-def run_comparison(cfg: TrainConfig, checkpoint: Path, val_path: Path,
-                   out_dir: Path, max_records: Optional[int]) -> int:
+def run_comparison(
+    cfg: TrainConfig,
+    checkpoint: Path,
+    val_path: Path,
+    out_dir: Path,
+    max_records: Optional[int],
+    stratified_max_records: Optional[int] = None,
+    sample_seed: int = 42,
+) -> int:
     """T2.11: run baseline (random init) vs modified (LoRA-trained) and
     write a side-by-side comparison report."""
     print(f"[eval] config:     cfg=baseline")
@@ -485,7 +705,13 @@ def run_comparison(cfg: TrainConfig, checkpoint: Path, val_path: Path,
     # Build the dataloader once via a throwaway probe.
     probe = _build_probe_processor(cfg)
     val_dl, val_ds = _build_dataloader_with_processor(
-        probe.processor, val_path, cfg.device, cfg.batch_size, max_records
+        probe.processor,
+        val_path,
+        cfg.device,
+        cfg.batch_size,
+        max_records,
+        stratified_max_records=stratified_max_records,
+        sample_seed=sample_seed,
     )
     print(f"[eval] val size: {len(val_ds)}")
 
@@ -493,7 +719,9 @@ def run_comparison(cfg: TrainConfig, checkpoint: Path, val_path: Path,
     print(f"\n[eval] === Running BASELINE (untrained) ===")
     base_peft, base_head, base_lora, base_head_n = _build_random_model(cfg)
     print(f"[eval] baseline: LoRA params: {base_lora:,}  Head params: {base_head_n:,}  (random init)")
-    baseline_result = _run_one_model(base_peft, base_head, val_dl, val_ds, cfg)
+    baseline_result = _run_one_model(
+        base_peft, base_head, val_dl, val_ds, cfg, progress_label="eval-baseline"
+    )
     print(f"[eval] baseline: acc={baseline_result['accuracy']:.4f}  "
           f"macro F1={baseline_result['macro_f1']:.4f}  "
           f"weighted F1={baseline_result['weighted_f1']:.4f}")
@@ -505,7 +733,9 @@ def run_comparison(cfg: TrainConfig, checkpoint: Path, val_path: Path,
     print(f"\n[eval] === Running MODIFIED (LoRA-trained) ===")
     mod_peft, mod_head, mod_lora, mod_head_n = _build_loaded_model(cfg, checkpoint)
     print(f"[eval] modified: LoRA params: {mod_lora:,}  Head params: {mod_head_n:,}  (loaded)")
-    modified_result = _run_one_model(mod_peft, mod_head, val_dl, val_ds, cfg)
+    modified_result = _run_one_model(
+        mod_peft, mod_head, val_dl, val_ds, cfg, progress_label="eval-modified"
+    )
     print(f"[eval] modified: acc={modified_result['accuracy']:.4f}  "
           f"macro F1={modified_result['macro_f1']:.4f}  "
           f"weighted F1={modified_result['weighted_f1']:.4f}")
@@ -574,6 +804,10 @@ def run_smoke_vs_full(
     cfg: TrainConfig,
     smoke_ckpt: Path, full_ckpt: Path,
     val_path: Path, out_dir: Path, max_records: Optional[int],
+    stratified_max_records: Optional[int] = None,
+    sample_seed: int = 42,
+    chunk_size: int = 0,
+    chunk_output_dir: Optional[Path] = None,
 ) -> int:
     """T2.18: compare smoke (5-record) vs full (200-record) trained models.
 
@@ -592,33 +826,177 @@ def run_smoke_vs_full(
 
     probe = _build_probe_processor(cfg)
     val_dl, val_ds = _build_dataloader_with_processor(
-        probe.processor, val_path, cfg.device, cfg.batch_size, max_records
+        probe.processor,
+        val_path,
+        cfg.device,
+        cfg.batch_size,
+        max_records,
+        stratified_max_records=stratified_max_records,
+        sample_seed=sample_seed,
     )
     print(f"[eval] val size: {len(val_ds)}")
 
-    # 1. Smoke model
-    print(f"\n[eval] === Running SMOKE model (5 records) ===")
-    smoke_peft, smoke_head, smoke_lora, smoke_head_n = _build_loaded_model(cfg, smoke_ckpt)
-    print(f"[eval] smoke: LoRA={smoke_lora:,} Head={smoke_head_n:,}")
-    smoke_result = _run_one_model(smoke_peft, smoke_head, val_dl, val_ds, cfg)
-    print(f"[eval] smoke: acc={smoke_result['accuracy']:.4f}  "
-          f"macro F1={smoke_result['macro_f1']:.4f}  "
-          f"weighted F1={smoke_result['weighted_f1']:.4f}")
-    del smoke_peft, smoke_head
-    if cfg.device == "cuda":
-        torch.cuda.empty_cache()
+    if chunk_size > 0:
+        chunk_output_dir = chunk_output_dir or (out_dir / "chunks")
+        chunk_output_dir.mkdir(parents=True, exist_ok=True)
+        smoke_all_gold: list[int] = []
+        smoke_all_pred: list[int] = []
+        full_all_gold: list[int] = []
+        full_all_pred: list[int] = []
+        for chunk_idx, chunk_ds in _iter_chunk_datasets(val_ds, chunk_size):
+            chunk_dir = chunk_output_dir / f"smoke_vs_full_group_{chunk_idx:03d}"
+            chunk_dir.mkdir(parents=True, exist_ok=True)
+            print(
+                f"\n[eval] === chunk {chunk_idx} smoke-vs-full compare "
+                f"({len(chunk_ds)} records) -> {chunk_dir} ==="
+            )
+            chunk_dl = DataLoader(
+                chunk_ds,
+                batch_size=cfg.batch_size,
+                shuffle=False,
+                collate_fn=collate,
+                num_workers=0,
+            )
 
-    # 2. Full model
-    print(f"\n[eval] === Running FULL model (200 records) ===")
-    full_peft, full_head, full_lora, full_head_n = _build_loaded_model(cfg, full_ckpt)
-    print(f"[eval] full: LoRA={full_lora:,} Head={full_head_n:,}")
-    full_result = _run_one_model(full_peft, full_head, val_dl, val_ds, cfg)
-    print(f"[eval] full: acc={full_result['accuracy']:.4f}  "
-          f"macro F1={full_result['macro_f1']:.4f}  "
-          f"weighted F1={full_result['weighted_f1']:.4f}")
-    del full_peft, full_head
-    if cfg.device == "cuda":
-        torch.cuda.empty_cache()
+            print(f"[eval] chunk {chunk_idx}: building SMOKE model")
+            smoke_peft, smoke_head, smoke_lora, smoke_head_n = _build_loaded_model(cfg, smoke_ckpt)
+            print(f"[eval] chunk {chunk_idx}: smoke LoRA={smoke_lora:,} Head={smoke_head_n:,}")
+            smoke_result = _run_one_model(
+                smoke_peft,
+                smoke_head,
+                chunk_dl,
+                chunk_ds,
+                cfg,
+                progress_label=f"eval-smoke-g{chunk_idx:03d}",
+            )
+            del smoke_peft, smoke_head
+            if cfg.device == "cuda":
+                torch.cuda.empty_cache()
+
+            print(f"[eval] chunk {chunk_idx}: building FULL model")
+            full_peft, full_head, full_lora, full_head_n = _build_loaded_model(cfg, full_ckpt)
+            print(f"[eval] chunk {chunk_idx}: full LoRA={full_lora:,} Head={full_head_n:,}")
+            full_result = _run_one_model(
+                full_peft,
+                full_head,
+                chunk_dl,
+                chunk_ds,
+                cfg,
+                progress_label=f"eval-full-g{chunk_idx:03d}",
+            )
+            del full_peft, full_head
+            if cfg.device == "cuda":
+                torch.cuda.empty_cache()
+
+            delta = _compute_delta(smoke_result, full_result)
+            all_improved = (
+                delta["macro_f1_delta"] > 0
+                and delta["accuracy_delta"] > 0
+                and all(v > 0 for v in delta["per_class_recall_delta"].values())
+            )
+            chunk_summary = {
+                "mode": "compare_smoke_vs_full_chunk",
+                "chunk_index": chunk_idx,
+                "smoke_checkpoint": str(smoke_ckpt),
+                "full_checkpoint": str(full_ckpt),
+                "val_jsonl": str(val_path),
+                "n_eval": len(chunk_ds),
+                "smoke": {
+                    "accuracy": smoke_result["accuracy"],
+                    "macro_f1": smoke_result["macro_f1"],
+                    "weighted_f1": smoke_result["weighted_f1"],
+                    "per_class": smoke_result["per_class"],
+                },
+                "full": {
+                    "accuracy": full_result["accuracy"],
+                    "macro_f1": full_result["macro_f1"],
+                    "weighted_f1": full_result["weighted_f1"],
+                    "per_class": full_result["per_class"],
+                },
+                "delta": delta,
+                "verdict": {
+                    "all_metrics_improved": all_improved,
+                    "macro_f1_improved": delta["macro_f1_delta"] > 0,
+                    "all_per_class_recall_improved":
+                        all(v > 0 for v in delta["per_class_recall_delta"].values()),
+                },
+            }
+            with open(chunk_dir / "comparison_full_vs_smoke.json", "w", encoding="utf-8") as f:
+                json.dump(chunk_summary, f, ensure_ascii=False, indent=2)
+            with open(chunk_dir / "comparison_full_vs_smoke.md", "w", encoding="utf-8") as f:
+                f.write(_make_smoke_vs_full_markdown(chunk_summary))
+            print(
+                f"[eval] chunk {chunk_idx}: smoke macro F1={smoke_result['macro_f1']:.4f}, "
+                f"full macro F1={full_result['macro_f1']:.4f}, "
+                f"delta={delta['macro_f1_delta']:+.4f}"
+            )
+            print(f"[eval] chunk {chunk_idx}: wrote {chunk_dir/'comparison_full_vs_smoke.json'}")
+
+            smoke_all_gold.extend(smoke_result["y_gold"])
+            smoke_all_pred.extend(smoke_result["y_pred"])
+            full_all_gold.extend(full_result["y_gold"])
+            full_all_pred.extend(full_result["y_pred"])
+
+        smoke_ev = _eval_from_predictions(smoke_all_gold, smoke_all_pred)
+        full_ev = _eval_from_predictions(full_all_gold, full_all_pred)
+        smoke_report = smoke_ev["report"]
+        full_report = full_ev["report"]
+        smoke_result = {
+            "n_eval": len(val_ds),
+            "accuracy": smoke_report["accuracy"],
+            "macro_f1": smoke_report["macro avg"]["f1-score"],
+            "weighted_f1": smoke_report["weighted avg"]["f1-score"],
+            "per_class": {k: smoke_report.get(k, {}) for k in LABEL_ORDER},
+            "confusion_matrix": smoke_ev["confusion_matrix"],
+            "y_pred": smoke_ev["y_pred"],
+            "y_gold": smoke_ev["y_gold"],
+        }
+        full_result = {
+            "n_eval": len(val_ds),
+            "accuracy": full_report["accuracy"],
+            "macro_f1": full_report["macro avg"]["f1-score"],
+            "weighted_f1": full_report["weighted avg"]["f1-score"],
+            "per_class": {k: full_report.get(k, {}) for k in LABEL_ORDER},
+            "confusion_matrix": full_ev["confusion_matrix"],
+            "y_pred": full_ev["y_pred"],
+            "y_gold": full_ev["y_gold"],
+        }
+        print("[eval] === chunked smoke-vs-full aggregate ===")
+    else:
+        smoke_result = None
+        full_result = None
+
+    if chunk_size > 0:
+        # Reuse the common summary writer below with aggregate chunked predictions.
+        pass
+    else:
+        # 1. Smoke model
+        print(f"\n[eval] === Running SMOKE model (5 records) ===")
+        smoke_peft, smoke_head, smoke_lora, smoke_head_n = _build_loaded_model(cfg, smoke_ckpt)
+        print(f"[eval] smoke: LoRA={smoke_lora:,} Head={smoke_head_n:,}")
+        smoke_result = _run_one_model(
+            smoke_peft, smoke_head, val_dl, val_ds, cfg, progress_label="eval-smoke"
+        )
+        print(f"[eval] smoke: acc={smoke_result['accuracy']:.4f}  "
+              f"macro F1={smoke_result['macro_f1']:.4f}  "
+              f"weighted F1={smoke_result['weighted_f1']:.4f}")
+        del smoke_peft, smoke_head
+        if cfg.device == "cuda":
+            torch.cuda.empty_cache()
+
+        # 2. Full model
+        print(f"\n[eval] === Running FULL model (200 records) ===")
+        full_peft, full_head, full_lora, full_head_n = _build_loaded_model(cfg, full_ckpt)
+        print(f"[eval] full: LoRA={full_lora:,} Head={full_head_n:,}")
+        full_result = _run_one_model(
+            full_peft, full_head, val_dl, val_ds, cfg, progress_label="eval-full"
+        )
+        print(f"[eval] full: acc={full_result['accuracy']:.4f}  "
+              f"macro F1={full_result['macro_f1']:.4f}  "
+              f"weighted F1={full_result['weighted_f1']:.4f}")
+        del full_peft, full_head
+        if cfg.device == "cuda":
+            torch.cuda.empty_cache()
 
     # 3. Delta (full - smoke)
     delta = _compute_delta(smoke_result, full_result)
@@ -1083,28 +1461,63 @@ def _make_early_exit_markdown(s: dict) -> str:
 def main() -> int:
     args = parse_args()
     cfg = build_train_config_from_yaml(args.config)
-    val_path = args.val or (REPO_ROOT / cfg.val_jsonl)
-    out_dir = args.out or (REPO_ROOT / cfg.out_dir)
+    config_dir = args.config.resolve().parent
+    val_path = args.val if args.val else Path(cfg.val_jsonl)
+    if not val_path.is_absolute():
+        val_path = _resolve_input_path(val_path, config_dir)
+    out_dir = args.out if args.out else Path(cfg.out_dir)
+    if not out_dir.is_absolute():
+        out_dir = _resolve_output_path(out_dir, config_dir)
+    checkpoint = args.checkpoint
+    if not checkpoint.is_absolute():
+        checkpoint = _resolve_input_path(checkpoint, config_dir)
+    chunk_output_dir = args.chunk_output_dir
+    if chunk_output_dir is not None and not chunk_output_dir.is_absolute():
+        chunk_output_dir = _resolve_output_path(chunk_output_dir, config_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if args.compare:
-        return run_comparison(cfg, args.checkpoint, val_path, out_dir,
-                              args.max_records)
+        return run_comparison(
+            cfg,
+            checkpoint,
+            val_path,
+            out_dir,
+            args.max_records,
+            stratified_max_records=args.stratified_max_records,
+            sample_seed=args.sample_seed,
+        )
     if args.compare_smoke_vs_full:
-        smoke_ckpt = args.smoke_checkpoint or (REPO_ROOT / "artifacts" / "baseline" / "lora_baseline.safetensors")
-        full_ckpt = args.full_checkpoint or (REPO_ROOT / "artifacts" / "baseline" / "lora_full.safetensors")
+        smoke_ckpt = args.smoke_checkpoint or (config_dir.parent / "artifacts" / "checkpoints" / "lora_baseline.safetensors")
+        full_ckpt = args.full_checkpoint or checkpoint
+        if not smoke_ckpt.is_absolute():
+            smoke_ckpt = _resolve_input_path(smoke_ckpt, config_dir)
+        if not full_ckpt.is_absolute():
+            full_ckpt = _resolve_input_path(full_ckpt, config_dir)
         return run_smoke_vs_full(
             cfg, smoke_ckpt, full_ckpt,
             val_path, out_dir, args.max_records,
+            stratified_max_records=args.stratified_max_records,
+            sample_seed=args.sample_seed,
+            chunk_size=args.chunk_size,
+            chunk_output_dir=chunk_output_dir,
         )
     if args.early_exit:
         return run_early_exit_compare(
-            cfg, args.checkpoint, val_path, out_dir, args.max_records,
+            cfg, checkpoint, val_path, out_dir, args.max_records,
             clean_threshold=args.clean_threshold,
             simulate_c5_c6_ms=args.simulate_c5_c6_ms,
         )
-    return run_single_model(cfg, args.checkpoint, val_path, out_dir,
-                            args.max_records)
+    return run_single_model(
+        cfg,
+        checkpoint,
+        val_path,
+        out_dir,
+        args.max_records,
+        stratified_max_records=args.stratified_max_records,
+        sample_seed=args.sample_seed,
+        chunk_size=args.chunk_size,
+        chunk_output_dir=chunk_output_dir,
+    )
 
 
 if __name__ == "__main__":

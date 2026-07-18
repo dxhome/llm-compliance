@@ -275,7 +275,7 @@
 
 针对离线边缘场景的工程约束，框架设计遵循以下原则：
 1. **零网络依赖**：禁止运行时调用任何外部 API；OCR、CLIP、backbone 全部本地权重；
-2. **可打包分发**：训练完成后产出单一 `mpid_offline/` 目录，含权重 + 配置 + 推理脚本 + 依赖清单；
+2. **可打包分发**：训练完成后产出单一 `runs/<run_id>/artifacts/package/mpid_offline/` 目录，含权重 + 配置 + 推理脚本 + 依赖清单；
 3. **推理引擎可替换**：默认 PyTorch eager，可选 ONNX Runtime / llama.cpp / Core ML / MLX（macOS Apple Silicon 专用）以提升端侧推理速度；
 4. **冷启动友好**：权重 < 500MB，加载到推理就绪 < 5 秒（参考目标，M1 Pro / i5 CPU 实测）；
 5. **内存峰值受控**：单样本推理峰值内存 < 1GB（设计目标）；
@@ -320,7 +320,7 @@
 - 完整训练 / 评测 / 推理代码仓库（开源协议：Apache 2.0）；
 - 公开数据集 `mpid-v1`（中英多模态注入样本，≥ 3k 样本）；
 - 两套 LoRA 权重（级联式 / 端到端）；
-- 离线打包示例（`mpid_offline/` 目录模板）。
+- 离线打包示例（`runs/<run_id>/artifacts/package/mpid_offline/` 目录模板）。
 
 ### 6.3 可复用算法框架
 - `mpid` Python 包：`ModalityAdapter / Backbone / DetectorHead` 抽象接口；

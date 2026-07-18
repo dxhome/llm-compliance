@@ -11,7 +11,7 @@ Usage::
     python scripts/train.py
 
     # custom config / override out_dir
-    python scripts/train.py --config configs/baseline.yaml --out-dir artifacts/run1
+    python scripts/train.py --config runs/my_run/configs/train.yaml --out-dir runs/my_run/artifacts/checkpoints
 
 The script writes two artefacts to ``out_dir``:
 
@@ -40,7 +40,24 @@ def load_config(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def build_train_config(cfg: dict, out_dir_override: str | None) -> TrainConfig:
+def _resolve_config_path(value: str | Path, config_dir: Path) -> Path:
+    """Resolve run-local config paths while keeping old repo-root configs working."""
+    p = Path(value)
+    if p.is_absolute():
+        return p
+    from_config = (config_dir / p).resolve()
+    if from_config.exists():
+        return from_config
+    return (REPO_ROOT / p).resolve()
+
+
+def _resolve_output_path(value: str | Path, config_dir: Path) -> Path:
+    p = Path(value)
+    return p if p.is_absolute() else (config_dir / p).resolve()
+
+
+def build_train_config(cfg: dict, out_dir_override: str | None,
+                       config_dir: Path | None = None) -> TrainConfig:
     """Flatten the YAML into a ``TrainConfig`` dataclass.
 
     The YAML is grouped by concern (``lora``, ``training``, ``io``) for
@@ -51,11 +68,15 @@ def build_train_config(cfg: dict, out_dir_override: str | None) -> TrainConfig:
     lora = cfg.get("lora", {}) or {}
     training = cfg.get("training", {}) or {}
     io = cfg.get("io", {}) or {}
+    base_dir = config_dir or REPO_ROOT
 
     cfg_obj = TrainConfig(
-        train_jsonl=io["train_jsonl"],
-        val_jsonl=io["val_jsonl"],
-        out_dir=out_dir_override or io.get("out_dir", "artifacts/baseline"),
+        train_jsonl=str(_resolve_config_path(io["train_jsonl"], base_dir)),
+        val_jsonl=str(_resolve_config_path(io["val_jsonl"], base_dir)),
+        out_dir=str(_resolve_output_path(
+            out_dir_override or io.get("out_dir", "artifacts/checkpoints"),
+            base_dir,
+        )),
         backbone_name=defaults.get("backbone_name", "smolvlm-500m"),
         dtype=defaults.get("dtype", "float32"),
         device=defaults.get("device", "mps"),
@@ -74,13 +95,17 @@ def build_train_config(cfg: dict, out_dir_override: str | None) -> TrainConfig:
         class_weighted=bool(training.get("class_weighted", True)),
         early_stop_patience=int(training.get("early_stop_patience", 2)),
         log_every=int(training.get("log_every", 5)),
+        eval_after_epoch=bool(training.get("eval_after_epoch", False)),
         seed=int(training.get("seed", 42)),
         # T2.16 真实训练开关
         max_train_seconds=float(training.get("max_train_seconds", 0.0)),
         preload_dataset=bool(training.get("preload_dataset", False)),
         checkpoint_name=str(training.get("checkpoint_name", "lora_baseline.safetensors")),
+        save_every=int(training.get("save_every", 50)),
+        partial_name=str(training.get("partial_name", "lora_partial.safetensors")),
     )
-    cfg_obj.resume_from = str(training.get("resume_from", "")) or None
+    resume_from = str(training.get("resume_from", "")) or ""
+    cfg_obj.resume_from = str(_resolve_config_path(resume_from, base_dir)) if resume_from else None
     cfg_obj.skip_train_batches = int(training.get("skip_train_batches", 0))
     cfg_obj.resume_global_step = int(training.get("resume_global_step", 0))
     cfg_obj.max_train_steps = int(training.get("max_train_steps", 0))
@@ -92,8 +117,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--config",
         type=Path,
-        default=REPO_ROOT / "configs" / "baseline.yaml",
-        help="YAML config path (default: configs/baseline.yaml)",
+        default=REPO_ROOT / "runs" / "_templates" / "configs" / "baseline.yaml",
+        help="YAML config path (default: runs/_templates/configs/baseline.yaml)",
     )
     p.add_argument(
         "--out-dir",
@@ -124,10 +149,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--save-every",
         type=int,
-        default=0,
+        default=None,
         help="T2.16: every N training steps, save a partial checkpoint "
-             "to <partial_name>. 0 disables (default: only at epoch end "
-             "or budget cutoff). Recommended for long runs.",
+             "to <partial_name>. 0 disables. Default comes from config "
+             "(or 50 if omitted). Recommended for long runs.",
+    )
+    p.add_argument(
+        "--eval-after-epoch",
+        action="store_true",
+        help="Run validation eval inside the training loop after each epoch. "
+             "Default is disabled because Phase 2.2 runs eval separately.",
     )
     p.add_argument(
         "--partial-name",
@@ -179,7 +210,7 @@ def main() -> int:
         _sys.stderr.reconfigure(line_buffering=True)
 
     raw = load_config(args.config)
-    cfg = build_train_config(raw, args.out_dir)
+    cfg = build_train_config(raw, args.out_dir, args.config.resolve().parent)
 
     # CLI overrides.
     if args.max_train_seconds:
@@ -188,7 +219,7 @@ def main() -> int:
         cfg.preload_dataset = True
     if args.checkpoint_name:
         cfg.checkpoint_name = args.checkpoint_name
-    if args.save_every:
+    if args.save_every is not None:
         cfg.save_every = int(args.save_every)
     if args.partial_name:
         cfg.partial_name = args.partial_name
@@ -200,18 +231,11 @@ def main() -> int:
         cfg.resume_global_step = int(args.resume_global_step)
     if args.max_train_steps:
         cfg.max_train_steps = int(args.max_train_steps)
+    if args.eval_after_epoch:
+        cfg.eval_after_epoch = True
 
-    # Make IO paths absolute relative to the repo root so the script
-    # works from any cwd.
-    repo = REPO_ROOT
-    cfg.train_jsonl = str((repo / cfg.train_jsonl).resolve()) \
-        if not Path(cfg.train_jsonl).is_absolute() else cfg.train_jsonl
-    cfg.val_jsonl = str((repo / cfg.val_jsonl).resolve()) \
-        if not Path(cfg.val_jsonl).is_absolute() else cfg.val_jsonl
-    cfg.out_dir = str((repo / cfg.out_dir).resolve()) \
-        if not Path(cfg.out_dir).is_absolute() else cfg.out_dir
     if cfg.resume_from and not Path(cfg.resume_from).is_absolute():
-        cfg.resume_from = str((repo / cfg.resume_from).resolve())
+        cfg.resume_from = str(_resolve_config_path(cfg.resume_from, args.config.resolve().parent))
 
     print(f"[train] config: {args.config}", flush=True)
     print(f"[train] out_dir: {cfg.out_dir}", flush=True)
@@ -231,6 +255,8 @@ def main() -> int:
               f"resume_global_step={cfg.resume_global_step}", flush=True)
     if getattr(cfg, "max_train_steps", 0):
         print(f"[train] STEP LIMIT: {cfg.max_train_steps}", flush=True)
+    print(f"[train] log_every={cfg.log_every}  save_every={cfg.save_every}  "
+          f"eval_after_epoch={cfg.eval_after_epoch}", flush=True)
 
     train(cfg)
     return 0

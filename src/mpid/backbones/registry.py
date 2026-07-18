@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_MODELS_ROOT = REPO_ROOT / "models"
+DEFAULT_MODELS_ROOT = REPO_ROOT / "runs" / "_models"
 
 
 # ---------------------------------------------------------------------------

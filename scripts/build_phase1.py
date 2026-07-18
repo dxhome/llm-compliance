@@ -418,9 +418,9 @@ def _sample_for_qc(split_dir: Path, n: int, seed: int) -> Path:
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--raw-dir",  type=Path, default=REPO_ROOT / "data" / "raw")
-    p.add_argument("--out-dir",  type=Path, default=REPO_ROOT / "data" / "mpid-v1")
-    p.add_argument("--cm-dir",   type=Path, default=REPO_ROOT / "data" / "mpid-v1-crossmodal")
+    p.add_argument("--raw-dir",  type=Path, default=REPO_ROOT / "runs" / "_datasets" / "raw")
+    p.add_argument("--out-dir",  type=Path, default=REPO_ROOT / "runs" / "_datasets" / "mpid-v1")
+    p.add_argument("--cm-dir",   type=Path, default=REPO_ROOT / "runs" / "_datasets" / "mpid-v1-crossmodal")
     p.add_argument("--n-synthetic", type=int, default=120)
     p.add_argument("--qc-n", type=int, default=20)
     p.add_argument("--seed", type=int, default=42)

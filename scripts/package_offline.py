@@ -5,7 +5,7 @@ that has only Python + the ``mpid`` package (and its pinned deps)
 installed. The package directory contains:
 
   * ``models/<backbone>/``            — backbone weights
-  * ``artifacts/<run>/lora_baseline.safetensors``
+  * ``artifacts/checkpoints/lora_baseline.safetensors``
   * ``infer.py``                       — single-sample CLI entry
   * ``requirements.txt``               — pinned dependency list
   * ``CHECKSUMS.txt``                  — sha256 of every file
@@ -20,8 +20,8 @@ Usage::
 
     python scripts/package_offline.py
     python scripts/package_offline.py --src models/smolvlm-500m \\
-                                      --ckpt artifacts/baseline/lora_baseline.safetensors \\
-                                      --out mpid_offline
+                                      --ckpt runs/my_run/artifacts/checkpoints/lora_final.safetensors \\
+                                      --out runs/my_run/artifacts/package/mpid_offline
 """
 from __future__ import annotations
 
@@ -96,7 +96,6 @@ adapter = VLMAdapter(
 peft_model, _ = inject_lora(adapter.model, _Cfg())
 head = ClassificationHead(in_dim=adapter.hidden_size,
                           num_classes=NUM_CLASSES).to(_Cfg.device)
-state = load_file(str(CHECKPOINT))
 state = load_checkpoint(CHECKPOINT, head)
 apply_lora_state(peft_model, state)
 peft_model.eval(); head.eval()
@@ -154,17 +153,19 @@ def sha256_file(p: Path) -> str:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="MPID offline package builder (T2.11)")
     p.add_argument("--backbone-dir", type=Path,
-                   default=REPO_ROOT / "models" / "smolvlm-500m",
+                   default=REPO_ROOT / "runs" / "_models" / "smolvlm-500m",
                    help="Local backbone directory to bundle")
     p.add_argument("--ckpt", type=Path,
-                   default=REPO_ROOT / "artifacts" / "baseline" / "lora_baseline.safetensors",
+                   default=REPO_ROOT / "runs" / "_templates" / "artifacts" / "checkpoints" / "lora_baseline.safetensors",
                    help="LoRA+head checkpoint to bundle")
     p.add_argument("--src", type=Path,
                    default=REPO_ROOT / "src",
                    help="mpid source tree to bundle (so the package can run without an install)")
     p.add_argument("--out", type=Path,
-                   default=REPO_ROOT / "mpid_offline",
+                   default=REPO_ROOT / "runs" / "_manual" / "artifacts" / "package" / "mpid_offline",
                    help="Output package directory")
+    p.add_argument("--report", type=Path, default=None,
+                   help="Path for package_offline.json (default: <out parent>/package_offline.json)")
     p.add_argument("--lora-r", type=int, default=16)
     p.add_argument("--lora-alpha", type=int, default=32)
     p.add_argument("--lora-target", type=str,
@@ -229,9 +230,9 @@ def build(args: argparse.Namespace) -> dict:
         "total_size_mb":      round(total_bytes / (1024 * 1024), 2),
         "manifest":           manifest,
     }
-    (REPO_ROOT / "artifacts" / "package_offline.json").write_text(
-        json.dumps(report, indent=2)
-    )
+    report_path = args.report or (out.parent / "package_offline.json")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2))
     return report
 
 

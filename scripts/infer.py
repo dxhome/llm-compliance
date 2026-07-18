@@ -36,10 +36,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--image", type=str, default=None,
                    help="Path to an image (else: text-only).")
     p.add_argument("--checkpoint", type=str,
-                   default=str(REPO_ROOT / "artifacts" / "baseline" / "lora_baseline.safetensors"),
+                   default=str(REPO_ROOT / "runs" / "_templates" / "artifacts" / "checkpoints" / "lora_baseline.safetensors"),
                    help="LoRA + head checkpoint to load.")
     p.add_argument("--config", type=str,
-                   default=str(REPO_ROOT / "configs" / "baseline.yaml"),
+                   default=str(REPO_ROOT / "runs" / "_templates" / "configs" / "baseline.yaml"),
                    help="YAML config (same schema as train.py / eval.py).")
     p.add_argument("--early-exit", action="store_true",
                    help="T3.6: enable C4 early-exit (P(clean) > threshold → 'clean').")

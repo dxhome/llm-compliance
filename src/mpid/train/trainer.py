@@ -138,6 +138,21 @@ def inject_lora(backbone_model: nn.Module, cfg: TrainConfig) -> tuple[nn.Module,
     return peft_model, n_trainable
 
 
+def apply_lora_state(peft_model: nn.Module, full_state: dict) -> int:
+    """Apply saved LoRA tensors onto a PEFT model."""
+    from peft import set_peft_model_state_dict
+
+    lora_state = {
+        k.removeprefix("lora."): v
+        for k, v in full_state.items()
+        if k.startswith("lora.")
+    }
+    if not lora_state:
+        return 0
+    set_peft_model_state_dict(peft_model, lora_state)
+    return len(lora_state)
+
+
 # ---------------------------------------------------------------------------
 # Class weights
 # ---------------------------------------------------------------------------
@@ -249,7 +264,7 @@ def train(cfg: TrainConfig) -> TrainResult:
 
     def _save_partial_and_exit(signum, frame):
         sig_name = {2: "SIGINT", 15: "SIGTERM"}.get(signum, f"signal-{signum}")
-        log(f"[train] !! {sig_name} received — saving partial checkpoint ...")
+        log(f"[train] !! {sig_name} received - saving partial checkpoint ...")
         pm = state_holder.get("peft_model")
         hd = state_holder.get("head")
         if pm is not None and hd is not None:
@@ -318,6 +333,17 @@ def train(cfg: TrainConfig) -> TrainResult:
     state_holder["peft_model"] = peft_model
     state_holder["head"] = head
 
+    resume_from = getattr(cfg, "resume_from", None)
+    if resume_from:
+        ckpt_path = Path(resume_from)
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"resume checkpoint not found: {ckpt_path}")
+        state = load_checkpoint(ckpt_path, head)
+        n_loaded_lora = apply_lora_state(peft_model, state)
+        n_head_tensors = len([k for k in state if k.startswith("head.")])
+        log(f"[train] resumed from {ckpt_path} "
+            f"(lora tensors={n_loaded_lora}, head tensors={n_head_tensors})")
+
     phase("phase 3/6 数据集加载")
     # 4. Data
     train_ds = MPIDJsonlDataset(
@@ -374,14 +400,22 @@ def train(cfg: TrainConfig) -> TrainResult:
     n_steps_per_epoch = max(1, len(train_dl))
     total_steps = n_steps_per_epoch * cfg.epochs
     t_warmup = None
-    step_global = 0
+    step_global = int(getattr(cfg, "resume_global_step", 0))
+    resumed_this_run = 0
+    skip_train_batches = int(getattr(cfg, "skip_train_batches", 0))
     budget_deadline = (t0_total + cfg.max_train_seconds) if cfg.max_train_seconds > 0 else None
+    max_train_steps = int(getattr(cfg, "max_train_steps", 0))
 
     for epoch in range(cfg.epochs):
         peft_model.train(); head.train()
         t_epoch = time.perf_counter()
         loss_sum, loss_count = 0.0, 0
         for step, batch in enumerate(train_dl):
+            if epoch == 0 and skip_train_batches > 0 and step < skip_train_batches:
+                if step == 0:
+                    log(f"[train] skipping first {skip_train_batches} batches "
+                        f"to approximate resume position")
+                continue
             batch = {k: v.to(cfg.device) if torch.is_tensor(v) else v
                      for k, v in batch.items()}
             outputs = peft_model(
@@ -406,7 +440,7 @@ def train(cfg: TrainConfig) -> TrainResult:
             # (that would poison the LoRA weights).
             if not torch.isfinite(loss).item():
                 if step_global == 1 or step_global % cfg.log_every == 0:
-                    log(f"[train]   ! step {step+1} loss={loss.item():.4f} — "
+                    log(f"[train]   ! step {step+1} loss={loss.item():.4f} - "
                         f"NaN/Inf detected, skipping optimizer step")
                 opt.zero_grad(set_to_none=True)
                 continue
@@ -415,6 +449,7 @@ def train(cfg: TrainConfig) -> TrainResult:
             loss_sum += float(loss.item())
             loss_count += 1
             step_global += 1
+            resumed_this_run += 1
 
             # Progress: log_every steps AND always at step 1 of the
             # epoch (so we know training actually started). Skip logging
@@ -433,7 +468,7 @@ def train(cfg: TrainConfig) -> TrainResult:
                     eta_s = float("nan")
                 else:
                     elapsed_train = t_now - t_warmup
-                    per_step_s = elapsed_train / max(1, (step_global - 1))
+                    per_step_s = elapsed_train / max(1, (resumed_this_run - 1))
                     remaining = total_steps - step_global
                     eta_s = per_step_s * remaining
                 log(
@@ -452,13 +487,43 @@ def train(cfg: TrainConfig) -> TrainResult:
             # the process.
             if cfg.save_every > 0 and step_global > 0 \
                     and step_global % cfg.save_every == 0:
-                log(f"[train]   ↳ periodic save: {cfg.partial_name} "
+                log(f"[train]   -> periodic save: {cfg.partial_name} "
                     f"(step {step_global})")
                 save_checkpoint(out_dir / cfg.partial_name, peft_model, head, cfg)
 
+            if max_train_steps > 0 and resumed_this_run >= max_train_steps:
+                log(f"[train] STEP LIMIT REACHED ({max_train_steps}) - "
+                    f"stopping at epoch {epoch+1} step {step+1}")
+                save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
+                res.history.append({
+                    "epoch": epoch,
+                    "val_macro_f1": 0.0,
+                    "val_accuracy": 0.0,
+                    "report": {},
+                    "confusion_matrix": [],
+                    "note": "step_limit_reached",
+                })
+                summary = {
+                    "config": cfg.__dict__,
+                    "n_lora_params": n_lora_params,
+                    "n_head_params": n_head_params,
+                    "n_trainable_params": n_trainable,
+                    "best_epoch": res.best_epoch,
+                    "best_macro_f1": res.best_macro_f1,
+                    "history": res.history,
+                    "step_limit_reached": True,
+                    "max_train_steps": max_train_steps,
+                    "resume_from": getattr(cfg, "resume_from", None),
+                    "skip_train_batches": int(getattr(cfg, "skip_train_batches", 0)),
+                    "resume_global_step": int(getattr(cfg, "resume_global_step", 0)),
+                }
+                with open(out_dir / "train_summary.json", "w", encoding="utf-8") as f:
+                    json.dump(summary, f, ensure_ascii=False, indent=2)
+                return res
+
             # Wall-clock budget check.
             if budget_deadline is not None and time.perf_counter() > budget_deadline:
-                log(f"[train] BUDGET EXCEEDED ({cfg.max_train_seconds}s) — "
+                log(f"[train] BUDGET EXCEEDED ({cfg.max_train_seconds}s) - "
                     f"stopping at epoch {epoch+1} step {step+1}")
                 # Save what we have and break.
                 save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
@@ -523,6 +588,9 @@ def train(cfg: TrainConfig) -> TrainResult:
         "best_macro_f1": res.best_macro_f1,
         "history": res.history,
         "total_seconds": time.perf_counter() - t0_total,
+        "resume_from": getattr(cfg, "resume_from", None),
+        "skip_train_batches": int(getattr(cfg, "skip_train_batches", 0)),
+        "resume_global_step": int(getattr(cfg, "resume_global_step", 0)),
     }
     with open(out_dir / "train_summary.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
@@ -581,6 +649,7 @@ __all__ = [
     "evaluate",
     "save_checkpoint",
     "load_checkpoint",
+    "apply_lora_state",
     "compute_class_weights",
     "inject_lora",
 ]

@@ -52,7 +52,7 @@ def build_train_config(cfg: dict, out_dir_override: str | None) -> TrainConfig:
     training = cfg.get("training", {}) or {}
     io = cfg.get("io", {}) or {}
 
-    return TrainConfig(
+    cfg_obj = TrainConfig(
         train_jsonl=io["train_jsonl"],
         val_jsonl=io["val_jsonl"],
         out_dir=out_dir_override or io.get("out_dir", "artifacts/baseline"),
@@ -80,6 +80,11 @@ def build_train_config(cfg: dict, out_dir_override: str | None) -> TrainConfig:
         preload_dataset=bool(training.get("preload_dataset", False)),
         checkpoint_name=str(training.get("checkpoint_name", "lora_baseline.safetensors")),
     )
+    cfg_obj.resume_from = str(training.get("resume_from", "")) or None
+    cfg_obj.skip_train_batches = int(training.get("skip_train_batches", 0))
+    cfg_obj.resume_global_step = int(training.get("resume_global_step", 0))
+    cfg_obj.max_train_steps = int(training.get("max_train_steps", 0))
+    return cfg_obj
 
 
 def parse_args() -> argparse.Namespace:
@@ -132,6 +137,30 @@ def parse_args() -> argparse.Namespace:
              "(default: lora_partial.safetensors).",
     )
     p.add_argument(
+        "--resume-from",
+        type=Path,
+        default=None,
+        help="Warm-start from an existing LoRA+head checkpoint.",
+    )
+    p.add_argument(
+        "--skip-train-batches",
+        type=int,
+        default=0,
+        help="Skip the first N training batches of epoch 1 when resuming.",
+    )
+    p.add_argument(
+        "--resume-global-step",
+        type=int,
+        default=0,
+        help="Logical global-step offset for progress logging and save cadence.",
+    )
+    p.add_argument(
+        "--max-train-steps",
+        type=int,
+        default=0,
+        help="Stop after N successful optimizer steps in this run. 0 means no limit.",
+    )
+    p.add_argument(
         "-u", "--unbuffered",
         action="store_true",
         help="Force line-buffered stdout (always recommended for long runs)",
@@ -163,6 +192,14 @@ def main() -> int:
         cfg.save_every = int(args.save_every)
     if args.partial_name:
         cfg.partial_name = args.partial_name
+    if args.resume_from:
+        cfg.resume_from = str(args.resume_from)
+    if args.skip_train_batches:
+        cfg.skip_train_batches = int(args.skip_train_batches)
+    if args.resume_global_step:
+        cfg.resume_global_step = int(args.resume_global_step)
+    if args.max_train_steps:
+        cfg.max_train_steps = int(args.max_train_steps)
 
     # Make IO paths absolute relative to the repo root so the script
     # works from any cwd.
@@ -173,6 +210,8 @@ def main() -> int:
         if not Path(cfg.val_jsonl).is_absolute() else cfg.val_jsonl
     cfg.out_dir = str((repo / cfg.out_dir).resolve()) \
         if not Path(cfg.out_dir).is_absolute() else cfg.out_dir
+    if cfg.resume_from and not Path(cfg.resume_from).is_absolute():
+        cfg.resume_from = str((repo / cfg.resume_from).resolve())
 
     print(f"[train] config: {args.config}", flush=True)
     print(f"[train] out_dir: {cfg.out_dir}", flush=True)
@@ -185,6 +224,13 @@ def main() -> int:
     if cfg.preload_dataset:
         print(f"[train] PRELOAD: enabled (~4 MB × {cfg.max_train_records} ≈ "
               f"{cfg.max_train_records*4/1024:.1f} GB RAM)", flush=True)
+
+    if cfg.resume_from:
+        print(f"[train] RESUME: checkpoint={cfg.resume_from}", flush=True)
+        print(f"[train] RESUME: skip_train_batches={cfg.skip_train_batches}  "
+              f"resume_global_step={cfg.resume_global_step}", flush=True)
+    if getattr(cfg, "max_train_steps", 0):
+        print(f"[train] STEP LIMIT: {cfg.max_train_steps}", flush=True)
 
     train(cfg)
     return 0

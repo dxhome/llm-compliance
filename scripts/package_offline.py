@@ -62,8 +62,7 @@ sys.path.insert(0, str(_HERE / "src"))
 from mpid.adapters.vlm import VLMAdapter
 from mpid.heads.classification import NUM_CLASSES, ClassificationHead
 from mpid.data.prompt import build_prompt
-from mpid.train.trainer import inject_lora, load_checkpoint
-from safetensors.torch import load_file
+from mpid.train.trainer import inject_lora, load_checkpoint, apply_lora_state
 
 
 # --- 1. Locate the artefacts inside the package ---------------------------
@@ -98,9 +97,8 @@ peft_model, _ = inject_lora(adapter.model, _Cfg())
 head = ClassificationHead(in_dim=adapter.hidden_size,
                           num_classes=NUM_CLASSES).to(_Cfg.device)
 state = load_file(str(CHECKPOINT))
-head_state = {k.removeprefix("head."): v
-              for k, v in state.items() if k.startswith("head.")}
-head.load_state_dict(head_state)
+state = load_checkpoint(CHECKPOINT, head)
+apply_lora_state(peft_model, state)
 peft_model.eval(); head.eval()
 
 

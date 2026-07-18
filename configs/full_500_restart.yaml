@@ -1,0 +1,33 @@
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32
+  device: cpu
+  quantization: null
+  gradient_checkpointing: false
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target: q_proj,k_proj,v_proj,o_proj
+
+training:
+  epochs: 1
+  max_train_records: 500
+  max_val_records: 100
+  batch_size: 1
+  lr: 2.0e-4
+  weight_decay: 0.0
+  class_weighted: true
+
+  early_stop_patience: 2
+  log_every: 25
+  seed: 42
+
+  preload_dataset: true
+  checkpoint_name: lora_full_500_restart.safetensors
+
+io:
+  train_jsonl: data/mpid-v1/train.jsonl
+  val_jsonl:   data/mpid-v1/val.jsonl
+  out_dir:     artifacts/full_500_restart

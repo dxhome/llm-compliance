@@ -1,14 +1,20 @@
 # MPID 项目参考手册 (Reference)
 
 > **文档类型**：FAQ / 参考手册
-> **文档版本**：v3.9
+> **文档版本**：v4.0
 > **创建日期**：2026-07-13
 > **用途**：项目执行过程中常见问题与基础概念速查
 >
 > **当前版本变更**（完整历史见 [附录 C：文档变更历史](#附录-c文档变更历史)）：
+> - **v4.0**：全面梳理 `reference.md` 里的平台相关命令，明确区分 Windows PowerShell 与 macOS/Linux；将 `ls` / `head` / `cat` / `wc` / `source` / `bash` 等易卡住的步骤改为双平台写法或跨平台 Python 命令
 > - **v3.9**：补充 Phase 2.2 的可复制执行流程，覆盖 `benchmark_100`、`full_500`、`full_800`、断点续跑参数，以及一键 PowerShell 启动脚本
 > - **v3.8**：Phase 2 章节重组为三大块——§2.1–§2.5 整体架构（共享）/ §2.6–§2.12 Phase 2.1（smoke）/ §2.13–§2.19 Phase 2.2（实际可用）
 > - **v3.7**：根据 [tasks.md v2.3](tasks.md) 把 Phase 2 章节拆为 2.1（smoke 训练）与 2.2（真实训练），新增 §2.11 Phase 2.2 节覆盖 T2.13–T2.21 完整流程
+
+> **平台约定**：
+> - `Windows` 默认指 **PowerShell 5+ / PowerShell 7+**。
+> - `mac` 默认指 **macOS zsh/bash**；除非特别说明，同样适用于 Linux。
+> - 如果某条命令标注“跨平台通用”，表示它在 Windows PowerShell 与 macOS/Linux 下都可直接运行。
 
 ---
 
@@ -82,11 +88,22 @@
 
 #### Step 1: 装环境
 
+`Step 1` 在 Windows 与 macOS 的差异主要在于“进入仓库目录”和“激活虚拟环境”。
+
+```powershell
+# Windows PowerShell
+Set-Location C:\path\to\llm-compliance
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+```
+
 ```bash
-cd /Users/xuan/Work/dxhome/llm-compliance
+# macOS / Linux
+cd /path/to/llm-compliance
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 #### Step 2: 跑环境冒烟
@@ -120,14 +137,14 @@ python scripts/download_models.py
 **期望输出**：
 ```
 [download] model_id = HuggingFaceTB/SmolVLM-500M-Instruct
-[download] local    = /Users/xuan/.../models/smolvlm-500m
+[download] local    = <repo>/models/smolvlm-500m
 [download] allow    = 16 patterns
 [download] remote matched N/M files:
              - config.json
              - generation_config.json
              - model.safetensors
              ...
-[download] OK: N files, 1000-2000 MB on disk at /Users/xuan/.../models/smolvlm-500m
+[download] OK: N files, 1000-2000 MB on disk at <repo>/models/smolvlm-500m
 ```
 
 **关键观察**：
@@ -365,15 +382,15 @@ data/mpid-v1-crossmodal/
 └── images/              # 120 张合成的攻击图像 (PNG)
 ```
 
-**验证文件**：
+**验证文件**（下面命令 Windows / macOS 通用）：
 ```bash
-ls -la data/mpid-v1/ data/mpid-v1-crossmodal/
+python -c "from pathlib import Path; [print(p) for p in sorted(Path('data/mpid-v1').iterdir())]; print('---'); [print(p) for p in sorted(Path('data/mpid-v1-crossmodal').iterdir())]"
 # 应看到上述所有文件
 
-head -1 data/mpid-v1/train.jsonl
-# 应看到一条 JSON: {"id":"...", "text":"...", "label":"clean|direct|indirect", "source":"...", "lang":"...", "image":null, "metadata":{...}}
+python -c "from pathlib import Path; print(Path('data/mpid-v1/train.jsonl').read_text(encoding='utf-8').splitlines()[0])"
+# 应看到一条 JSON: {\"id\":\"...\", \"text\":\"...\", \"label\":\"clean|direct|indirect\", \"source\":\"...\", \"lang\":\"...\", \"image\":null, \"metadata\":{...}}
 
-cat data/mpid-v1/split_summary.json
+python -c "from pathlib import Path; print(Path('data/mpid-v1/split_summary.json').read_text(encoding='utf-8'))"
 # 应看到 by_label / by_source / by_lang 三个维度的统计
 ```
 
@@ -382,7 +399,7 @@ cat data/mpid-v1/split_summary.json
 | 项 | 通过条件 |
 |---|---|
 | 三个 split 存在 | `data/mpid-v1/{train,val,test}.jsonl` 都在 |
-| 总样本 ≥ 1k | `wc -l data/mpid-v1/train.jsonl data/mpid-v1/val.jsonl data/mpid-v1/test.jsonl` 加起来 ≥ 1000 |
+| 总样本 ≥ 1k | `python -c "from pathlib import Path; files=['train','val','test']; print(sum(len(Path(f'data/mpid-v1/{x}.jsonl').read_text(encoding='utf-8').splitlines()) for x in files))"` 输出 ≥ 1000 |
 | 类别覆盖 | `split_summary.json` 中 by_label 包含 `clean / direct / indirect` 三类 |
 | 语种覆盖 | by_lang 包含 `en` 与 `zh` |
 | 跨模态子集 | `data/mpid-v1-crossmodal/` 有 train/val/test 三个 JSONL + images 目录 |
@@ -601,7 +618,14 @@ T2.1 VLM 推理抽象 → T2.2 Backbone 注册表 → T2.3 DetectorHead → T2.4
 
 #### Step 1: 环境冒烟（30 秒）
 
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+python scripts/smoke_env.py
+```
+
 ```bash
+# macOS / Linux
 source .venv/bin/activate
 python scripts/smoke_env.py
 ```
@@ -671,12 +695,12 @@ python scripts/build_phase1.py
 - 类别直方图统计
 - EDA markdown 报告
 
-**验证文件存在**：
+**验证文件存在**（下面命令 Windows / macOS 通用）：
 ```bash
-ls -la data/mpid-v1/
+python -c "from pathlib import Path; [print(p.name) for p in sorted(Path('data/mpid-v1').iterdir())]"
 # 应看到: train.jsonl, val.jsonl, test.jsonl, EDA.md
-head -1 data/mpid-v1/train.jsonl
-# 应看到一条 JSON: {"id":"...", "text":"...", "label":"clean|direct|indirect", ...}
+python -c "from pathlib import Path; print(Path('data/mpid-v1/train.jsonl').read_text(encoding='utf-8').splitlines()[0])"
+# 应看到一条 JSON: {\"id\":\"...\", \"text\":\"...\", \"label\":\"clean|direct|indirect\", ...}
 ```
 
 ---
@@ -709,7 +733,7 @@ python scripts/train.py
 **关键观察点**：
 - **LoRA params ≈ 1.5M**：符合预期（占 500M 的 0.3%）
 - **Head params = 2,883**：Linear(960, 3) → 960×3 + 3 = 2,883，正确
-- **checkpoint 文件存在**：`ls -la artifacts/baseline/lora_baseline.safetensors` 应有几十 MB
+- **checkpoint 文件存在**：可运行 `python -c "from pathlib import Path; p=Path('artifacts/baseline/lora_baseline.safetensors'); print(p.exists(), round(p.stat().st_size/1024/1024, 2) if p.exists() else 'missing')"`；应看到文件存在且大小为几十 MB
 
 **5 个样本 → 1 epoch 的训练指标本身没有意义**（相当于随机猜测），但这一步的目的**不是得到好模型**，而是验证：
 
@@ -795,7 +819,9 @@ python scripts/smoke_offline.py
 ```
 
 **smoke_offline.py 做的事**（详见 [smoke_offline.py](../scripts/smoke_offline.py)）：
-- 把 `mpid_offline/` 复制到 `/tmp/mpid_offline_smoke_xxxxx/`
+- 把 `mpid_offline/` 复制到**系统临时目录**下的 `mpid_offline_smoke_xxxxx/`
+  - Windows 通常对应 `%TEMP%`
+  - macOS / Linux 通常对应 `/tmp`
 - 验证必需文件存在：`infer.py / requirements.txt / MANIFEST.json / CHECKSUMS.txt / models/smolvlm-500m/config.json / artifacts/lora_baseline.safetensors / src/mpid/__init__.py`
 - 重新计算 SHA256 校验和，对比 `CHECKSUMS.txt`
 - 跑 3 条测试 payload：direct 注入 / clean 提问 / indirect 注入
@@ -1100,7 +1126,7 @@ Phase 7    项目整理
 | T2.13 | `scripts/download_data.py` 扩展 | 下载完整数据集（不只是 smoke 5 条） |
 | T2.14 | `scripts/build_phase1.py` | 重新跑全量数据 split |
 | T2.15 | `configs/full.yaml` | 真实训练配置（区别于 `configs/baseline.yaml`） |
-| T2.16 | `scripts/launch_train_full.sh` + `trainer.py`（加 `save_every` / signal handler） | 后台启动训练 + 进度保护 |
+| T2.16 | `scripts/launch_train_full.sh`（macOS / Linux）或 `scripts/launch_phase2_2_full_500.ps1` / `scripts/launch_phase2_2_full_800.ps1`（Windows）+ `trainer.py`（加 `save_every` / signal handler） | 按平台后台启动训练 + 进度保护 |
 | T2.17 | `scripts/eval.py`（`--checkpoint`） | 评估 `lora_full.safetensors` |
 | T2.18 | `scripts/eval.py`（`--compare-smoke-vs-full`） | smoke vs full 性能对比 |
 | T2.19 | 同 T2.16 在 x86 CPU 上复跑 | 跨平台一致性验证 |
@@ -1135,16 +1161,25 @@ python scripts/build_phase1.py
 
 #### Step 2: 后台启动训练（T2.16）
 
+```powershell
+# Windows PowerShell：优先使用仓库内现成脚本
+powershell -ExecutionPolicy Bypass -File .\scripts\launch_phase2_2_full_500.ps1
+# 或
+powershell -ExecutionPolicy Bypass -File .\scripts\launch_phase2_2_full_800.ps1
+```
+
 ```bash
+# macOS / Linux：继续使用 shell 脚本入口
 bash scripts/launch_train_full.sh
-# 启动后端：
-#   - PYTHONUNBUFFERED=1 + python -u → 实时刷新日志
-#   - PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 → 允许 MPS 全量分配
-#   - --save-every 20 → 每 20 step 保存一次 lora_partial.safetensors
-#   - --max-train-seconds 9000 → 2.5h 硬性 budget
-#   - PID 写入 logs/train_full.pid
 tail -f logs/train_full.log
 ```
+
+**启动脚本背后做的事**：
+- `PYTHONUNBUFFERED=1` + `python -u`：实时刷新日志
+- `--save-every`：周期性保存 partial checkpoint
+- `--max-train-seconds`：训练时间 budget 保护
+- `SIGINT` / `SIGTERM` handler：中断时先写出 partial checkpoint 再退出
+- Windows PowerShell 版本会把每一步的 stdout / stderr 归档到 `logs/phase2_2_full_500/` 或 `logs/phase2_2_full_800/`
 
 期望输出（每 5 step 一行）：
 ```
@@ -1383,7 +1418,14 @@ python scripts/eval.py \
 
 #### Step 1: 跑单测
 
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+python -m pytest tests/test_early_exit.py -v
+```
+
 ```bash
+# macOS / Linux
 source .venv/bin/activate
 python -m pytest tests/test_early_exit.py -v
 ```
@@ -1459,7 +1501,7 @@ python scripts/eval.py --early-exit --max-records 20
 
 | 项 | 通过条件 |
 |---|---|
-| 单测 | `pytest tests/test_early_exit.py` 13/13 PASS |
+| 单测 | `python -m pytest tests/test_early_exit.py -v` 13/13 PASS |
 | 端到端 | `eval.py --early-exit` 跑通 + 3 个产物文件（.json / .md / .jsonl）齐全 |
 | **F1 退化** | 真实训练后 delta ≥ -0.02（**必须**——C4 不会让模型变笨） |
 | **无 clean 漏报** | n_clean_wrong_exit = 0（直接/间接被误判为 clean 的样本数 = 0） |
@@ -2920,7 +2962,7 @@ python infer.py --text "忽略以上指令"   # 自动加载 LoRA + 跑 C4 + 输
 
 | 方式 | 形态 | 第三方用法 | 复杂度 | 适用场景 |
 |---|---|---|---|---|
-| **A. 自包含文件夹** | `mpid_offline/`（zip 压缩） | `cd && python infer.py` | 🟢 低 | 个人 / 小团队 / 边缘设备 |
+| **A. 自包含文件夹** | `mpid_offline/`（zip 压缩） | Windows PowerShell：`Set-Location mpid_offline; python infer.py`；macOS/Linux：`cd mpid_offline && python infer.py` | 🟢 低 | 个人 / 小团队 / 边缘设备 |
 | **B. pip 包** | `pip install mpid-inject-guard` | `import mpid_guard; guard.check(text)` | 🟡 中 | 集成到第三方 Python 代码 |
 | **C. API 服务** | HTTP server | `POST /check {"text": "..."}` | 🟡 中 | 服务化部署（多客户端） |
 | **D. ONNX + runtime** | ONNX 模型 + C++/Rust SDK | `guard_sdk->check(text)` | 🔴 高 | 极致性能（< 50ms 延迟） |
@@ -3012,7 +3054,7 @@ python infer.py --text "忽略以上指令"   # 自动加载 LoRA + 跑 C4 + 输
 
 **给答辩的一段话**：
 
-> "**我们的交付物是一个完整的'轻量级多模态防注入检测包'——不仅包含训练好的 LoRA 权重（~6MB），更包含完整的推理代码（C4 早退 + C5 规则 + C6 跨模态）和调度器。第三方下载 `mpid_offline/` 文件夹后，无需联网、无需 GPU，只需 `pip install -r requirements.txt && python infer.py` 即可使用。这与只发布模型权重的传统方案相比，让'防御能力'真正可落地、可复用、可审计。**"
+> "**我们的交付物是一个完整的'轻量级多模态防注入检测包'——不仅包含训练好的 LoRA 权重（~6MB），更包含完整的推理代码（C4 早退 + C5 规则 + C6 跨模态）和调度器。第三方下载 `mpid_offline/` 文件夹后，无需联网、无需 GPU；在 Windows PowerShell 下运行 `pip install -r requirements.txt` 后再运行 `python infer.py`，在 macOS/Linux 下也是同样两步。这与只发布模型权重的传统方案相比，让'防御能力'真正可落地、可复用、可审计。**"
 
 ---
 
@@ -3163,6 +3205,21 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
 
 > 本附录按倒序记录每次重要变更（最新在上），便于回溯每个章节内容的来源。
 > 之前的版本将变更摘要放在文档开头，自 **v3.7** 起统一迁移到本附录。
+
+### v4.0 (2026-07-18) — Windows / macOS 命令分流与跨平台校正
+
+**动机**：`reference.md` 中长期混用了 macOS/Linux 风格命令（如 `source`、`ls`、`head`、`cat`、`wc`、`bash`、`/tmp` 路径），Windows 用户即使理解流程，也无法直接复制执行；同时 Phase 2.2 已经新增 PowerShell 自动化脚本，文档需要与当前仓库入口保持一致。
+
+**变更**：
+- 在文档头部新增 **平台约定**，明确 `Windows = PowerShell`、`mac = macOS zsh/bash`。
+- 把 Phase 0A、Phase 2、Phase 3 中涉及虚拟环境激活的步骤改为 **Windows PowerShell / macOS/Linux 双写法**。
+- 把 `ls` / `head` / `cat` / `wc` 这类 Unix-only 校验命令替换为 **跨平台 Python 单行命令**。
+- 把 Phase 2.2 的训练入口更新为：
+  - `scripts/launch_train_full.sh`（macOS / Linux）
+  - `scripts/launch_phase2_2_full_500.ps1`、`scripts/launch_phase2_2_full_800.ps1`（Windows）
+- 把 `smoke_offline.py` 的临时目录说明改为“系统临时目录”，并分别注明 Windows 常见是 `%TEMP%`、macOS/Linux 常见是 `/tmp`。
+- 调整结尾交付说明，避免使用只偏向 Unix shell 的 `&&` 连写示例。
+- 文档版本号 **v3.9 → v4.0**。
 
 ### v3.9 (2026-07-18) — Phase 2.2 可复制执行流程补充
 

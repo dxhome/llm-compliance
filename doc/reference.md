@@ -1,11 +1,12 @@
 # MPID 项目参考手册 (Reference)
 
 > **文档类型**：FAQ / 参考手册
-> **文档版本**：v3.8
+> **文档版本**：v3.9
 > **创建日期**：2026-07-13
 > **用途**：项目执行过程中常见问题与基础概念速查
 >
 > **当前版本变更**（完整历史见 [附录 C：文档变更历史](#附录-c文档变更历史)）：
+> - **v3.9**：补充 Phase 2.2 的可复制执行流程，覆盖 `benchmark_100`、`full_500`、`full_800`、断点续跑参数，以及一键 PowerShell 启动脚本
 > - **v3.8**：Phase 2 章节重组为三大块——§2.1–§2.5 整体架构（共享）/ §2.6–§2.12 Phase 2.1（smoke）/ §2.13–§2.19 Phase 2.2（实际可用）
 > - **v3.7**：根据 [tasks.md v2.3](tasks.md) 把 Phase 2 章节拆为 2.1（smoke 训练）与 2.2（真实训练），新增 §2.11 Phase 2.2 节覆盖 T2.13–T2.21 完整流程
 
@@ -1209,6 +1210,99 @@ python scripts/smoke_offline.py --pkg mpid_offline_v2
 # 期望：layout ok (7 files) + checksums ok (79 files) + infer.py 输出 JSON
 # 注意：infer.py 的 checkpoint 路径从 MANIFEST.json 读取，不写死
 ```
+
+#### 补充：按最新脚本复现 500 / 800 样本流程
+
+上面 5 步是 **Phase 2.2 的最小验收链路**；如果团队成员想直接复现这次最新提交里的执行过程，推荐按下面的顺序跑。
+
+**方案 A：先用 100 条做耗时基准，再跑 500 条**
+```bash
+# 1) 100 条 benchmark，确认环境、日志与步速正常
+python -X utf8 -u scripts/train.py \
+  --config configs/benchmark_100.yaml \
+  --preload-dataset \
+  --max-train-steps 20 \
+  --checkpoint-name lora_benchmark_100.safetensors \
+  --partial-name lora_benchmark_100.safetensors
+
+# 2) 500 条正式训练
+python -X utf8 -u scripts/train.py \
+  --config configs/full_500_restart.yaml \
+  --preload-dataset \
+  --save-every 100 \
+  --max-train-seconds 172800 \
+  --checkpoint-name lora_full_500_restart.safetensors \
+  --partial-name lora_full_500_restart.safetensors
+
+# 3) 单模型评估
+python -X utf8 scripts/eval.py \
+  --config configs/full_500_restart.yaml \
+  --checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors \
+  --out artifacts/full_500_restart
+
+# 4) 与 smoke baseline 对比
+python -X utf8 scripts/eval.py \
+  --config configs/full_500_restart.yaml \
+  --compare-smoke-vs-full \
+  --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors \
+  --full-checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors \
+  --out artifacts/full_500_restart
+
+# 5) 重新打离线包并冒烟
+python -X utf8 scripts/package_offline.py \
+  --ckpt artifacts/full_500_restart/lora_full_500_restart.safetensors \
+  --out mpid_offline_v2
+python -X utf8 scripts/smoke_offline.py --pkg mpid_offline_v2
+```
+
+**方案 B：直接跑 800 条**
+```bash
+python -X utf8 -u scripts/train.py \
+  --config configs/full_800.yaml \
+  --preload-dataset \
+  --save-every 100 \
+  --max-train-seconds 172800 \
+  --checkpoint-name lora_full_800.safetensors \
+  --partial-name lora_full_800.safetensors
+
+python -X utf8 scripts/eval.py \
+  --config configs/full_800.yaml \
+  --checkpoint artifacts/full_800/lora_full_800.safetensors \
+  --out artifacts/full_800
+
+python -X utf8 scripts/eval.py \
+  --config configs/full_800.yaml \
+  --compare-smoke-vs-full \
+  --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors \
+  --full-checkpoint artifacts/full_800/lora_full_800.safetensors \
+  --out artifacts/full_800
+
+python -X utf8 scripts/package_offline.py \
+  --ckpt artifacts/full_800/lora_full_800.safetensors \
+  --out mpid_offline_v2
+python -X utf8 scripts/smoke_offline.py --pkg mpid_offline_v2
+```
+
+**如果要从中断处恢复训练**：
+- `scripts/train.py` 新增了 `--resume-from`、`--skip-train-batches`、`--resume-global-step`、`--max-train-steps` 四个参数。
+- 在当前 `batch_size=1` 的 Phase 2.2 配置下，`skip_train_batches` 通常可以近似填成上次已完成的 optimizer steps。
+- 例如已经安全写出一个 300 step 的 partial checkpoint，可这样续跑：
+
+```bash
+python -X utf8 -u scripts/train.py \
+  --config configs/full_500_restart.yaml \
+  --preload-dataset \
+  --resume-from artifacts/full_500_restart/lora_full_500_restart.safetensors \
+  --skip-train-batches 300 \
+  --resume-global-step 300 \
+  --checkpoint-name lora_full_500_restart.safetensors \
+  --partial-name lora_full_500_restart.safetensors
+```
+
+**如果想直接复用仓库内现成脚本**：
+- Windows / PowerShell 可直接运行 [scripts/launch_phase2_2_full_500.ps1](../scripts/launch_phase2_2_full_500.ps1)。
+- 或运行 [scripts/launch_phase2_2_full_800.ps1](../scripts/launch_phase2_2_full_800.ps1)。
+- 两个脚本都会按 `Step 1 → Step 7` 写执行日志，分别落到 `logs/phase2_2_full_500/`、`logs/phase2_2_full_800/` 及同名 `*_execution_log.md`，便于他人照抄和审计。
 
 ### 2.16 Phase 2.1 vs Phase 2.2 关键差异
 
@@ -3069,6 +3163,19 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
 
 > 本附录按倒序记录每次重要变更（最新在上），便于回溯每个章节内容的来源。
 > 之前的版本将变更摘要放在文档开头，自 **v3.7** 起统一迁移到本附录。
+
+### v3.9 (2026-07-18) — Phase 2.2 可复制执行流程补充
+
+**动机**：最新代码新增了 `full_500` / `full_800` 配置、两份 PowerShell 启动脚本，以及 `train.py` 的断点续跑参数；原文档只覆盖 Phase 2.2 的最小 5 步验收，没有把“别人如何原样复现本次执行过程”写清楚。
+
+**变更**：
+- 在 **§2.15 手动端到端校验** 后补充“按最新脚本复现 500 / 800 样本流程”，给出：
+  - `benchmark_100` 预热命令
+  - `full_500_restart.yaml` 的训练、评估、对比、打包、冒烟命令
+  - `full_800.yaml` 的训练、评估、对比、打包、冒烟命令
+- 新增 **断点续跑说明**：记录 `--resume-from` / `--skip-train-batches` / `--resume-global-step` / `--max-train-steps` 四个参数的用法与一个 300-step 示例。
+- 新增 **一键脚本入口说明**：明确 [scripts/launch_phase2_2_full_500.ps1](../scripts/launch_phase2_2_full_500.ps1) 与 [scripts/launch_phase2_2_full_800.ps1](../scripts/launch_phase2_2_full_800.ps1) 的用途和日志落点。
+- 文档版本号 **v3.8 → v3.9**。
 
 ### v3.8 (2026-07-15) — Phase 2 章节重组（按 2.1 / 2.2 拆分）
 

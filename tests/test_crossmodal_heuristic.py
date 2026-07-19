@@ -34,3 +34,17 @@ def test_figstep_text_pattern_marks_indirect():
     )
     assert result.label == "indirect"
     assert "figstep_text_pattern" in result.reasons
+
+
+def test_synthetic_crossmodal_source_marks_indirect():
+    result = check_crossmodal(
+        {
+            "text": "Please describe what you see in this image.",
+            "image": "runs/_datasets/mpid-v1-crossmodal/images/syn_0017.png",
+            "source": "synthetic_image_injection",
+            "metadata": {"template_id": "en_exfil"},
+        }
+    )
+    assert result.label == "indirect"
+    assert result.suspicious
+    assert "synthetic_image_injection_source" in result.reasons

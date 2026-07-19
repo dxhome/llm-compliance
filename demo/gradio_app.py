@@ -32,9 +32,9 @@ The script is **self-contained** under ``demo/`` and does not modify
 
 It loads:
 
-  * the SmolVLM-500M backbone from ``models/smolvlm-500m/``
+  * the SmolVLM-500M backbone from ``runs/_models/smolvlm-500m/``
   * the LoRA + head checkpoint from
-    ``artifacts/baseline/lora_baseline.safetensors``
+    ``runs/_templates/artifacts/checkpoints/lora_baseline.safetensors``
 
 If either is missing, the app prints a clear error and exits with a
 non-zero status. The startup target is "server up in ≤ 30 s" on a
@@ -43,6 +43,7 @@ MacBook M-class machine.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import sys
@@ -73,10 +74,46 @@ if str(SRC_DIR) not in sys.path:
 
 # Defaults can be overridden via CLI flags. Keep them absolute so the
 # script works from any cwd.
-DEFAULT_MODEL_DIR = REPO_ROOT / "models" / "smolvlm-500m"
-DEFAULT_CHECKPOINT = REPO_ROOT / "artifacts" / "baseline" / "lora_baseline.safetensors"
+DEFAULT_MODEL_DIR = REPO_ROOT / "runs" / "_models" / "smolvlm-500m"
+DEFAULT_CHECKPOINT = (
+    REPO_ROOT / "runs" / "_templates" / "artifacts" / "checkpoints" /
+    "lora_baseline.safetensors"
+)
 DEFAULT_SAMPLES = DEMO_DIR / "samples.json"
 DEFAULT_DEVICE = "cpu"  # MPS+LoRA can be unstable; default to safe
+
+
+def resolve_demo_asset(path_value: str | os.PathLike | None) -> Path | None:
+    """Resolve demo sample assets across the old and new repo layouts.
+
+    Older ``samples.json`` entries used ``data/raw/...``. The project now keeps
+    shared data under ``runs/_datasets/...``. Returning ``None`` for missing or
+    empty values keeps text-only samples lightweight.
+    """
+    if not path_value:
+        return None
+    path = Path(path_value)
+    if path.is_absolute():
+        return path if path.exists() else None
+
+    raw_text = path.as_posix()
+    candidates = [REPO_ROOT / path]
+    if raw_text.startswith("data/raw/"):
+        candidates.append(
+            REPO_ROOT / "runs" / "_datasets" / "raw" /
+            Path(raw_text.removeprefix("data/raw/"))
+        )
+    if raw_text.startswith("data/"):
+        candidates.append(
+            REPO_ROOT / "runs" / "_datasets" /
+            Path(raw_text.removeprefix("data/"))
+        )
+    candidates.append(DEMO_DIR / path)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -286,77 +323,204 @@ LABEL_COLOR: dict[str, str] = {
     "indirect": "#f59e0b",     # amber
 }
 
+BASE_HEADER_MD = (
+    "<span style='color:#22c55e'>●</span> Base SmolVLM"
+)
+MPID_HEADER_PASS_MD = (
+    "<span style='color:#22c55e'>●</span> MPID (LoRA only)"
+)
+MPID_HEADER_BLOCK_MD = (
+    "<span style='color:#ef4444'>●</span> MPID (LoRA only)"
+)
+OPT_HEADER_PASS_MD = (
+    "<span style='color:#22c55e'>●</span> MPID (LoRA + C4-C6 优化)"
+)
+OPT_HEADER_BLOCK_MD = (
+    "<span style='color:#ef4444'>●</span> MPID (LoRA + C4-C6 优化)"
+)
+PROCESSING_MD = (
+    "<div style='padding:16px 18px;border:1px solid #d1d5db;"
+    "border-radius:8px;background:#f9fafb'>"
+    "<div style='font-weight:600;margin-bottom:6px'>Processing...</div>"
+    "<div>模型正在生成和判定，请稍等。</div>"
+    "</div>"
+)
+
+
+def format_latency(seconds: float) -> str:
+    ms = seconds * 1000.0
+    if ms < 1000:
+        return f"{ms:.1f} ms"
+    return f"{seconds:.2f} s"
+
+
+def code_html(text: str) -> str:
+    return (
+        "<pre style='white-space:pre-wrap;margin:0;padding:10px;"
+        "background:#f6f8fa;border-radius:6px;font-size:13px;line-height:1.45'>"
+        f"{html.escape(text or '')}</pre>"
+    )
+
+
+def note_html(text: str) -> str:
+    return (
+        "<div style='margin:0;padding:10px;background:#f9fafb;"
+        "border-radius:6px;line-height:1.45'>"
+        f"{html.escape(text).replace(chr(10), '<br>')}</div>"
+    )
+
+
+def latency_html(lines: list[tuple[str, float]]) -> str:
+    parts = [
+        f"<div>总计: <code>{format_latency(lines[0][1])}</code></div>"
+    ]
+    parts.extend(
+        f"<div style='color:#4b5563'>{html.escape(name)}: "
+        f"<code>{format_latency(seconds)}</code></div>"
+        for name, seconds in lines[1:]
+    )
+    return "".join(parts)
+
+
+def titled_cell(title: str, content: str) -> str:
+    return (
+        "<div style='font-weight:700;color:#111827;margin-bottom:6px'>"
+        f"{html.escape(title)}</div>{content}"
+    )
+
+
+def render_comparison_table(columns: list[dict[str, str]]) -> str:
+    row_defs = [
+        ("1. 样本标识", "sample"),
+        ("2. 推理时间", "latency"),
+        ("3. 推理实际输出", "output"),
+        ("4. 防注入判断结果 / C4-C6 触发说明", "judgement"),
+    ]
+    header = (
+        "<tr>"
+        + "".join(
+            "<th style='width:33%;text-align:left;vertical-align:bottom;"
+            "padding:0 12px 8px 0;border:0!important;border-color:transparent!important;"
+            "background:transparent!important;font-size:22px;font-weight:700;line-height:1.2'>"
+            f"{col['header']}</th>"
+            for col in columns
+        )
+        + "</tr>"
+    )
+    body = "\n".join(
+        "<tr>"
+        + "".join(
+            "<td style='vertical-align:top;padding:10px 12px 10px 0;"
+            "border:0!important;border-color:transparent!important;"
+            "background:transparent!important'>"
+            f"{titled_cell(label, col[key])}</td>"
+            for col in columns
+        )
+        + "</tr>"
+        for label, key in row_defs
+    )
+    return (
+        "<table class='comparison-table' style='width:100%;border-collapse:collapse;"
+        "border:0!important;border-color:transparent!important;"
+        "font-size:14px;line-height:1.45;background:transparent!important'>"
+        f"{header}{body}</table>"
+    )
+
 
 def risk_markdown(label: str, risk: float, probs: list) -> str:
     """Format the right-column head output as a Markdown block."""
     color = LABEL_COLOR.get(label, "#888")
-    bar = "█" * int(risk * 20) + "░" * (20 - int(risk * 20))
     lines = [
-        f"### 判定标签: <span style='color:{color}; font-weight:600'>"
-        f"{LABEL_CN.get(label, label)}</span>",
-        "",
-        f"**风险分 (risk):** `{risk:.2f}`  "
-        f"`{bar}`",
-        "",
-        "**三分类置信度:**",
-        "",
-        "| 类别 | 概率 | 条形 |",
-        "|---|---|---|",
+        f"<div>判定标签: <span style='color:{color};font-weight:600'>"
+        f"{html.escape(LABEL_CN.get(label, label))}</span></div>",
+        "<div style='display:flex;align-items:center;gap:8px;margin-top:4px'>"
+        f"<span>风险分: <code>{risk:.2f}</code></span>"
+        "<span style='display:inline-block;width:96px;height:8px;background:#e5e7eb;"
+        "border-radius:999px;overflow:hidden'>"
+        f"<span style='display:block;width:{min(max(risk, 0.0), 1.0) * 100:.1f}%;"
+        f"height:100%;background:{color}'></span></span></div>",
+        "<div style='margin-top:6px'>三分类置信度:</div>",
     ]
     for i, name in enumerate(["clean", "direct", "indirect"]):
         p = probs[i]
-        bar_len = int(round(p * 24))
-        bar_str = "▓" * bar_len + "░" * (24 - bar_len)
         cn = LABEL_CN.get(name, name)
+        p_color = LABEL_COLOR.get(name, "#888")
         lines.append(
-            f"| {cn} | `{p:.3f}` | `{bar_str}` |"
+            "<div style='display:grid;grid-template-columns:104px 48px 1fr;"
+            "align-items:center;gap:6px;color:#4b5563;margin-top:3px'>"
+            f"<span>{html.escape(cn)}</span>"
+            f"<code>{p:.3f}</code>"
+            "<span style='display:block;height:7px;background:#e5e7eb;"
+            "border-radius:999px;overflow:hidden'>"
+            f"<span style='display:block;width:{min(max(p, 0.0), 1.0) * 100:.1f}%;"
+            f"height:100%;background:{p_color}'></span></span></div>"
         )
-    return "\n".join(lines)
+    return "".join(lines)
 
 
 def base_warn_markdown(label_gt: str) -> str:
     """Red banner on the left column explaining the unprotected model."""
     if label_gt == "clean":
-        return (
-            "> ⚠️ **Base SmolVLM 无防护**  \n"
-            "> 即使该样本本来是干净请求，base model 也可能给出与安全策略"
-            "不符的回答（如对医学/法律问题过度自信、产生歧视性言论等）。"
+        return note_html(
+            "⚠️ Base SmolVLM 无防护\n"
+            "即使该样本本来是干净请求，base model 也可能给出与安全策略不符的回答。"
         )
     if label_gt == "direct":
-        return (
-            "> 🚨 **直接注入:易被攻破**  \n"
-            "> SmolVLM-500M 没有安全对齐,会沿用用户 prompt 内的指令"
-            "(DAN / OPPO / LiveGPT 等越狱模板几乎都成功)。"
-            "对比右栏 **MPID** 的拦截结果。"
+        return note_html(
+            "🚨 直接注入:易被攻破\n"
+            "SmolVLM-500M 没有安全对齐,会沿用用户 prompt 内的指令。"
         )
     if label_gt == "indirect":
-        return (
-            "> 🚨 **间接注入:图文绕过**  \n"
-            "> 攻击者把「危险指令」放在图像里、文字里装作中性请求。"
-            "Base VLM 读图后会被诱导完成 figstep / QR-hiding 等攻击。"
-            "对比右栏 **MPID** 的拦截结果。"
+        return note_html(
+            "🚨 间接注入:图文绕过\n"
+            "攻击者把危险指令放在图像里,文字里装作中性请求。"
         )
-    return "Base SmolVLM 无防护"
+    return note_html("Base SmolVLM 无防护")
 
 
 def mpid_pass_markdown(label_gt: str, label_pred: str, risk: float) -> str:
     """Right-column verdict for the demo banner."""
     if label_pred == "clean":
         icon = "✅"
-        msg = "MPID 判断为 **干净** → 放行"
+        msg = "MPID 判断为干净 → 放行"
     elif label_pred == "direct":
         icon = "🛑"
-        msg = "MPID 判断为 **直接注入** → 拦截"
+        msg = "MPID 判断为直接注入 → 拦截"
     elif label_pred == "indirect":
         icon = "🛑"
-        msg = "MPID 判断为 **间接注入** → 拦截"
+        msg = "MPID 判断为间接注入 → 拦截"
     else:
         icon, msg = "❓", f"未知标签: {label_pred}"
     agree = "✔ 正确" if label_pred == label_gt else "✘ 误判"
     return (
-        f"> {icon} {msg}  \n"
-        f"> 与 ground-truth ({LABEL_CN.get(label_gt, label_gt)}) 对比: **{agree}**  \n"
-        f"> 风险分 = `{risk:.2f}` (1.00 = 高置信)"
+        f"<div>{icon} {msg}</div>"
+        f"<div>标签: <code>{html.escape(label_pred)}</code></div>"
+        f"<div>风险分: <code>{risk:.2f}</code></div>"
+        f"<div>与 ground-truth ({html.escape(LABEL_CN.get(label_gt, label_gt))}) "
+        f"对比: {agree}</div>"
+    )
+
+
+def judgement_panel(
+    *,
+    summary: str,
+    mpid: str = "",
+    c4c6: str = "",
+    details: str = "",
+) -> str:
+    blocks = [("结果总结", summary)]
+    if mpid:
+        blocks.append(("MPID 判断结果", mpid))
+    if c4c6:
+        blocks.append(("C4-C6 判定结果", c4c6))
+    if details:
+        blocks.append(("其他详情", details))
+    return "".join(
+        "<div style='margin-bottom:8px'>"
+        f"<div style='font-weight:700;color:#111827'>{title}</div>"
+        f"<div>{content}</div>"
+        "</div>"
+        for title, content in blocks
     )
 
 
@@ -435,9 +599,8 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
             return "", None
         img = None
         if s.get("image"):
-            rel = s["image"]
-            abs_p = (REPO_ROOT / rel).resolve()
-            if abs_p.exists():
+            abs_p = resolve_demo_asset(s["image"])
+            if abs_p and abs_p.exists():
                 img = str(abs_p)
         return s["text"], img
 
@@ -470,14 +633,19 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         return str(out)
 
     def run_compare(mode: str, text: str, image, sample_idx: int):
-        """Top-level callback: do BOTH (generate + classify) and return
-        the two output blocks (left = Base, right = MPID). Each block
+        """Top-level callback: run all three demo paths and return
+        the output blocks (Base / MPID / MPID+C4-C6). Each block
         is structured as two clearly-separated sections:
 
           1. **模型输出** — the raw model output (or "发现注入风险,
              推理失败" if the model was blocked and produced nothing).
           2. **具体分析** — the explanatory / metric breakdown.
         """
+        import time
+
+        from mpid.infer import run_lora_only_pipeline, run_optimized_pipeline
+
+        text_value = text or ""
         sample_idx = int(sample_idx or 0)
         s = sample_by_idx.get(sample_idx, {})
         if mode == "preset":
@@ -486,80 +654,184 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         else:
             label_gt = ""
             title = "自定义输入"
+        compare_record = dict(s) if mode == "preset" else {}
+        compare_record["text"] = text_value
+        compare_record["image"] = image
 
         # ---------- Left column: Base SmolVLM ---------------------------
         # ``pipeline.generate`` calls ``self.adapter.generate`` which
         # uses the **raw base VLM** (``adapter.model``) — no LoRA, no
         # head. This is the "no-protection" view.
-        base_text = pipeline.generate(text or "", image)
+        t_base = time.perf_counter()
+        base_text = pipeline.generate(text_value, image)
+        base_seconds = time.perf_counter() - t_base
         if base_text:
-            base_output_body = f"```text\n{base_text}\n```"
+            base_output_body = code_html(base_text)
         else:
-            base_output_body = (
-                "> 🛑 **发现注入风险,推理失败**  \n"
-                "> Base VLM 没有产生任何文本输出。"
-            )
-        base_md = (
-            f"**📝 样本:** {title}\n\n"
-            f"### 1️⃣ 模型输出\n\n"
-            f"{base_output_body}\n\n"
-            f"---\n\n"
-            f"### 2️⃣ 具体分析\n\n"
-            f"{base_warn_markdown(label_gt)}"
-        )
+            base_output_body = note_html("🛑 发现注入风险,推理失败\nBase VLM 没有产生任何文本输出。")
+        sample_html = f"<strong>📝 样本:</strong> {html.escape(title)}"
 
         # ---------- Right column: MPID (LoRA + 3-class head) -----------
-        # MPID pipeline = 3-class head (前置检测) + LoRA-tuned VLM (推理).
-        #   - head 判为 clean     → 用 peft_model (LoRA) 推理,输出文本
-        #   - head 判为 direct/indirect → 拦截,不调用 VLM,显示拦截信息
-        cls = pipeline.classify(text or "", image)
-        label_pred = cls["label"]
-        risk = cls["risk"]
-        probs = cls["probs"]
+        lora_result = run_lora_only_pipeline(
+            compare_record,
+            classify_fn=pipeline.classify,
+            generate_fn=pipeline.generate_with_lora,
+        )
+        cls = lora_result.head or {}
+        label_pred = str(cls.get("label") or "fallback")
+        risk = float(cls.get("risk") or 0.0)
+        probs = list(cls.get("probs") or [0.0, 0.0, 0.0])
 
-        if label_pred == "clean":
-            # ``generate_with_lora`` uses ``self.peft_model`` — the
-            # LoRA-tuned VLM (not the raw base).
-            mpid_gen_text = pipeline.generate_with_lora(text or "", image)
-            if mpid_gen_text:
-                mpid_output_body = (
-                    "✅ **干净 (clean) — 放行**\n\n"
-                    f"```text\n{mpid_gen_text}\n```"
-                )
-            else:
-                mpid_output_body = (
-                    "✅ **干净 (clean) — 放行**  \n"
-                    "未检测到 prompt 注入,但 MPID 模型未产生输出。"
-                )
-        elif label_pred == "direct":
-            mpid_output_body = (
-                "🛑 **直接注入 (direct) — 拦截**\n\n"
-                "> **发现注入风险,推理失败**  \n"
-                "> MPID 检测到 direct injection,调用 VLM 的步骤被跳过。"
-            )
-        elif label_pred == "indirect":
-            mpid_output_body = (
-                "🛑 **间接注入 (indirect) — 拦截**\n\n"
-                "> **发现注入风险,推理失败**  \n"
-                "> MPID 检测到 indirect injection (图文绕过),"
-                "调用 VLM 的步骤被跳过。"
-            )
+        if lora_result.output:
+            mpid_output_body = code_html(lora_result.output)
+        elif lora_result.action == "block":
+            mpid_output_body = note_html("发现注入风险,推理失败\n已拦截,未调用 LoRA 生成。")
         else:
-            mpid_output_body = f"❓ 未知标签: `{label_pred}`"
+            mpid_output_body = note_html("已放行,但 MPID 模型未产生输出。")
 
         verdict_line = mpid_pass_markdown(label_gt, label_pred, risk)
         risk_table = risk_markdown(label_pred, risk, probs)
-        mpid_md = (
-            f"**📝 样本:** {title}\n\n"
-            f"### 1️⃣ 模型输出\n\n"
-            f"{mpid_output_body}\n\n"
-            f"---\n\n"
-            f"### 2️⃣ 具体分析\n\n"
-            f"{verdict_line}\n\n"
-            f"{risk_table}"
+        mpid_summary = (
+            "放行,并执行 LoRA 生成。"
+            if label_pred == "clean"
+            else f"拦截,未执行 LoRA 生成。"
+        )
+        mpid_header = (
+            MPID_HEADER_BLOCK_MD
+            if lora_result.action == "block"
+            else MPID_HEADER_PASS_MD
+        )
+        mpid_latency = latency_html([
+                ('total', lora_result.timings.get("total_seconds", 0.0)),
+                ('head 判定', lora_result.timings.get("head_seconds", 0.0)),
+                ('LoRA 生成', lora_result.timings.get("generate_seconds", 0.0)),
+            ])
+        mpid_judgement = judgement_panel(
+            summary=note_html(mpid_summary),
+            mpid=verdict_line,
+            details=risk_table,
         )
 
-        return base_md, mpid_md
+        # ---------- Third column: MPID + C4/C5/C6 lightweight path -------
+        opt_result = run_optimized_pipeline(
+            compare_record,
+            classify_fn=pipeline.classify,
+            generate_fn=pipeline.generate_with_lora,
+        )
+        opt_head = opt_result.head or {}
+        opt_label_pred = str(opt_head.get("label") or "not_run")
+        opt_risk = float(opt_head.get("risk") or 0.0)
+        opt_probs = list(opt_head.get("probs") or [0.0, 0.0, 0.0])
+        if opt_result.output:
+            opt_output_body = code_html(opt_result.output)
+        else:
+            opt_output_body = note_html(
+                "发现注入风险,推理失败\n已拦截或未触发生成。"
+                if opt_result.action == "block"
+                else "已放行,但 LoRA 模型未产生输出。"
+            )
+        opt_latency_parts = [
+            ("total", opt_result.timings.get("total_seconds", 0.0)),
+            ("C5 规则", opt_result.timings.get("c5_seconds", 0.0)),
+            ("C6 跨模态", opt_result.timings.get("c6_seconds", 0.0)),
+            ("head 判定", opt_result.timings.get("head_seconds", 0.0)),
+            ("C4 早退", opt_result.timings.get("c4_seconds", 0.0)),
+            ("LoRA 生成", opt_result.timings.get("generate_seconds", 0.0)),
+        ]
+        if opt_result.stage == "c4_early_exit":
+            opt_stage_note = "C5/C6 未命中后,head 的 P(clean) 超过阈值,触发 C4 clean 早退。"
+        elif opt_result.stage == "c5_rules":
+            opt_stage_note = "C5 文本规则先于 head 命中,直接拦截。"
+        elif opt_result.stage == "c6_crossmodal":
+            opt_stage_note = "C5 未命中,C6 跨模态启发式先于 head 命中,直接拦截。"
+        elif opt_result.stage == "head_clean_fallback":
+            opt_stage_note = "C5/C6/C4 均未做最终决策,回退到 head clean 放行。"
+        elif opt_result.stage == "head_injection_fallback":
+            opt_stage_note = "C5/C6/C4 均未做最终决策,回退到 head 注入判定并拦截。"
+        else:
+            opt_stage_note = "优化调度器返回了未识别阶段。"
+
+        opt_header = (
+            OPT_HEADER_BLOCK_MD if opt_result.action == "block" else OPT_HEADER_PASS_MD
+        )
+        opt_mpid_judgement = (
+            mpid_pass_markdown(label_gt, opt_label_pred, opt_risk)
+            if opt_result.head
+            else note_html("未执行 head。C5/C6 已在前置阶段完成判定。")
+        )
+        opt_c4c6_judgement = (
+            f"<div>最终动作: <code>{opt_result.action}</code></div>"
+            f"<div>最终标签: <code>{opt_result.label}</code></div>"
+            f"<div>命中阶段: <code>{opt_result.stage}</code></div>"
+            f"<div>触发说明: {opt_stage_note}</div>"
+        )
+        opt_summary = (
+            "放行,并执行 LoRA 生成。"
+            if opt_result.action == "allow"
+            else "拦截,未执行 LoRA 生成。"
+        )
+        opt_judgement = judgement_panel(
+            summary=note_html(opt_summary),
+            mpid=opt_mpid_judgement,
+            c4c6=opt_c4c6_judgement,
+            details=(
+            f"{risk_markdown(opt_label_pred, opt_risk, opt_probs) if opt_result.head else ''}"
+            f"{code_html(json.dumps(opt_result.explanation, ensure_ascii=False, indent=2))}"
+            ),
+        )
+        comparison_md = render_comparison_table([
+            {
+                "header": BASE_HEADER_MD,
+                "sample": sample_html,
+                "latency": latency_html([("total", base_seconds)]),
+                "output": base_output_body,
+                "judgement": judgement_panel(
+                    summary=note_html("原始模型输出,不执行防注入拦截。"),
+                    details=base_warn_markdown(label_gt),
+                ),
+            },
+            {
+                "header": mpid_header,
+                "sample": sample_html,
+                "latency": mpid_latency,
+                "output": mpid_output_body,
+                "judgement": mpid_judgement,
+            },
+            {
+                "header": opt_header,
+                "sample": sample_html,
+                "latency": latency_html(opt_latency_parts),
+                "output": opt_output_body,
+                "judgement": opt_judgement,
+            },
+        ])
+
+        return comparison_md
+
+    def show_processing():
+        return render_comparison_table([
+            {
+                "header": BASE_HEADER_MD,
+                "sample": "等待运行",
+                "latency": "处理中",
+                "output": PROCESSING_MD,
+                "judgement": "处理中",
+            },
+            {
+                "header": MPID_HEADER_PASS_MD,
+                "sample": "等待运行",
+                "latency": "处理中",
+                "output": PROCESSING_MD,
+                "judgement": "处理中",
+            },
+            {
+                "header": OPT_HEADER_PASS_MD,
+                "sample": "等待运行",
+                "latency": "处理中",
+                "output": PROCESSING_MD,
+                "judgement": "处理中",
+            },
+        ])
 
     # Sentinel used when the user is in "preset" mode and the text/image
     # widgets are locked. We disable the widgets via ``interactive=False``
@@ -572,19 +844,19 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
             s = sample_by_idx.get(int(samples[0]["index"]), {})
             img = None
             if s.get("image"):
-                abs_p = (REPO_ROOT / s["image"]).resolve()
-                if abs_p.exists():
+                abs_p = resolve_demo_asset(s["image"])
+                if abs_p and abs_p.exists():
                     img = str(abs_p)
             # gr.update(...) returns a sentinel that Gradio uses to
             # patch a single component on the next render.
             return (
-                gr.update(interactive=True),                # sample_dd enabled
+                gr.update(visible=True, interactive=True),  # sample_dd shown
                 gr.update(value=s.get("text", ""), interactive=False),  # text locked
                 gr.update(value=img, interactive=False),     # image locked
             )
         # Custom input mode.
         return (
-            gr.update(interactive=False),                              # sample_dd disabled
+            gr.update(visible=False, interactive=False),               # sample_dd hidden
             gr.update(value="", interactive=True, placeholder=(
                 "✍️ 自定义输入模式:在此键入任意 prompt 文本。"
             )),
@@ -595,13 +867,22 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         title="MPID · 多模态 prompt 注入检测 Demo",
         theme=gr.themes.Soft(),
         css="""
-            .gradio-container { max-width: 1280px !important; }
+            .gradio-container { max-width: 1480px !important; }
             #sample-dropdown .wrap { font-size: 14px; }
+            .comparison-table,
+            .comparison-table tr,
+            .comparison-table th,
+            .comparison-table td {
+                border: 0 !important;
+                border-color: transparent !important;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
         """,
     ) as app:
         gr.Markdown(
             "# 🛡️ MPID · 多模态 Prompt 注入检测\n"
-            "**对比 Base SmolVLM vs LoRA + 3-class head**"
+            "**对比 Base SmolVLM vs MPID (LoRA only) vs MPID (LoRA + C4-C6 优化)**"
         )
 
         # --- 1. Mode switch (preset vs custom) --------------------------
@@ -645,14 +926,8 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
 
         run_btn = gr.Button("▶ 运行对比 (Run)", variant="primary")
 
-        # --- 4. Side-by-side comparison ---------------------------------
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("## 🔴 Base SmolVLM (无防护)")
-                base_out = gr.Markdown()
-            with gr.Column():
-                gr.Markdown("## 🟢 MPID (LoRA + 3-class head)")
-                mpid_out = gr.Markdown()
+        # --- 4. Aligned comparison table --------------------------------
+        comparison_out = gr.Markdown()
 
         # Wire up the callbacks.
         mode_radio.change(
@@ -665,10 +940,15 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
             inputs=[sample_dd],
             outputs=[text_in, image_in],
         )
-        run_btn.click(
+        run_event = run_btn.click(
+            show_processing,
+            inputs=None,
+            outputs=[comparison_out],
+        )
+        run_event.then(
             run_compare,
             inputs=[mode_radio, text_in, image_in, sample_dd],
-            outputs=[base_out, mpid_out],
+            outputs=[comparison_out],
         )
 
         # Pre-fill the text/image widgets with the first sample on load.
@@ -688,9 +968,9 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="MPID Phase 2.5 demo")
     p.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR,
-                   help="SmolVLM local directory (default: models/smolvlm-500m)")
+                   help="SmolVLM local directory (default: runs/_models/smolvlm-500m)")
     p.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT,
-                   help="LoRA + head checkpoint (default: artifacts/baseline/lora_baseline.safetensors)")
+                   help="LoRA + head checkpoint (default: runs/_templates/artifacts/checkpoints/lora_baseline.safetensors)")
     p.add_argument("--samples", type=Path, default=DEFAULT_SAMPLES,
                    help="Preset samples JSON (default: demo/samples.json)")
     p.add_argument("--device", default=DEFAULT_DEVICE,

@@ -529,6 +529,143 @@ def _write_single_model_artifacts(ev, val_ds, cfg, out_dir, checkpoint, val_path
     print(f"[eval] wrote {out_dir/'report_baseline.md'}")
 
 
+def _prediction_counts(result: dict) -> dict:
+    counts = {label: 0 for label in LABEL_ORDER}
+    for pred in result.get("y_pred", []):
+        counts[LABEL_ORDER[int(pred)]] += 1
+    return counts
+
+
+def _gold_counts(result: dict) -> dict:
+    counts = {label: 0 for label in LABEL_ORDER}
+    for gold in result.get("y_gold", []):
+        counts[LABEL_ORDER[int(gold)]] += 1
+    return counts
+
+
+def _dominant_gold_label(result: dict) -> str | None:
+    counts = _gold_counts(result)
+    nonzero = [(label, count) for label, count in counts.items() if count > 0]
+    if len(nonzero) == 1:
+        return nonzero[0][0]
+    return None
+
+
+def _label_specific_metrics(result: dict) -> dict:
+    label = _dominant_gold_label(result)
+    pred_counts = _prediction_counts(result)
+    metrics = {
+        "gold_counts": _gold_counts(result),
+        "prediction_counts": pred_counts,
+        "dominant_gold_label": label,
+    }
+    if label is None:
+        return metrics
+    n_eval = max(1, int(result.get("n_eval", 0)))
+    correct = pred_counts.get(label, 0)
+    metrics.update(
+        {
+            "target_label": label,
+            "target_accuracy": correct / n_eval,
+            "target_recall": result["per_class"].get(label, {}).get("recall", 0.0),
+            "target_precision": result["per_class"].get(label, {}).get("precision", 0.0),
+            "target_f1": result["per_class"].get(label, {}).get("f1-score", 0.0),
+            "miss_rate_to_clean": (
+                0.0 if label == "clean" else pred_counts.get("clean", 0) / n_eval
+            ),
+            "false_alarm_rate": (
+                0.0 if label != "clean"
+                else (pred_counts.get("direct", 0) + pred_counts.get("indirect", 0)) / n_eval
+            ),
+        }
+    )
+    return metrics
+
+
+def _write_full_model_artifacts(summary: dict, out_dir: Path) -> None:
+    full = summary["full"]
+    report = {
+        "mode": "full_model_absolute",
+        "full_checkpoint": summary["full_checkpoint"],
+        "val_jsonl": summary["val_jsonl"],
+        "n_eval": summary["n_eval"],
+        "accuracy": full["accuracy"],
+        "macro_f1": full["macro_f1"],
+        "weighted_f1": full["weighted_f1"],
+        "per_class": full["per_class"],
+        "confusion_matrix": full.get("confusion_matrix"),
+        "label_specific": _label_specific_metrics(full),
+    }
+    with open(out_dir / "full_model_report.json", "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+    with open(out_dir / "full_model_report.md", "w", encoding="utf-8") as f:
+        f.write(_make_full_model_markdown(report))
+    print(f"[eval] wrote {out_dir/'full_model_report.json'}")
+    print(f"[eval] wrote {out_dir/'full_model_report.md'}")
+
+
+def _make_full_model_markdown(report: dict) -> str:
+    label_specific = report["label_specific"]
+    target = label_specific.get("target_label")
+    lines = [
+        "# Full Model Absolute Evaluation",
+        "",
+        f"- val records: **{report['n_eval']}**",
+        f"- full checkpoint: `{report['full_checkpoint']}`",
+        f"- val jsonl: `{report['val_jsonl']}`",
+        "",
+        "## Headline Metrics",
+        "",
+        "| metric | value |",
+        "|---|---:|",
+        f"| accuracy | {report['accuracy']:.4f} |",
+        f"| macro F1 | {report['macro_f1']:.4f} |",
+        f"| weighted F1 | {report['weighted_f1']:.4f} |",
+        "",
+        "## Label-Specific Metrics",
+        "",
+    ]
+    if target:
+        lines += [
+            f"- target label: `{target}`",
+            f"- target recall: **{label_specific['target_recall']:.4f}**",
+            f"- target precision: **{label_specific['target_precision']:.4f}**",
+            f"- target F1: **{label_specific['target_f1']:.4f}**",
+        ]
+        if target == "clean":
+            lines.append(f"- false alarm rate: **{label_specific['false_alarm_rate']:.4f}**")
+        else:
+            lines.append(f"- miss rate to clean: **{label_specific['miss_rate_to_clean']:.4f}**")
+    else:
+        lines.append("- mixed-label dataset: use per-class table below.")
+    lines += [
+        "",
+        "## Prediction Distribution",
+        "",
+        "| label | gold | predicted |",
+        "|---|---:|---:|",
+    ]
+    gold_counts = label_specific["gold_counts"]
+    pred_counts = label_specific["prediction_counts"]
+    for label in LABEL_ORDER:
+        lines.append(f"| {label} | {gold_counts.get(label, 0)} | {pred_counts.get(label, 0)} |")
+    lines += [
+        "",
+        "## Per-Class Metrics",
+        "",
+        "| class | precision | recall | F1 | support |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for label in LABEL_ORDER:
+        row = report["per_class"].get(label, {})
+        lines.append(
+            f"| {label} | {row.get('precision', 0):.4f} | "
+            f"{row.get('recall', 0):.4f} | {row.get('f1-score', 0):.4f} | "
+            f"{int(row.get('support', 0))} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 # ---------------------------------------------------------------------------
 # Comparison mode (T2.11)
 # ---------------------------------------------------------------------------
@@ -906,12 +1043,18 @@ def run_smoke_vs_full(
                     "macro_f1": smoke_result["macro_f1"],
                     "weighted_f1": smoke_result["weighted_f1"],
                     "per_class": smoke_result["per_class"],
+                    "confusion_matrix": smoke_result["confusion_matrix"],
+                    "y_pred": smoke_result["y_pred"],
+                    "y_gold": smoke_result["y_gold"],
                 },
                 "full": {
                     "accuracy": full_result["accuracy"],
                     "macro_f1": full_result["macro_f1"],
                     "weighted_f1": full_result["weighted_f1"],
                     "per_class": full_result["per_class"],
+                    "confusion_matrix": full_result["confusion_matrix"],
+                    "y_pred": full_result["y_pred"],
+                    "y_gold": full_result["y_gold"],
                 },
                 "delta": delta,
                 "verdict": {
@@ -1031,12 +1174,18 @@ def run_smoke_vs_full(
             "macro_f1":   smoke_result["macro_f1"],
             "weighted_f1": smoke_result["weighted_f1"],
             "per_class":  smoke_result["per_class"],
+            "confusion_matrix": smoke_result["confusion_matrix"],
+            "y_pred": smoke_result["y_pred"],
+            "y_gold": smoke_result["y_gold"],
         },
         "full": {
             "accuracy":   full_result["accuracy"],
             "macro_f1":   full_result["macro_f1"],
             "weighted_f1": full_result["weighted_f1"],
             "per_class":  full_result["per_class"],
+            "confusion_matrix": full_result["confusion_matrix"],
+            "y_pred": full_result["y_pred"],
+            "y_gold": full_result["y_gold"],
         },
         "delta": delta,
         "verdict": {
@@ -1051,6 +1200,7 @@ def run_smoke_vs_full(
     md = _make_smoke_vs_full_markdown(summary)
     with open(out_dir / "comparison_full_vs_smoke.md", "w", encoding="utf-8") as f:
         f.write(md)
+    _write_full_model_artifacts(summary, out_dir)
 
     print(f"\n[eval] wrote {out_dir/'comparison_full_vs_smoke.json'}")
     print(f"[eval] wrote {out_dir/'comparison_full_vs_smoke.md'}")
@@ -1064,15 +1214,15 @@ def _make_smoke_vs_full_markdown(s: dict) -> str:
     delta = s["delta"]
     v = s["verdict"]
     lines = [
-        "# Phase 2.2 T2.18: Smoke vs Full Training Comparison",
+        "# Phase 2.2: Baseline vs Full Model Comparison",
         "",
         f"- val records: **{s['n_eval']}**",
-        f"- smoke checkpoint: `{s['smoke_checkpoint']}`",
+        f"- baseline checkpoint: `{s['smoke_checkpoint']}`",
         f"- full checkpoint:  `{s['full_checkpoint']}`",
         "",
         "## Headline metrics",
         "",
-        "| metric | smoke (5 records) | full (200 records) | delta (full - smoke) |",
+        "| metric | baseline/smoke | full/new | delta (full - baseline) |",
         "|---|---|---|---|",
         f"| accuracy    | {smoke['accuracy']:.4f} | {full['accuracy']:.4f} | "
         f"{delta['accuracy_delta']:+.4f} |",
@@ -1083,7 +1233,7 @@ def _make_smoke_vs_full_markdown(s: dict) -> str:
         "",
         "## Per-class recall",
         "",
-        "| class | smoke | full | delta |",
+        "| class | baseline/smoke | full/new | delta |",
         "|---|---|---|---|",
     ]
     for label in LABEL_ORDER:
@@ -1095,7 +1245,7 @@ def _make_smoke_vs_full_markdown(s: dict) -> str:
         "",
         "## Per-class F1",
         "",
-        "| class | smoke | full | delta |",
+        "| class | baseline/smoke | full/new | delta |",
         "|---|---|---|---|",
     ]
     for label in LABEL_ORDER:

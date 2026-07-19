@@ -75,6 +75,8 @@ class DatasetSpec:
     allow_patterns: list[str]
     # Estimated on-disk size in MB, for the progress report only.
     approx_size_mb: int
+    # Download tier. ``basic`` is the default P0A-3 set.
+    tier: str = "basic"
     # Optional extras pulled in ``--full`` mode (T2.13). For the default
     # mode we use the same allow_patterns; ``--full`` adds full_extras.
     full_extras: list[str] = None  # type: ignore
@@ -169,9 +171,50 @@ DATASETS: dict[str, DatasetSpec] = {
         full_extras=["flickr30k-images.zip"],
         approx_size_mb=13,
     ),
+    "lakera_gandalf_ignore_instructions": DatasetSpec(
+        short_name="lakera_gandalf_ignore_instructions",
+        repo_id="Lakera/gandalf_ignore_instructions",
+        repo_type="dataset",
+        description="Prompt leaking / ignore-instruction prompts for direct injection and prompt extraction.",
+        allow_patterns=["*.json", "*.jsonl", "*.parquet", "*.csv", "*.md", "*.txt", "README*"],
+        approx_size_mb=20,
+    ),
+    "lakera_mosscap_prompt_injection": DatasetSpec(
+        short_name="lakera_mosscap_prompt_injection",
+        repo_id="Lakera/mosscap_prompt_injection",
+        repo_type="dataset",
+        description="Large prompt-injection corpus for direct attacks, hard negatives, and template diversity.",
+        allow_patterns=["*.json", "*.jsonl", "*.parquet", "*.csv", "*.md", "*.txt", "README*"],
+        approx_size_mb=200,
+    ),
+    "microsoft_llmail_inject_challenge": DatasetSpec(
+        short_name="microsoft_llmail_inject_challenge",
+        repo_id="microsoft/llmail-inject-challenge",
+        repo_type="dataset",
+        description="Email / tool-use indirect prompt injection challenge data.",
+        allow_patterns=["*.json", "*.jsonl", "*.parquet", "*.csv", "*.md", "*.txt", "README*"],
+        approx_size_mb=50,
+    ),
+    "cyberec_prompt_injection_dataset": DatasetSpec(
+        short_name="cyberec_prompt_injection_dataset",
+        repo_id="cyberec/Prompt-injection-dataset",
+        repo_type="dataset",
+        description="Prompt-injection data for direct, indirect, obfuscation, and relabeling candidates.",
+        allow_patterns=["*.json", "*.jsonl", "*.parquet", "*.csv", "*.md", "*.txt", "README*"],
+        approx_size_mb=100,
+    ),
+    "hlyn_prompt_injection_judge_deberta": DatasetSpec(
+        short_name="hlyn_prompt_injection_judge_deberta",
+        repo_id="hlyn-labs/prompt-injection-judge-deberta-dataset",
+        repo_type="dataset",
+        description="Prompt-injection judge training data for binary prefiltering and hard negatives.",
+        allow_patterns=["*.json", "*.jsonl", "*.parquet", "*.csv", "*.md", "*.txt", "README*"],
+        approx_size_mb=200,
+    ),
 }
 
-DEFAULT_DATASETS = list(DATASETS.keys())
+BASIC_DATASETS = [name for name, spec in DATASETS.items() if spec.tier == "basic"]
+DEFAULT_DATASETS = BASIC_DATASETS
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +318,11 @@ def _dataset_status(spec: DatasetSpec, raw_dir: Path) -> dict:
         "cais_mmlu": "parquet",
         "haonan_li_cmmlu": "zip",
         "nlphuji_flickr30k": "csv",
+        "lakera_gandalf_ignore_instructions": "any",
+        "lakera_mosscap_prompt_injection": "any",
+        "microsoft_llmail_inject_challenge": "any",
+        "cyberec_prompt_injection_dataset": "any",
+        "hlyn_prompt_injection_judge_deberta": "any",
     }.get(spec.short_name, "any")
     completeness = {
         "json": json_n + jsonl_n,
@@ -287,6 +335,8 @@ def _dataset_status(spec: DatasetSpec, raw_dir: Path) -> dict:
     return {
         "short_name": spec.short_name,
         "repo_id": spec.repo_id,
+        "tier": spec.tier,
+        "description": spec.description,
         "target_dir": str(target),
         "exists": target.exists(),
         "total_size_mb": total_size_mb,
@@ -338,9 +388,22 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--datasets",
         nargs="+",
-        default=DEFAULT_DATASETS,
-        choices=DEFAULT_DATASETS,
-        help="Which datasets to download (default: all).",
+        default=None,
+        choices=list(DATASETS.keys()),
+        help="Which datasets to download (default: P0A-3 basic set).",
+    )
+    p.add_argument(
+        "--dataset",
+        dest="datasets_single",
+        choices=list(DATASETS.keys()),
+        help="Download one dataset by name. Alias for --datasets <name>.",
+    )
+    p.add_argument(
+        "--tier",
+        choices=["basic", "all"],
+        default="basic",
+        help="Dataset tier to download when --datasets/--dataset is omitted. "
+             "basic is the P0A-3 default.",
     )
     p.add_argument(
         "--raw-dir",
@@ -376,6 +439,14 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     args.raw_dir.mkdir(parents=True, exist_ok=True)
+    if args.datasets_single:
+        args.datasets = [args.datasets_single]
+    elif args.datasets is None:
+        if args.tier == "basic":
+            args.datasets = BASIC_DATASETS
+        else:
+            args.datasets = [name for name, spec in DATASETS.items()
+                             if spec.tier != "manual_review"]
 
     # --status short-circuits everything else: just report.
     if args.status:

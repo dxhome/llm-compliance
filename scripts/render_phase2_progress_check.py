@@ -59,16 +59,16 @@ def _safe_float(value: str | None) -> float | None:
 
 def _phase_kind(step_id: str, step_name: str) -> str:
     token = f"{step_id} {step_name}".lower()
-    if "smoke" in token:
-        return "smoke"
-    if "eval" in token:
-        return "eval"
     if "compare" in token:
         return "compare"
+    if "eval" in token:
+        return "eval"
     if "package" in token:
         return "package"
     if "offline" in token:
         return "offline_smoke"
+    if "smoke" in token:
+        return "smoke"
     if "train" in token:
         return "train"
     return "other"
@@ -139,6 +139,52 @@ def _training_judgement(metrics: dict[str, Any]) -> str:
     return "loss\u76ee\u524d\u6ca1\u770b\u5230\u660e\u663e\u5f02\u5e38"
 
 
+def _extract_eval_metrics(lines: list[str]) -> dict[str, Any]:
+    metrics: dict[str, Any] = {
+        "progress": [],
+        "latest_label": None,
+        "latest_seen": None,
+        "latest_total": None,
+        "latest_eta_seconds": None,
+        "latest_accuracy": None,
+        "latest_macro_f1": None,
+        "latest_weighted_f1": None,
+    }
+    progress_pattern = re.compile(
+        r"\[(?P<label>eval[^\]]*)\]\s+progress:\s+"
+        r"(?P<seen>\d+)/(?P<total>\d+)\s+samples.*?ETA=(?P<eta>[0-9a-zA-Z.]+)"
+    )
+    metric_pattern = re.compile(
+        r"\[eval\]\s+accuracy=(?P<acc>[0-9.]+)\s+"
+        r"macro F1=(?P<macro>[0-9.]+)\s+weighted F1=(?P<weighted>[0-9.]+)"
+    )
+    for line in lines:
+        progress_match = progress_pattern.search(line)
+        if progress_match:
+            eta_token = progress_match.group("eta")
+            eta_seconds = None if eta_token.lower().startswith("nan") else _safe_float(eta_token)
+            metrics["progress"].append(
+                {
+                    "label": progress_match.group("label"),
+                    "seen": int(progress_match.group("seen")),
+                    "total": int(progress_match.group("total")),
+                    "eta_seconds": eta_seconds,
+                }
+            )
+        metric_match = metric_pattern.search(line)
+        if metric_match:
+            metrics["latest_accuracy"] = _safe_float(metric_match.group("acc"))
+            metrics["latest_macro_f1"] = _safe_float(metric_match.group("macro"))
+            metrics["latest_weighted_f1"] = _safe_float(metric_match.group("weighted"))
+    if metrics["progress"]:
+        latest = metrics["progress"][-1]
+        metrics["latest_label"] = latest["label"]
+        metrics["latest_seen"] = latest["seen"]
+        metrics["latest_total"] = latest["total"]
+        metrics["latest_eta_seconds"] = latest["eta_seconds"]
+    return metrics
+
+
 def _contains_real_error(stderr_tail: list[str]) -> bool:
     blob = "\n".join(stderr_tail).lower()
     return any(token in blob for token in ("traceback", "error:", "exception"))
@@ -205,6 +251,7 @@ def main() -> int:
     latest_total = train_metrics.get("latest_total_steps")
     latest_loss = train_metrics.get("latest_loss")
     latest_eta = train_metrics.get("latest_eta_seconds")
+    eval_metrics = _extract_eval_metrics(full_stdout)
 
     print("\u5de1\u68c0\u65f6\u95f4\uff1a" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     print("\u603b\u4f53\u72b6\u6001\uff1a" + str(status.get("status", "unknown")))
@@ -231,8 +278,30 @@ def main() -> int:
         print("- \u8bad\u7ec3\u5224\u65ad\uff1a" + _training_judgement(train_metrics))
         print("- ETA\uff1a" + eta_text)
     elif phase_kind in {"eval", "compare"}:
-        print("- \u9636\u6bb5\u7c7b\u578b\uff1aeval/compare")
-        print("- \u5224\u65ad\uff1a\u76ee\u524d\u4ec5\u505a\u9ad8\u5c42\u68c0\u67e5\uff0c\u65e0\u660e\u663e\u5f02\u5e38")
+        progress = "\u6682\u4e0d\u53ef\u7528"
+        if eval_metrics.get("latest_seen") is not None and eval_metrics.get("latest_total") is not None:
+            progress = f"{eval_metrics['latest_seen']}/{eval_metrics['latest_total']}"
+        eta_text = _fmt_seconds(eval_metrics.get("latest_eta_seconds")) if eval_metrics.get("latest_eta_seconds") is not None else "\u6682\u4e0d\u53ef\u7528"
+        metric_text = "\u6682\u4e0d\u53ef\u7528"
+        if eval_metrics.get("latest_accuracy") is not None:
+            metric_text = (
+                f"accuracy={eval_metrics['latest_accuracy']:.4f}, "
+                f"macro F1={eval_metrics['latest_macro_f1']:.4f}, "
+                f"weighted F1={eval_metrics['latest_weighted_f1']:.4f}"
+            )
+        dataset_label = "\u672a\u6807\u6ce8"
+        lowered_step = f"{step_id} {step_name}".lower()
+        for label in ("indirect", "direct", "clean"):
+            if label in lowered_step:
+                dataset_label = label
+                break
+        print("- \u9636\u6bb5\u7c7b\u578b\uff1a" + phase_kind)
+        print("- \u9a8c\u8bc1\u6570\u636e\u96c6\uff1a" + dataset_label)
+        print("- \u5f53\u524dpass\uff1a" + str(eval_metrics.get("latest_label") or "\u6682\u4e0d\u53ef\u7528"))
+        print("- chunk\u5185\u8fdb\u5ea6\uff1a" + progress)
+        print("- chunk ETA\uff1a" + eta_text)
+        print("- \u6700\u8fd1\u5b8c\u6210\u6307\u6807\uff1a" + metric_text)
+        print("- \u5224\u65ad\uff1a\u8bc4\u4f30/\u5bf9\u6bd4\u4ecd\u5728\u63a8\u8fdb\uff0c\u6682\u672a\u770b\u5230\u963b\u65ad\u4fe1\u53f7")
     else:
         print("- \u9636\u6bb5\u7c7b\u578b\uff1a" + phase_kind)
         print("- \u5224\u65ad\uff1a\u76ee\u524d\u4ec5\u505a\u9ad8\u5c42\u68c0\u67e5\uff0c\u65e0\u660e\u663e\u5f02\u5e38")
@@ -248,7 +317,10 @@ def main() -> int:
     elif verdict == "\u6301\u7eed\u89c2\u5bdf":
         print("- \u4e0b\u4e00\u6b21\u5de1\u68c0\u7ee7\u7eed\u786e\u8ba4\u662f\u5426\u4ecd\u5728\u63a8\u8fdb\uff0c\u6682\u4e0d\u8981\u91cd\u542f")
     else:
-        print("- \u7ee7\u7eed\u8fd0\u884c\uff0c\u4e0b\u4e00\u6b21\u5de1\u68c0\u91cd\u70b9\u770b\u8fdb\u5ea6\u548closs\u6536\u655b\u60c5\u51b5")
+        if phase_kind in {"eval", "compare"}:
+            print("- \u7ee7\u7eed\u8fd0\u884c\uff0c\u4e0b\u4e00\u6b21\u5de1\u68c0\u91cd\u70b9\u770bchunk\u8fdb\u5ea6\u548c\u6700\u7ec8\u6307\u6807\u662f\u5426\u843d\u76d8")
+        else:
+            print("- \u7ee7\u7eed\u8fd0\u884c\uff0c\u4e0b\u4e00\u6b21\u5de1\u68c0\u91cd\u70b9\u770b\u8fdb\u5ea6\u548closs\u6536\u655b\u60c5\u51b5")
     return 0
 
 

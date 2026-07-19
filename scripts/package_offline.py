@@ -60,8 +60,11 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE / "src"))
 
 from mpid.adapters.vlm import VLMAdapter
+from mpid.crossmodal import check_crossmodal
 from mpid.heads.classification import NUM_CLASSES, ClassificationHead
 from mpid.data.prompt import build_prompt
+from mpid.early_exit import EarlyExitConfig, should_early_exit
+from mpid.rules import scan_text
 from mpid.train.trainer import inject_lora, load_checkpoint, apply_lora_state
 
 
@@ -117,13 +120,69 @@ def predict(text: str, image=None) -> dict:
     return {
         "label": res["label"][0],
         "risk":  float(res["risk"][0].item()),
+        "probs": res["probs"][0].detach().cpu().tolist(),
+    }
+
+
+def optimized_predict(text: str, image=None) -> dict:
+    import torch
+
+    record = {"text": text, "image": image}
+    c5 = scan_text(text)
+    if c5.blocked:
+        return {
+            "label": c5.label,
+            "risk": 1.0,
+            "action": "block",
+            "stage": "c5_rules",
+            "explanation": c5.to_dict(),
+        }
+
+    c6 = check_crossmodal(record)
+    if c6.suspicious:
+        return {
+            "label": c6.label,
+            "risk": 1.0,
+            "action": "block",
+            "stage": "c6_crossmodal",
+            "explanation": c6.to_dict(),
+        }
+
+    head = predict(text, image)
+    probs_t = torch.tensor(head["probs"], dtype=torch.float32)
+    early = should_early_exit(
+        probs_t,
+        EarlyExitConfig(enabled=True, clean_threshold=0.95),
+    )
+    if early is not None:
+        return {
+            "label": "clean",
+            "risk": head["risk"],
+            "action": "allow",
+            "stage": "c4_early_exit",
+            "head": head,
+        }
+    if head["label"] == "clean":
+        return {
+            "label": "clean",
+            "risk": head["risk"],
+            "action": "allow",
+            "stage": "head_clean_fallback",
+            "head": head,
+        }
+    return {
+        "label": head["label"],
+        "risk": head["risk"],
+        "action": "block",
+        "stage": "head_injection_fallback",
+        "head": head,
     }
 
 
 if __name__ == "__main__":
     payload = json.loads(sys.stdin.read())
-    print(json.dumps(predict(payload.get("text", ""),
-                            payload.get("image")),
+    print(json.dumps(optimized_predict(payload.get("text", ""),
+                                      payload.get("image")),
                      ensure_ascii=False))
 '''
 

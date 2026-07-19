@@ -1,7 +1,17 @@
 # 任务分解 (Tasks)
 
 > 与 [opening-report-vlm.md](opening-report-vlm.md) 严格对应。任务按 Phase 排序，标 `[P]` 优先级、`[D]` 依赖、`[T]` 预估时长。
-> 文档版本：v2.4（对齐新的 `runs/` 本地执行目录结构；Phase 3 V1 已完成）
+> 文档版本：v2.6（优化 P0A-3 基础数据集准备范围）
+>
+> **v2.6 变更**：
+> - 优化 **P0A-3 训练 / 测试数据集准备**：将 core + synthesis 合并为默认基础数据，manual-review 作为候选保留
+> - 新增可直接下载的 prompt injection / jailbreak / indirect-email 数据源候选，用于支撑 Phase 2.3 的高 F1 微调目标
+> - 明确 `WildJailbreak` 等需要接受使用条款或人工审查的数据集不进入 P0A-3 自动下载范围
+>
+> **v2.5 变更**：
+> - 新增 **Phase 2.3 — 高 F1 微调改进**，目标是通过重新设计数据、训练、验证和 checkpoint 选择，使 clean / direct / indirect 三个分类的目标类 F1 均达到 **> 0.70**
+> - Phase 2.3 基于 `runs/phase2_2_balanced_600_20260718_1955` 的 balanced 600 结果复盘：clean F1=0.985、direct F1=0.473、indirect F1=0.000
+> - Phase 2.3 暂只登记任务计划，不立即实施；实施前需要单独确认 run id、训练预算和是否引入 OCR / C6 轻量信号
 >
 > **v2.4 变更**：
 > - 顶层只保留 `runs/` 作为本地执行目录；旧 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 不再作为执行入口
@@ -50,7 +60,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 | 研究内容 | 对应 Phase |
 |---|---|
 | C1 多模态注入威胁模型构建 | Phase 1 |
-| C2 VLM 端到端检测基线 | **Phase 2.1（smoke 训练）+ Phase 2.2（真实训练）** |
+| C2 VLM 端到端检测基线 | **Phase 2.1（smoke 训练）+ Phase 2.2（真实训练）+ Phase 2.3（高 F1 微调改进）** |
 | C3 攻防基线评测体系 | Phase 6 |
 | **C4 早退机制（核心算法优化）** | **Phase 3**（依赖 Phase 2.2 真实训练模型） |
 | **C5 规则前置过滤 + VLM 精排（核心算法优化）** | **Phase 4**（依赖 Phase 2.2） |
@@ -90,25 +100,49 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 
 ### P0A-3 训练 / 测试数据集准备
 
-- [ ] **TP3.1** 注入样本（公开集）拉取：确定要拉取以下两个 `[P:high][D:TP1.6]`
-  - `deepset/prompt-injections`（EN，~540 条，覆盖 direct / indirect 注入）
-  - `xTRam1/safe-guard-prompt-injection`（多语种，~6k 条）
-- [ ] **TP3.2** 多模态注入样本：`JailbreakV-28K`（EN/CN，28k 条，多模态越狱样本） `[P:medium][D:TP1.6]`
-- [ ] **TP3.3** 干净负例：MMLU / CMMLU prompts（EN/CN，~2k）+ Flickr30k 图像描述（EN，~1k） `[P:medium][D:TP1.6]`
-- [ ] **TP3.4** 数据下载脚本 `scripts/download_data.py` 把上述公开集落地到 `runs/_datasets/raw/` 目录（**只下载不修改**） `[P:high][D:TP3.1-TP3.3]`
+- [ ] **TP3.1** 默认基础注入公开集拉取：优先选择可直接下载、无需人工申请或 gated approval 的数据源 `[P:high][D:TP1.6]`
+  - `deepset/prompt-injections`（EN，prompt injection binary；用于 direct / clean 初始覆盖）
+  - `xTRam1/safe-guard-prompt-injection`（多语种 prompt injection；用于 direct / clean 多语覆盖；下载前记录 dataset card / license 状态）
+  - `Lakera/gandalf_ignore_instructions`（prompt leaking / ignore-instruction；用于 direct 与 prompt extraction）
+  - `Lakera/mosscap_prompt_injection`（较大规模 prompt injection；用于 direct、hard negative 和模板多样性）
+  - `microsoft/llmail-inject-challenge`（email / tool-use 场景 indirect prompt injection；用于 indirect-text，再可渲染成 indirect-image）
+  - `cyberec/Prompt-injection-dataset` 或同源 `NeurAlchemy` prompt-injection 数据（用于 direct / indirect / obfuscation 的二次标注候选）
+  - `hlyn-labs/prompt-injection-judge-deberta-dataset`（大规模 judge 训练数据；用于 binary injection 预筛和 hard negative）
+- [ ] **TP3.2** 默认基础多模态注入样本准备 `[P:high][D:TP1.6]`
+  - `JailbreakV-28K`（EN/CN，文本 jailbreak + FigStep 图像注入；用于 direct 和 image-based indirect）
+  - 将 TP3.1 中的 indirect-text / direct-text 攻击样本渲染为截图、邮件、网页、表格、便签、水印、低对比度文字等图片，生成 `indirect-image` 合成集
+  - 为每条 indirect-image 配 benign user prompt，例如“请总结图片内容 / 图片里有什么文字 / describe this image”，避免模型只依赖用户文本判断
+- [ ] **TP3.3** 干净负例与 hard negative 准备 `[P:medium][D:TP1.6]`
+  - MMLU / CMMLU prompts（EN/CN，通用问答 clean）
+  - Flickr30k 图像描述与可用图像（EN，图文 clean；优先补足“带图 clean”）
+  - 从 prompt injection 数据集中筛选含 `ignore / system / policy / security / execute` 等词但语义安全的 hard negative，降低误报
+  - 为 clean/direct/indirect 都准备 text-only 与 image+text 对照样本，避免模型把“有图”误学为 indirect
+- [ ] **TP3.4** 数据下载脚本 `scripts/download_data.py` 把默认基础数据落地到 `runs/_datasets/raw/` 目录（**下载原始数据；合成 indirect-image 只写入派生目录，不改原始数据**） `[P:high][D:TP3.1-TP3.3]`
+  - 支持 `--tier basic`、`--dataset <name>` 和断点续传；默认等价于 `--tier basic`
+  - 每个数据集保存 dataset card 摘要、下载时间、来源 URL、license / terms 字段快照和 sha256
+  - 默认跳过 gated / 需人工接受条款 / license 不清晰的数据集，并在 manifest 中记录为 `manual_review`
 - [ ] **TP3.5** 离线加载冒烟 `scripts/smoke_data.py`：
   - 每个公开集至少 5 条样本能完整读出
   - 字段（`text / prompt / image / label`）至少一个非空
   - 类别标签覆盖 `clean / direct / indirect` 三类
-  - 多模态样本（JailbreakV-28K）能正确读出图像
+  - 多模态样本（JailbreakV-28K + 合成 indirect-image）能正确读出图像
+  - 数据集 manifest 能输出每个 source 的用途：`clean` / `direct` / `indirect-text` / `indirect-image` / `hard-negative`
 - [ ] **TP3.6** 课题符合性自检清单：`[P:high][D:TP3.5]`
   - 是否包含中文样本？✅（CMMLU + JailbreakV-28K）
-  - 是否包含图像样本？✅（Flickr30k 描述 + JailbreakV-28K）
-  - 是否支持多语种？✅（SmolVLM 原生多语种 + safe-guard 多语）
-  - 是否覆盖直接 / 间接注入？✅（deepset / safe-guard 含 direct / indirect）
-  - 干净样本是否充足？✅（MMLU / CMMLU 远超 1k）
+  - 是否包含图像样本？✅（Flickr30k / JailbreakV-28K / 合成 indirect-image）
+  - 是否支持多语种？✅（SmolVLM 原生多语种 + safe-guard / Lakera / JailbreakV 等多来源）
+  - 是否覆盖直接注入？✅（deepset / safe-guard / Lakera / cyberec / JailbreakV）
+  - 是否覆盖间接注入文本场景？✅（LLMail-Inject / BIPIA 类场景可作为后续 manual-review 扩展；默认基础数据中先使用 LLMail-Inject）
+  - 是否覆盖间接注入图像场景？✅（JailbreakV FigStep + 基于 indirect-text 渲染的合成图像）
+  - 干净样本是否充足？✅（MMLU / CMMLU / Flickr30k / hard negative）
 
-**P0A-3 验收**：4 类数据（注入公开集 / 多模态注入 / 干净负例）已落地；最小加载脚本可读出 5+ 条样本；课题符合性自检清单全部 ✅。
+**P0A-3 manual-review 候选（默认不自动下载）**：
+- `allenai/wildjailbreak`：数据质量高，适合补 direct 和 hard negative；但 Hugging Face 页面通常需要接受 Responsible Use / 条款后访问，不进入“直接下载无门槛”默认范围
+- `microsoft/BIPIA`：非常适合 indirect prompt injection benchmark，但需单独确认数据源、license、任务格式和是否可直接自动化下载
+- `TensorTrust`：适合 prompt hijacking / extraction，但需单独确认当前可下载位置、license 和字段映射
+- 其他未明确 license / terms 的数据集：只记录为候选，不进入 P0A-3 默认基础数据
+
+**P0A-3 验收**：默认基础数据源已落地；最小加载脚本可读出每个 source 5+ 条样本；manifest 记录来源 URL、license / terms 快照、sha256、用途标签；基础数据覆盖 clean / direct / indirect-text / indirect-image / hard-negative；课题符合性自检清单全部 ✅。
 
 ---
 
@@ -274,7 +308,53 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 - `runs/_datasets/mpid-v1/{train,val,test}.jsonl` — 全量 split
 - `runs/<run_id>/artifacts/package/mpid_offline/` — 基于 `lora_full` 的离线包
 
-**下游依赖**：Phase 3（C4 早退）/ Phase 4（C5 规则前置）/ Phase 5A + 5B（C6 跨模态一致性）**全部依赖** `lora_full.safetensors` 作为基线。
+**下游依赖**：Phase 3（C4 早退）/ Phase 4（C5 规则前置）/ Phase 5A + 5B（C6 跨模态一致性）可先依赖 Phase 2.2 的 `lora_full.safetensors` 作为基线；Phase 2.3 完成后，应优先切换到 Phase 2.3 高 F1 checkpoint 作为新的模型底座。
+
+---
+
+## Phase 2.3 — 高 F1 微调改进（对应 C2 · 质量提升）
+
+> **目标**：在 Phase 2.2 balanced 600 结果基础上，重新设计微调数据、训练方式和验证方式，产出一个真正可作为后续 C4/C5/C6 基线的高质量 checkpoint。硬性验收目标：clean / direct / indirect 三个独立验证集上的目标类 F1 均 **> 0.70**。
+>
+> **背景复盘**：`runs/phase2_2_balanced_600_20260718_1955` 的 600-step 模型完成了端到端流程，但分类效果不达预期。三组 100 条独立验证集结果为：clean F1=0.985，direct F1=0.473，indirect F1=0.000。主要问题是 direct 大量漏判为 clean，indirect 完全未学出稳定边界。
+>
+> **阶段边界**：本阶段仍属于 Phase 2 的模型底座改进，不依赖 Phase 3/4/5 的规则或级联兜底来“补分”。Phase 3/4/5 可以后续叠加，但 Phase 2.3 的验收必须先证明 VLM + LoRA + head 本身达到可接受分类能力。
+>
+> **前置约束**：Phase 2.3 在启动训练前，必须先定义并冻结一套合适的训练 / 验证数据集契约，包括来源清单、标签映射、每类样本量、text-only 与 image+text 比例、去重规则、train/val/test 隔离规则、验证切片和验收指标。未形成数据集 manifest 前，不允许直接启动训练。
+
+### T2.22-T2.25 数据集改造
+
+- [ ] **T2.22** 建立 Phase 2.3 数据审计报告：复盘 balanced 600 的 train/eval 来源、标签分布、是否带图、文本长度、语言、模板类型和预测混淆 `[P:high][D:T2.21]`
+- [ ] **T2.23** 定义并冻结 Phase 2.3 数据集契约：明确 train / val / test / compare eval 的来源、标签映射、每类样本量、source/template/lang/has_image 分层比例、去重规则和验收指标；输出 `phase2_3_dataset_manifest.json` 与人工可读说明 `[P:high][D:T2.22]`
+- [ ] **T2.24** 重建训练集抽样策略：每类至少 1000 条；clean / direct / indirect 都要包含多来源、多语言、长短文本，并加入“带图 clean”负样本，避免模型把“有图”误学为 indirect；抽样必须严格遵守 T2.23 数据集契约 `[P:high][D:T2.23]`
+- [ ] **T2.25** 加强并冻结验证集：大幅引入 `synthetic_image_injection`、figstep、截图文字、水印、表格/list/聊天截图等多模板样本；clean-only / direct-only / indirect-only 验证集各 100-300 条，且验证分布必须覆盖训练分布但不与训练样本重叠 `[P:high][D:T2.23]`
+
+### T2.26-T2.29 训练设计改造
+
+- [ ] **T2.26** 设计 Phase 2.3 训练配置模板 `runs/_templates/configs/phase2_3_high_f1.yaml`：建议起点为 2000-3000 steps、等效 batch size 8-16、LoRA r=16/32、lr sweep=`5e-5,1e-4,2e-4`、dropout=`0.05,0.10` `[P:high][D:T2.25]`
+- [ ] **T2.27** 增加训练期 checkpoint 评估：每 250 或 500 step 在三组验证集上跑目标类 F1，保存 `best_by_min_class_f1` checkpoint，而不是只保存最后一步 `[P:high][D:T2.26]`
+- [ ] **T2.28** 评估是否扩展可训练模块：除语言 attention 的 `q_proj,k_proj,v_proj,o_proj` 外，调研 vision projector / multimodal connector / 更高 rank LoRA 是否能改善 indirect；先记录风险和成本，不默认启用 `[P:medium][D:T2.26]`
+- [ ] **T2.29** 评估两阶段分类方案：先做 clean vs attack，再做 direct vs indirect；如三分类 argmax 继续偏 clean，则将两阶段方案作为 Phase 2.3 的备选训练目标 `[P:medium][D:T2.27]`
+
+### T2.30-T2.32 验证与报告改造
+
+- [ ] **T2.30** 校验三组独立验证集：确认 clean-only / direct-only / indirect-only 均符合 T2.23 数据集契约，按 source/template/lang/has_image 输出切片分布，并在训练前冻结 `[P:high][D:T2.25]`
+- [ ] **T2.31** 扩展 compare 报告：同时输出新模型绝对效果、baseline 对比、目标类 P/R/F1、混淆矩阵、预测分布、按 source/template/lang/has_image 切片指标和误判样本清单 `[P:high][D:T2.30]`
+- [ ] **T2.32** 跑 Phase 2.3 端到端训练与最终验收：训练 → 三组 compare → package → offline smoke；最终报告必须说明三个目标类 F1 是否均 > 0.70，以及未达标类别的下一步原因定位 `[P:high][D:T2.31]`
+
+**Phase 2.3 验收**：
+- 训练前已冻结数据集契约和 manifest，且训练 / 验证 / compare 全部引用同一份契约
+- clean-only 目标类 F1 > 0.70
+- direct-only 目标类 F1 > 0.70
+- indirect-only 目标类 F1 > 0.70
+- 三组验证集均输出绝对效果报告和 baseline 对比报告
+- indirect 验证集中不能出现目标类 recall = 0 的失败模式
+- 通过 package 和 offline smoke，产出可离线运行的 Phase 2.3 checkpoint 包
+
+**Phase 2.3 暂缓事项**：
+- 暂不启动新训练 run
+- 暂不修改 Phase 3/4/5 的实现
+- 暂不依赖 C5/C6 规则兜底来满足 Phase 2.3 F1 验收
 
 ---
 

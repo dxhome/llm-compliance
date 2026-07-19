@@ -85,6 +85,10 @@ def build_plan(args: argparse.Namespace) -> dict:
     batch_size = max(1, int(training.get("batch_size", 1)))
     train_steps = ((max_train_records + batch_size - 1) // batch_size) * epochs
     eval_records = int(args.eval_records)
+    eval_sets = {
+        label: str(run_dir / "data" / f"eval_{label}_{eval_records}.jsonl")
+        for label in ("clean", "direct", "indirect")
+    }
 
     # Conservative estimates based on the observed CPU-only run on this host.
     preload_records = max_train_records + int(training.get("max_val_records", 100))
@@ -93,8 +97,8 @@ def build_plan(args: argparse.Namespace) -> dict:
         "smoke_train": 12 * 60,
         "preload": preload_records * float(args.estimate_preload_seconds),
         "train_loop": train_steps * float(args.estimate_train_step_seconds),
-        "single_eval": eval_records * float(args.estimate_eval_sample_seconds) + 90,
         "compare_eval": eval_records * float(args.estimate_eval_sample_seconds) * 2 + 180,
+        "build_eval_sets": 30,
         "package": 5 * 60,
         "offline_smoke": 5 * 60,
     }
@@ -121,28 +125,46 @@ def build_plan(args: argparse.Namespace) -> dict:
             "log": str(log_dir / "03_train.log"),
         },
         {
-            "id": "04_eval",
-            "name": f"Single-model eval ({eval_records} stratified records)",
-            "estimate_seconds": estimates["single_eval"],
-            "log": str(log_dir / "04_eval.log"),
+            "id": "04_build_eval_sets",
+            "name": f"Build label-only eval sets ({eval_records} records each)",
+            "estimate_seconds": estimates["build_eval_sets"],
+            "log": str(log_dir / "04_build_eval_sets.log"),
         },
         {
-            "id": "05_compare",
-            "name": f"Smoke-vs-full comparison ({eval_records} stratified records)",
+            "id": "05_compare_clean",
+            "name": f"Clean-only smoke-vs-full comparison ({eval_records} records)",
             "estimate_seconds": estimates["compare_eval"],
-            "log": str(log_dir / "05_compare.log"),
+            "log": str(log_dir / "05_compare_clean.log"),
+            "label": "clean",
+            "val_jsonl": eval_sets["clean"],
         },
         {
-            "id": "06_package",
+            "id": "06_compare_direct",
+            "name": f"Direct-only smoke-vs-full comparison ({eval_records} records)",
+            "estimate_seconds": estimates["compare_eval"],
+            "log": str(log_dir / "06_compare_direct.log"),
+            "label": "direct",
+            "val_jsonl": eval_sets["direct"],
+        },
+        {
+            "id": "07_compare_indirect",
+            "name": f"Indirect-only smoke-vs-full comparison ({eval_records} records)",
+            "estimate_seconds": estimates["compare_eval"],
+            "log": str(log_dir / "07_compare_indirect.log"),
+            "label": "indirect",
+            "val_jsonl": eval_sets["indirect"],
+        },
+        {
+            "id": "08_package",
             "name": "Offline package rebuild",
             "estimate_seconds": estimates["package"],
-            "log": str(log_dir / "06_package.log"),
+            "log": str(log_dir / "08_package.log"),
         },
         {
-            "id": "07_offline_smoke",
+            "id": "09_offline_smoke",
             "name": "Offline smoke validation",
             "estimate_seconds": estimates["offline_smoke"],
-            "log": str(log_dir / "07_offline_smoke.log"),
+            "log": str(log_dir / "09_offline_smoke.log"),
         },
     ]
 
@@ -163,6 +185,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         "batch_size": batch_size,
         "train_steps": train_steps,
         "eval_records": eval_records,
+        "eval_sets": eval_sets,
         "save_every": int(training.get("save_every", 50)),
         "log_every": int(training.get("log_every", 5)),
         "eval_after_epoch": bool(training.get("eval_after_epoch", False)),
@@ -186,7 +209,7 @@ def write_markdown(plan: dict, path: Path) -> None:
         f"- checkpoint: `{plan['checkpoint']}`",
         f"- offline_dir: `{plan['offline_dir']}`",
         f"- train records: **{plan['max_train_records']}**",
-        f"- eval records: **{plan['eval_records']}**",
+        f"- eval records per label set: **{plan['eval_records']}**",
         f"- train steps: **{plan['train_steps']}**",
         f"- total estimate: **{plan['total_estimate_hms']}**",
         "",
@@ -194,6 +217,13 @@ def write_markdown(plan: dict, path: Path) -> None:
         "",
         f"- train: `{plan['train_distribution']}`",
         f"- val: `{plan['val_distribution']}`",
+        "",
+        "## Label Eval Sets",
+        "",
+    ]
+    for label, path_value in plan.get("eval_sets", {}).items():
+        lines.append(f"- {label}: `{path_value}`")
+    lines += [
         "",
         "## Steps",
         "",
@@ -210,7 +240,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--run-name", required=True)
-    parser.add_argument("--eval-records", type=int, default=500)
+    parser.add_argument("--eval-records", type=int, default=100)
     parser.add_argument("--run-dir", default=None)
     parser.add_argument("--log-dir", default=None)
     parser.add_argument("--offline-dir", default=None)

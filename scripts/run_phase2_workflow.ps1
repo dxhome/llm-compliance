@@ -3,13 +3,15 @@ param(
     [string]$RunDir = "",
     [string]$Config = "",
     [string]$SmokeConfig = "",
-    [int]$EvalRecords = 500,
+    [int]$EvalRecords = 100,
     [int]$EvalSeed = 42,
     [int]$EvalChunkSize = 50,
     [string]$SmokeCheckpoint = "",
     [string]$OfflineDir = "",
     [switch]$PlanOnly,
     [switch]$PreflightOnly,
+    [ValidateSet("full", "compare", "direct", "indirect", "package")]
+    [string]$StartAt = "full",
     [switch]$SkipSmokeTrain,
     [switch]$SkipCompare,
     [switch]$SkipPackage,
@@ -55,6 +57,8 @@ param(
     [switch]`$SkipPackage,
     [switch]`$PlanOnly,
     [switch]`$PreflightOnly,
+    [ValidateSet("full", "compare", "direct", "indirect", "package")]
+    [string]`$StartAt = "$StartAt",
     [int]`$StatusIntervalSeconds = 600
 )
 
@@ -75,6 +79,7 @@ param(
     -SkipPackage:`$SkipPackage ``
     -PlanOnly:`$PlanOnly ``
     -PreflightOnly:`$PreflightOnly ``
+    -StartAt `$StartAt ``
     -StatusIntervalSeconds `$StatusIntervalSeconds
 "@
 Set-Content -Path $RunLauncher -Value $RunLauncherContent -Encoding utf8
@@ -399,7 +404,7 @@ try {
         return
     }
 
-    if (-not $SkipSmokeTrain) {
+    if ($StartAt -eq "full" -and -not $SkipSmokeTrain) {
         $step = Get-PlanStep $plan "02_smoke_train"
         Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
             -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 2 `
@@ -418,56 +423,74 @@ try {
         Write-ExecLog "Smoke training check skipped by flag."
     }
 
-    $step = Get-PlanStep $plan "03_train"
-    Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
-        -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
-        -ArgumentList @(
-            "-X", "utf8", "-u",
-            "scripts/train.py",
-            "--config", $plan.config,
-            "--preload-dataset",
-            "--save-every", "$($plan.save_every)"
-        )
-
-    $step = Get-PlanStep $plan "04_eval"
-    Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
-        -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
-        -ArgumentList @(
-            "-X", "utf8", "-u",
-            "scripts/eval.py",
-            "--config", $plan.config,
-            "--checkpoint", $plan.checkpoint,
-            "--out", (Join-Path $RunDir "artifacts\eval"),
-            "--stratified-max-records", "$EvalRecords",
-            "--sample-seed", "$EvalSeed",
-            "--chunk-size", "$EvalChunkSize",
-            "--chunk-output-dir", (Join-Path $RunDir "artifacts\eval\chunks")
-        )
-
-    if (-not $SkipCompare) {
-        $step = Get-PlanStep $plan "05_compare"
+    if ($StartAt -eq "full") {
+        $step = Get-PlanStep $plan "03_train"
         Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
             -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
             -ArgumentList @(
                 "-X", "utf8", "-u",
-                "scripts/eval.py",
+                "scripts/train.py",
                 "--config", $plan.config,
-                "--compare-smoke-vs-full",
-                "--smoke-checkpoint", $SmokeCheckpoint,
-                "--full-checkpoint", $plan.checkpoint,
-                "--out", (Join-Path $RunDir "artifacts\comparison"),
-                "--stratified-max-records", "$EvalRecords",
-                "--sample-seed", "$EvalSeed",
-                "--chunk-size", "$EvalChunkSize",
-                "--chunk-output-dir", (Join-Path $RunDir "artifacts\comparison\chunks")
+                "--preload-dataset",
+                "--save-every", "$($plan.save_every)"
             )
+    }
+    else {
+        Write-ExecLog "Training skipped because StartAt=$StartAt."
+        if (-not (Test-Path $plan.checkpoint)) {
+            throw "Cannot skip training because checkpoint is missing: $($plan.checkpoint)"
+        }
+    }
+
+    if ($StartAt -ne "package") {
+        $step = Get-PlanStep $plan "04_build_eval_sets"
+        Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
+            -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
+            -ArgumentList @(
+                "-X", "utf8", "-u",
+                "scripts/build_label_eval_sets.py",
+                "--run-dir", $RunDir,
+                "--train-jsonl", $plan.train_jsonl,
+                "--out-dir", (Join-Path $RunDir "data"),
+                "--records-per-label", "$EvalRecords",
+                "--seed", "$EvalSeed",
+                "--json-out", (Join-Path $RunDir "data\eval_label_sets_manifest.json")
+            )
+    }
+
+    if ($StartAt -ne "package" -and -not $SkipCompare) {
+        $compareSteps = @("05_compare_clean", "06_compare_direct", "07_compare_indirect")
+        if ($StartAt -eq "direct") {
+            $compareSteps = @("06_compare_direct", "07_compare_indirect")
+        }
+        elseif ($StartAt -eq "indirect") {
+            $compareSteps = @("07_compare_indirect")
+        }
+        foreach ($compareId in $compareSteps) {
+            $step = Get-PlanStep $plan $compareId
+            $label = $step.label
+            Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
+                -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
+                -ArgumentList @(
+                    "-X", "utf8", "-u",
+                    "scripts/eval.py",
+                    "--config", $plan.config,
+                    "--compare-smoke-vs-full",
+                    "--smoke-checkpoint", $SmokeCheckpoint,
+                    "--full-checkpoint", $plan.checkpoint,
+                    "--val", $step.val_jsonl,
+                    "--out", (Join-Path $RunDir "artifacts\comparison\$label"),
+                    "--chunk-size", "$EvalChunkSize",
+                    "--chunk-output-dir", (Join-Path $RunDir "artifacts\comparison\$label\chunks")
+                )
+        }
     }
     else {
         Write-ExecLog "Smoke-vs-full comparison skipped by flag."
     }
 
     if (-not $SkipPackage) {
-        $step = Get-PlanStep $plan "06_package"
+        $step = Get-PlanStep $plan "08_package"
         Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
             -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
             -ArgumentList @(
@@ -478,14 +501,14 @@ try {
                 "--report", (Join-Path $RunDir "artifacts\package\package_offline.json")
             )
 
-        $step = Get-PlanStep $plan "07_offline_smoke"
+        $step = Get-PlanStep $plan "09_offline_smoke"
         Invoke-LoggedProcess -StepId $step.id -StepName $step.name -FilePath $Python `
             -BaseLog $step.log -EstimateSeconds $step.estimate_seconds -MaxAttempts 1 `
             -ArgumentList @(
                 "-X", "utf8", "-u",
                 "scripts/smoke_offline.py",
                 "--pkg", $plan.offline_dir,
-                "--stage-root", (Join-Path $RunDir "artifacts\package\offline_smoke_stage")
+                "--stage-root", (Join-Path $RunDir "artifacts\offline_smoke_stage")
             )
     }
     else {

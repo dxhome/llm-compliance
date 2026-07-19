@@ -39,9 +39,10 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--model-dir", type=Path,
-                   default=REPO / "models" / "smolvlm-500m")
+                   default=REPO / "runs" / "_models" / "smolvlm-500m")
     p.add_argument("--checkpoint", type=Path,
-                   default=REPO / "artifacts" / "baseline" / "lora_baseline.safetensors")
+                   default=REPO / "runs" / "_templates" / "artifacts" /
+                   "checkpoints" / "lora_baseline.safetensors")
     p.add_argument("--samples", type=Path, default=DEMO_DIR / "samples.json")
     p.add_argument("--device", default="cpu")
     p.add_argument("--max-new-tokens", type=int, default=64,
@@ -50,7 +51,7 @@ def main() -> int:
     args = p.parse_args()
 
     # Import here so the argparse above is fast.
-    from gradio_app import DemoPipeline
+    from gradio_app import DemoPipeline, resolve_demo_asset
 
     samples = json.loads(args.samples.read_text(encoding="utf-8"))
     assert len(samples) == 8, f"expected 8 samples, got {len(samples)}"
@@ -78,8 +79,8 @@ def main() -> int:
         t0 = time.perf_counter()
         img = None
         if s.get("image"):
-            abs_p = (REPO / s["image"]).resolve()
-            if abs_p.exists():
+            abs_p = resolve_demo_asset(s["image"])
+            if abs_p and abs_p.exists():
                 img = str(abs_p)
 
         # 1. classification

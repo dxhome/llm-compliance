@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -75,7 +76,10 @@ def main() -> int:
         print(f"[smoke] using pre-staged package at {stage}")
     else:
         args.stage_root.mkdir(parents=True, exist_ok=True)
-        stage = Path(tempfile.mkdtemp(prefix="mpid_offline_smoke_", dir=args.stage_root))
+        stage = args.stage_root / f"mpid_offline_smoke_{uuid.uuid4().hex[:8]}"
+        if stage.exists():
+            shutil.rmtree(stage, ignore_errors=True)
+        stage.mkdir(parents=True, exist_ok=False)
         print(f"[smoke] staging {args.pkg} -> {stage}")
     # Copy only the package contents (no symlinks — fully self-contained).
         for src in args.pkg.rglob("*"):

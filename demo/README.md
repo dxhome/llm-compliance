@@ -43,8 +43,8 @@ python demo/gradio_app.py --server-port 8080 --share
 
 | 参数 | 默认值 | 含义 |
 |---|---|---|
-| `--model-dir` | `models/smolvlm-500m` | SmolVLM 本地权重目录 |
-| `--checkpoint` | `artifacts/baseline/lora_baseline.safetensors` | LoRA + head 权重 |
+| `--model-dir` | `runs/_models/smolvlm-500m` | SmolVLM 本地权重目录 |
+| `--checkpoint` | `runs/_templates/artifacts/checkpoints/lora_baseline.safetensors` | LoRA + head 权重 |
 | `--samples` | `demo/samples.json` | 预置样本 JSON |
 | `--device` | `cpu` | 计算设备 (`cpu` / `mps` / `cuda`) |
 | `--max-new-tokens` | `128` | base VLM 自由生成的最大 token 数 |
@@ -110,10 +110,10 @@ python demo/gradio_app.py --server-port 8080 --share
 ## 4. 已知限制
 
 1. **Checkpoint 是 smoke 训练产物**:本 demo 默认加载的
-   `artifacts/baseline/lora_baseline.safetensors` 是 `max_train_records=5`
+   `runs/_templates/artifacts/checkpoints/lora_baseline.safetensors` 是 `max_train_records=5`
    的最小可跑版本(见 `configs/baseline.yaml`)。它能展示"端到端推理
    流水线",但分类质量非最优。生产质量请跑满 3 epoch:
-   `python scripts/train.py --out-dir artifacts/baseline` (需 GPU / 长时间 CPU)。
+   `python scripts/train.py --config runs/_templates/configs/baseline.yaml --out-dir runs/<run_id>/artifacts/checkpoints` (需 GPU / 长时间 CPU)。
 
 2. **MPS + LoRA 不稳定**:smoke 默认走 CPU 以避免 NaN;mac 用户可加
    `--device mps` 加速生成,但 head 输出可能略有差异。
@@ -144,7 +144,7 @@ demo/
 
 外部依赖:
 - `../src/mpid/` (主包,加入 sys.path)
-- `../models/smolvlm-500m/` (本地 backbone)
-- `../artifacts/baseline/lora_baseline.safetensors` (LoRA + head 权重)
+- `../runs/_models/smolvlm-500m/` (本地 backbone)
+- `../runs/_templates/artifacts/checkpoints/lora_baseline.safetensors` (LoRA + head 权重)
 
 不依赖项目根目录外的任何相对路径,可在 `demo/` 内单独打包分发。

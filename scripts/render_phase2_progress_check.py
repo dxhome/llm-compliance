@@ -156,22 +156,6 @@ def _health_verdict(status: dict[str, Any], stderr_tail: list[str], stdout_tail:
     return "\u5065\u5eb7", "\u5f53\u524d\u9636\u6bb5\u4ecd\u5728\u63a8\u8fdb\uff0c\u53ea\u770b\u5230\u4f4e\u98ce\u9669\u544a\u8b66"
 
 
-def _artifact_summary(run_dir: Path) -> str:
-    smoke_dir = run_dir / "artifacts" / "smoke"
-    ckpt_dir = run_dir / "artifacts" / "checkpoints"
-    eval_dir = run_dir / "artifacts" / "eval"
-    summary = []
-    if smoke_dir.exists() and any(smoke_dir.glob("*.safetensors")):
-        summary.append("smoke checkpoint\u5df2\u6709")
-    if ckpt_dir.exists() and any(ckpt_dir.glob("*.safetensors")):
-        summary.append("full checkpoint\u5df2\u6709")
-    if eval_dir.exists():
-        summary.append("eval\u76ee\u5f55\u5df2\u51fa\u73b0")
-    if not summary:
-        return "\u6682\u65e0\u65b0\u7684\u5173\u952e\u4ea7\u7269\u4fe1\u53f7"
-    return "\uff0c".join(summary)
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render a periodic Phase 2.2 progress check")
     parser.add_argument("--run-dir", type=Path, required=True)
@@ -256,7 +240,6 @@ def main() -> int:
 
     print("\u5173\u952e\u4fe1\u606f")
     print("- \u62a5\u9519\u4fe1\u53f7\uff1a" + ("\u5b58\u5728\u660e\u786e\u62a5\u9519" if _contains_real_error(stderr_tail) else "\u672a\u89c1\u660e\u786e\u62a5\u9519"))
-    print("- \u4ea7\u7269\u6982\u89c8\uff1a" + _artifact_summary(run_dir))
     print("")
 
     print("\u4e0b\u4e00\u6b65\u5efa\u8bae")

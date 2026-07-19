@@ -82,7 +82,17 @@ Set-Content -Path $RunLauncher -Value $RunLauncherContent -Encoding utf8
 function Write-ExecLog {
     param([string]$Message)
     $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Add-Content -Path $ExecLog -Value "- [$ts] $Message"
+    $line = "- [$ts] $Message"
+    for ($i = 0; $i -lt 10; $i++) {
+        try {
+            Add-Content -Path $ExecLog -Value $line -Encoding utf8
+            return
+        }
+        catch [System.IO.IOException] {
+            Start-Sleep -Milliseconds 300
+        }
+    }
+    Add-Content -Path $ExecLog -Value $line -Encoding utf8
 }
 
 function Resolve-RepoPath {
@@ -489,6 +499,11 @@ try {
 catch {
     Write-Status -RunStatus "failed" -StepId "failed" -StepName "Workflow failed" `
         -StepStatus "failed" -LogPath $ExecLog -Message $_.Exception.Message
-    Write-ExecLog "Workflow stopped due to error: $($_.Exception.Message)"
+    try {
+        Write-ExecLog "Workflow stopped due to error: $($_.Exception.Message)"
+    }
+    catch {
+        # Avoid masking the original failure when the log file is temporarily locked.
+    }
     throw
 }

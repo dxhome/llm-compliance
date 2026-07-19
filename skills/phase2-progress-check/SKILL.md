@@ -59,7 +59,6 @@ Produce the checkpoint as short plain text in this order:
 
 4. Key signals
    - whether there is a clear error signal
-   - one short artifact summary only if useful
 
 5. Next action
    - what to do before the next 10-minute check

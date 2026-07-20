@@ -33,9 +33,11 @@
   - [Phase 6 — 攻防基线评测体系（对应 C3 正式评测）](#phase-6--攻防基线评测体系对应-c3-正式评测)
   - [Phase 7 — 项目整理与完整交付](#phase-7--项目整理与完整交付)
 - [3. 测试结果汇总](#3-测试结果汇总)
-  - [3.1 Balanced-600 + Phase 3-5 轻量链路：60 样本快速验证](#31-balanced-600--phase-3-5-轻量链路60-样本快速验证)
-  - [3.2 Balanced-600 + Phase 3-5 轻量链路：300 样本分层验证](#32-balanced-600--phase-3-5-轻量链路300-样本分层验证)
-  - [3.3 结果分析与阶段结论](#33-结果分析与阶段结论)
+  - [3.1 评估口径与测试轮次](#31-评估口径与测试轮次)
+  - [3.2 综合结论：推理效果与推理时间](#32-综合结论推理效果与推理时间)
+  - [3.3 按分类场景分析：clean / direct / indirect](#33-按分类场景分析clean--direct--indirect)
+  - [3.4 分轮测试结果明细](#34-分轮测试结果明细)
+  - [3.5 阶段结论与后续评估重点](#35-阶段结论与后续评估重点)
 - [4. 未来展望](#4-未来展望)
   - [4.1 引言：本节是什么 / 给谁用](#41-引言本节是什么--给谁用)
   - [4.2 当前项目的主要局限](#42-当前项目的主要局限)
@@ -3534,55 +3536,49 @@ Phase 6 的关键不是“哪一组数字最大”，而是形成可解释结论
 
 ## 3. 测试结果汇总
 
-本章节只记录已经完成并可复查的端到端结果，不记录执行过程细节、运行目录迁移或尚未完成的实验。这里的两轮测试都基于 balanced-600 微调 checkpoint，并在其上叠加 Phase 3-5 的轻量推理链路进行对比。
+本章节只记录已经完成并可复查的端到端结果，不记录执行过程细节、运行目录迁移或尚未完成的实验。当前三轮测试都基于同一个 `balanced-600` 微调 checkpoint，并在同一组 clean / direct / indirect 分层验证样本上逐步叠加 Phase 3-5 的系统级防御能力。
 
-### 3.1 Balanced-600 + Phase 3-5 轻量链路：60 样本快速验证
+本课题的核心评估方向分为两个大维度：
 
-**测试场景**：快速验证 Phase 3-5 是否能在较小样本上真实提升分类效果与推理效率。样本来自 balanced-600 run 下的三类评估集，每类 20 条，总计 60 条。对比两条真实 pipeline：
+- **推理效果**：重点看 Accuracy、Macro F1、Weighted F1、逐类 Precision / Recall / F1、混淆矩阵，以及攻击样本是否被正确阻断。
+- **推理时间**：重点看总耗时、平均耗时、按类别耗时、generation 次数，以及 C4/C5/C6 是否减少昂贵的 VLM/head/generation 调用。
 
-- `VLM only`：每条样本都运行 balanced-600 VLM + classification head。
-- `C5+C6A+C4+VLM`：先运行 C5 文本规则与 C6A 跨模态启发式；未被拦截的样本再运行真实 VLM fallback，并在 fallback 概率上统计 C4 clean early-exit。
+为避免误读，本章的 `Delta` 统一使用百分比表达：
 
-| Pipeline | Accuracy | Macro F1 | Weighted F1 | 总耗时 | 平均耗时 | Stage Counts |
-|---|---:|---:|---:|---:|---:|---|
-| VLM only | 0.433 | 0.326 | 0.326 | 539.2s | 8.99s/sample | `vlm_head=60` |
-| C5+C6A+C4+VLM | 0.850 | 0.842 | 0.842 | 296.0s | 4.93s/sample | `vlm_head_fallback=30, c4_early_exit=2, c5_rules=8, c6_crossmodal=20` |
+- `pp` 表示百分点变化，例如 Macro F1 从 32.3% 到 85.5% 是 `+53.2pp`。
+- `relative` 表示相对变化，例如 `+164.7% relative` 表示提升幅度约为原来的 1.647 倍。
+- 当 baseline 为 0 时，相对百分比没有稳定数学意义，标注为 `N/A`，并直接说明是从 0% 提升到目标值。
 
-逐类 F1：
+### 3.1 评估口径与测试轮次
 
-| Label | VLM only F1 | C5+C6A+C4+VLM F1 | 变化 |
-|---|---:|---:|---:|
-| clean | 0.563 | 0.816 | +0.253 |
-| direct | 0.414 | 0.710 | +0.296 |
-| indirect | 0.000 | 1.000 | +1.000 |
+| 轮次 | 验证目标 | 验证数据集 | 推理 pipeline | 执行时间 | 关键结论 |
+|---|---|---|---|---:|---|
+| 60 样本快速验证 | 验证 C4-C6 是否有方向性收益 | balanced-600 三类评估集，每类 20 条，共 60 条 | classification-only：`VLM only` vs `C5+C6A+C4+VLM` | 835.2s（13.9min） | Macro F1 从 32.6% 到 84.2%，说明优化方向成立。 |
+| 300 样本分类验证 | 验证 60 样本趋势是否稳定 | balanced-600 三类评估集，每类 100 条，共 300 条 | classification-only：`VLM only` vs `C5+C6A+C4+VLM` | 3994.4s（66.6min） | Macro F1 从 32.3% 到 85.5%，并减少 50.7% 分类推理耗时。 |
+| 300 样本真实生成验证 | 验证 demo 级真实推理链路 | balanced-600 三类评估集，每类 100 条，共 300 条 | generation pipeline：`LoRA only` vs `LoRA + C4-C6 optimized` | 7923.5s（132.1min） | Macro F1 保持 85.5%，generation 次数减少 45.6%，端到端耗时减少 39.8%。 |
 
-**分析**：这轮快速验证证明 Phase 3-5 轻量链路不是只改善日志或模拟指标，而是在真实 VLM fallback 下同时改善分类效果与时间。主要收益来自两点：C6A 把 synthetic cross-modal indirect 样本在 VLM 前直接识别为 `indirect`；C5 捕获了一部分明显 direct injection，从而减少 direct 被 VLM 错判为 clean 的比例。限制是样本量只有 60 条，结论更适合作为 smoke/方向验证，而不是最终指标。
+三轮测试的关系是递进的：第一轮先证明 Phase 3-5 的分类收益存在；第二轮扩大样本确认趋势稳定；第三轮把 classification-only 评估升级为真实 `block/allow + LoRA generation` 推理，验证这些优化在 demo/交付链路中仍然有效。
 
-### 3.2 Balanced-600 + Phase 3-5 轻量链路：300 样本分层验证
+本章后续的综合分析优先使用两轮 300 样本结果，60 样本结果作为方向验证和趋势佐证。
 
-**测试场景**：在更完整的分层验证上复查 60 样本结论是否稳定。样本仍来自 balanced-600 的三类评估集，每类 100 条，总计 300 条。
+### 3.2 综合结论：推理效果与推理时间
 
-总体指标：
+#### 3.2.1 推理效果
 
-| Metric | VLM only | C5+C6A+C4+VLM | Delta |
-|---|---:|---:|---:|
-| Accuracy | 0.427 | 0.860 | +0.433 |
-| Macro F1 | 0.323 | 0.855 | +0.533 |
-| Weighted F1 | 0.323 | 0.855 | +0.533 |
-| Total inference time | 2675.7s | 1318.7s | -1356.9s |
-| Avg latency/sample | 8.92s | 4.40s | -4.52s |
-| Relative time reduction | - | - | 50.7% |
+从推理效果看，优化链路的核心收益是把单一 LoRA/VLM head 无法覆盖的攻击类型交给 C5/C6 补齐。300 样本分类-only 与 300 样本真实 generation 两轮的分类结果一致，说明这些收益不是由是否生成文本造成的，而是来自前置防御链路本身。
 
-逐类指标：
+| 测试口径 | Baseline | Optimized | Accuracy Delta | Macro F1 Delta | Weighted F1 Delta |
+|---|---|---|---:|---:|---:|
+| classification-only 300 样本 | `VLM only` | `C5+C6A+C4+VLM` | +43.3pp（+101.4% relative） | +53.2pp（+164.7% relative） | +53.2pp（+164.7% relative） |
+| generation 300 样本 | `LoRA only` | `LoRA + C4-C6 optimized` | +43.3pp（+101.4% relative） | +53.2pp（+164.7% relative） | +53.2pp（+164.7% relative） |
 
-| Pipeline | Label | Precision | Recall | F1 | Support |
-|---|---|---:|---:|---:|---:|
-| VLM only | clean | 0.388 | 0.970 | 0.554 | 100 |
-| VLM only | direct | 0.620 | 0.310 | 0.413 | 100 |
-| VLM only | indirect | 0.000 | 0.000 | 0.000 | 100 |
-| C5+C6A+C4+VLM | clean | 0.713 | 0.970 | 0.822 | 100 |
-| C5+C6A+C4+VLM | direct | 0.953 | 0.610 | 0.744 | 100 |
-| C5+C6A+C4+VLM | indirect | 1.000 | 1.000 | 1.000 | 100 |
+按类别看，效果提升集中在 direct 和 indirect 两类攻击场景：
+
+| Label | Baseline F1 | Optimized F1 | F1 Delta | 主要原因 |
+|---|---:|---:|---:|---|
+| clean | 55.4% | 82.2% | +26.8pp（+48.4% relative） | direct/indirect 被误判为 clean 的数量下降，clean precision 提升；clean recall 保持 97.0%。 |
+| direct | 41.3% | 74.4% | +33.1pp（+80.1% relative） | C5 规则前置命中 48/100 条 direct，direct recall 从 31.0% 提升到 61.0%。 |
+| indirect | 0.0% | 100.0% | +100.0pp（baseline 为 0，relative=N/A） | C6A 命中 100/100 条 synthetic cross-modal indirect，修复 VLM head 对该类的盲点。 |
 
 混淆矩阵：
 
@@ -3595,7 +3591,81 @@ Phase 6 的关键不是“哪一组数字最大”，而是形成可解释结论
 | C5+C6A+C4+VLM | direct | 39 | 61 | 0 |
 | C5+C6A+C4+VLM | indirect | 0 | 0 | 100 |
 
-阶段分布与耗时：
+#### 3.2.2 推理时间
+
+从推理时间看，需要区分 clean 与攻击样本。优化链路在 clean 条件下会略长，因为 clean 样本通常不能被 C5/C6 阻断，仍需进入 MPID head 和 generation，同时还多了 C5/C6/C4 的前置判断；但在 direct/indirect 场景中，前置规则和跨模态自检可以跳过昂贵的 VLM/head/generation，因此应当显著缩短。
+
+300 样本真实 generation 结果符合这个预期：
+
+| Gold Label | LoRA only avg | LoRA + C4-C6 avg | Delta | 是否符合预期 | 解释 |
+|---|---:|---:|---:|---|---|
+| clean | 18.23s/sample | 19.06s/sample | +4.6% | 符合 | clean 大多仍需 head + generation，优化链路增加少量 C5/C6/C4 判断开销；慢约 0.83s/sample，在 CPU 本地验证场景下可接受。 |
+| direct | 15.15s/sample | 10.72s/sample | -29.3% | 符合 | 48/100 条 direct 被 C5 直接拦截，generation 次数从 69 降到 39。 |
+| indirect | 16.07s/sample | ~0.00s/sample | 约 -100.0% | 符合 | 100/100 条 indirect 被 C6A 直接拦截，完全跳过 head 和 generation。 |
+| overall | 16.48s/sample | 9.93s/sample | -39.7% | 符合 | 攻击样本节省的时间超过 clean 样本增加的轻微开销。 |
+
+分类-only 300 样本也呈现同样趋势：
+
+| Gold Label | VLM only avg | C5+C6A+C4+VLM avg | Delta | 解释 |
+|---|---:|---:|---:|---|
+| clean | 9.16s/sample | 8.71s/sample | -4.9% | 本轮 C4 统计路径中有 11 条 clean early-exit；差异较小，不能过度解释。 |
+| direct | 8.97s/sample | 4.48s/sample | -50.1% | 48/100 条 direct 被 C5 规则前置拦截。 |
+| indirect | 8.63s/sample | ~0.00s/sample | 约 -100.0% | 100/100 条 indirect 被 C6A 拦截。 |
+| overall | 8.92s/sample | 4.40s/sample | -50.7% | C5/C6A 在 148/300 条样本上避免 VLM 调用。 |
+
+因此，推理时间的结论不是“所有样本都更快”，而是更精确地说：
+
+- clean 场景：可能略慢或基本持平；真实 generation 中慢 4.6%，当前可接受，但后续应继续优化 C4 早退以降低 clean 成本。
+- direct 场景：应明显变快；真实 generation 中缩短 29.3%，classification-only 中缩短 50.1%。
+- indirect 场景：应大幅变快；当前 synthetic cross-modal 验证集中由 C6A 直接命中，几乎跳过全部 VLM/generation 成本。
+- mixed workload：当数据集中包含足够攻击样本时，整体耗时显著下降；真实 generation 总耗时从 4945.4s 到 2978.1s，下降 39.8%。
+
+### 3.3 按分类场景分析：clean / direct / indirect
+
+| 分类场景 | 推理效果结论 | 推理时间结论 | 当前是否达标 | 后续关注点 |
+|---|---|---|---|---|
+| clean | Recall 保持 97.0%，说明 C4/C5/C6 没有造成大规模 clean 误杀；F1 从 55.4% 到 82.2%，主要因为攻击样本误判为 clean 的数量减少。 | 真实 generation 慢 4.6%；这是前置检查带来的可解释开销。 | 基本达标 | 继续监控 clean FPR；如果部署场景 clean 占比极高，需要进一步优化 C4，让 clean 快速路径真正省时。 |
+| direct | F1 从 41.3% 到 74.4%，Recall 从 31.0% 到 61.0%；C5 明显补齐 VLM head 的 direct 漏检。 | 真实 generation 快 29.3%，classification-only 快 50.1%。 | 阶段性达标，但仍有改进空间 | 39/100 direct 仍被错判为 clean，需要分析 false negative 并扩展高价值规则。 |
+| indirect | F1 从 0.0% 到 100.0%，当前 synthetic cross-modal 样本被 C6A 完整覆盖。 | 真实 generation 从 16.07s/sample 到近 0s/sample，基本跳过全部昂贵路径。 | 在当前 synthetic 验证集上达标 | C6A 部分依赖 source/metadata/template 信号，后续必须用 OCR/图文冲突样本验证泛化。 |
+
+这个分场景结果与课题假设一致：防御链路在 clean 上付出少量额外判断成本，但在 direct/indirect 攻击场景中通过前置拦截大幅减少昂贵推理，并且显著提高分类效果。
+
+### 3.4 分轮测试结果明细
+
+#### 3.4.1 Balanced-600 + Phase 3-5 轻量链路：60 样本快速验证
+
+**测试场景**：快速验证 Phase 3-5 是否能在较小样本上真实提升分类效果与推理效率。样本来自 balanced-600 run 下的三类评估集，每类 20 条，总计 60 条。
+
+**推理 pipeline 逻辑**：
+
+- `VLM only`：每条样本都运行 balanced-600 VLM + classification head。
+- `C5+C6A+C4+VLM`：先运行 C5 文本规则与 C6A 跨模态启发式；未被拦截的样本再运行真实 VLM fallback，并在 fallback 概率上统计 C4 clean early-exit。
+
+| Pipeline | Accuracy | Macro F1 | Weighted F1 | 总耗时 | 平均耗时 | Stage Counts |
+|---|---:|---:|---:|---:|---:|---|
+| VLM only | 43.3% | 32.6% | 32.6% | 539.2s | 8.99s/sample | `vlm_head=60` |
+| C5+C6A+C4+VLM | 85.0% | 84.2% | 84.2% | 296.0s | 4.93s/sample | `vlm_head_fallback=30, c4_early_exit=2, c5_rules=8, c6_crossmodal=20` |
+
+**综合 delta**：Accuracy +41.7pp（+96.3% relative），Macro F1 +51.6pp（+158.3% relative），总耗时 -45.1%。
+
+#### 3.4.2 Balanced-600 + Phase 3-5 轻量链路：300 样本分类验证
+
+**测试场景**：在更完整的分层验证上复查 60 样本结论是否稳定。样本仍来自 balanced-600 的三类评估集，每类 100 条，总计 300 条。
+
+**推理 pipeline 逻辑**：
+
+- `VLM only`：只运行 balanced-600 LoRA 模型的 MPID classification head，不做 C4/C5/C6，也不做文本生成。
+- `C5+C6A+C4+VLM`：先做 C5 文本规则拦截，再做 C6A 跨模态启发式拦截；未命中的样本进入 VLM classification head；最后根据 head 的 clean 置信度统计 C4 early-exit。
+
+| Metric | VLM only | C5+C6A+C4+VLM | Delta |
+|---|---:|---:|---:|
+| Accuracy | 42.7% | 86.0% | +43.3pp（+101.4% relative） |
+| Macro F1 | 32.3% | 85.5% | +53.2pp（+164.7% relative） |
+| Weighted F1 | 32.3% | 85.5% | +53.2pp（+164.7% relative） |
+| Total inference time | 2675.7s | 1318.7s | -50.7% |
+| Avg latency/sample | 8.92s | 4.40s | -50.7% |
+
+阶段分布：
 
 | Stage | Count | Share | 说明 |
 |---|---:|---:|---|
@@ -3604,24 +3674,87 @@ Phase 6 的关键不是“哪一组数字最大”，而是形成可解释结论
 | `c5_rules` | 48 | 16.0% | 直接注入规则命中，无需 VLM。 |
 | `c6_crossmodal` | 100 | 33.3% | synthetic cross-modal indirect 样本被 C6A 命中，无需 VLM。 |
 
-**分析**：300 样本结果确认了 60 样本的趋势。完整链路 Macro F1 从 0.323 提升到 0.855，同时 CPU 推理总耗时下降约 50.7%。效果提升主要来自 indirect 修复：VLM only 对 indirect 完全没有预测能力，而 C6A 在该 synthetic cross-modal 验证集上达到 1.0 F1。direct 也从 0.413 F1 提升到 0.744 F1，但仍有 39/100 direct 样本被错判为 clean，是后续最值得优化的错误簇。
+#### 3.4.3 Balanced-600 + 真实 generation pipeline：300 样本端到端验证
 
-### 3.3 结果分析与阶段结论
+**测试场景**：在 demo/交付更接近的真实推理链路上复查 Phase 3-5 的效果。样本仍来自 balanced-600 的三类评估集，每类 100 条，总计 300 条。与上一轮不同，本轮不只评估 classification head，而是把 `block/allow` 与 LoRA generation 也纳入耗时统计。
 
-这两轮测试给出的阶段性结论是：**balanced-600 VLM checkpoint 单独作为防注入分类器并不够，尤其无法识别当前 synthetic cross-modal indirect；但叠加 Phase 3-5 的轻量推理链路后，项目已经从“模型单点分类”进入“系统级防御”形态。**
+**推理 pipeline 逻辑**：
+
+- `LoRA only`：`MPID head -> block/allow -> LoRA generation`。如果 head 预测为 `clean`，则放行并调用 LoRA generation；如果预测为 `direct` 或 `indirect`，则阻断且不生成。该链路不包含 C4/C5/C6，用作真实生成版 baseline。
+- `LoRA + C4-C6 optimized`：`C5 -> C6 -> MPID head -> C4 -> block/allow -> LoRA generation`。C5/C6 命中时直接阻断并跳过 head/generation；未命中样本进入 MPID head；C4 对高置信 clean 做 early-exit/放行决策；最终只有 allow 样本调用 LoRA generation。
+
+**执行时间**：两条 pipeline 合计 7923.5s（132.1min），其中 `LoRA only` 为 4945.4s，`LoRA + C4-C6 optimized` 为 2978.1s。为了控制 CPU 验证成本，本轮 `max_new_tokens=8`。
+
+总体指标：
+
+| Metric | LoRA only | LoRA + C4-C6 optimized | Delta |
+|---|---:|---:|---:|
+| Accuracy | 42.7% | 86.0% | +43.3pp（+101.4% relative） |
+| Macro F1 | 32.3% | 85.5% | +53.2pp（+164.7% relative） |
+| Weighted F1 | 32.3% | 85.5% | +53.2pp（+164.7% relative） |
+| Total inference time | 4945.4s | 2978.1s | -39.8% |
+| Avg latency/sample | 16.48s | 9.93s | -39.7% |
+| Generation count | 250 | 136 | -45.6% |
+| Block count | 50 | 164 | +228.0% relative |
+| Allow count | 250 | 136 | -45.6% |
+
+逐类指标：
+
+| Pipeline | Label | Precision | Recall | F1 | Support |
+|---|---|---:|---:|---:|---:|
+| LoRA only | clean | 38.8% | 97.0% | 55.4% | 100 |
+| LoRA only | direct | 62.0% | 31.0% | 41.3% | 100 |
+| LoRA only | indirect | 0.0% | 0.0% | 0.0% | 100 |
+| LoRA + C4-C6 optimized | clean | 71.3% | 97.0% | 82.2% | 100 |
+| LoRA + C4-C6 optimized | direct | 95.3% | 61.0% | 74.4% | 100 |
+| LoRA + C4-C6 optimized | indirect | 100.0% | 100.0% | 100.0% | 100 |
+
+逐类 F1 delta：
+
+| Label | Delta |
+|---|---:|
+| clean | +26.8pp（+48.4% relative） |
+| direct | +33.1pp（+80.1% relative） |
+| indirect | +100.0pp（baseline 为 0，relative=N/A） |
+
+阶段分布与耗时：
+
+| Pipeline | Stage Counts | Actions | Generation Time |
+|---|---|---|---:|
+| LoRA only | `lora_head_clean=250, lora_head_injection=50` | `allow=250, block=50` | 2289.8s |
+| LoRA + C4-C6 optimized | `head_clean_fallback=125, c4_early_exit=11, head_injection_fallback=16, c5_rules=48, c6_crossmodal=100` | `allow=136, block=164` | 1415.4s |
+
+### 3.5 阶段结论与后续评估重点
+
+这三轮测试给出的阶段性结论是：**balanced-600 VLM checkpoint 单独作为防注入分类器并不够，尤其无法识别当前 synthetic cross-modal indirect；但叠加 Phase 3-5 的轻量推理链路后，项目已经从“模型单点分类”进入“系统级防御”形态。**
+
+逐步优化带来的量化变化：
+
+| 阶段 | 加入的优化 | Macro F1 | indirect F1 | direct F1 | 耗时表现 | 说明 |
+|---|---|---:|---:|---:|---|---|
+| LoRA / VLM baseline | 只使用 balanced-600 MPID head | 32.3% | 0.0% | 41.3% | classification-only 8.92s/sample；generation 16.48s/sample | 模型能较好识别 clean，但把大量 direct/indirect 当作 clean。 |
+| + C5 | 文本规则前置拦截明显 direct injection | 与 C6/C4 合并后达到 85.5% | 间接受益 | direct F1 到 74.4% | 减少进入 VLM/generation 的 direct 攻击样本 | direct recall 从 31.0% 到 61.0%，说明规则层补齐了部分 VLM head 的漏检。 |
+| + C6A | 跨模态启发式拦截 synthetic indirect | 与 C5/C4 合并后达到 85.5% | 从 0.0% 到 100.0% | 维持 74.4% | 100/300 样本无需 VLM/generation | 最大收益来源，直接修复当前 VLM 对 synthetic cross-modal indirect 的盲点。 |
+| + C4 | clean 高置信路径决策 | clean F1 到 82.2% | 不损伤 indirect | 不损伤 direct | classification-only 总耗时下降 50.7%；generation 总耗时下降 39.8% | 当前实现中 C4 主要参与 fallback 后的 clean 决策和 generation gate，后续仍可继续优化成更强的中间层早退。 |
 
 可以确认的收益：
 
-- 分类效果显著提升：60 样本 Macro F1 从 0.326 到 0.842；300 样本 Macro F1 从 0.323 到 0.855。
-- 时间效率显著提升：300 样本总耗时从 2675.7s 降到 1318.7s，主要因为 C5/C6A 在 148/300 条样本上避免了 VLM 调用。
-- indirect 当前被系统层补齐：C6A 对 synthetic cross-modal indirect 的命中让 indirect F1 从 0.0 提升到 1.0。
-- clean recall 保持稳定：300 样本中 clean recall 仍为 0.97，说明当前规则没有造成大规模 clean 误杀。
+- 分类效果显著提升：60 样本 Macro F1 从 32.6% 到 84.2%（+51.6pp，+158.3% relative）；300 样本 Macro F1 从 32.3% 到 85.5%（+53.2pp，+164.7% relative）。
+- 时间效率显著提升：classification-only 300 样本总耗时从 2675.7s 降到 1318.7s（-50.7%）；真实 generation 300 样本总耗时从 4945.4s 降到 2978.1s（-39.8%）。
+- generation 风险面显著缩小：真实 generation 验证中，allow/generation 次数从 250 降到 136（-45.6%），block 次数从 50 增加到 164（+228.0% relative）。
+- indirect 当前被系统层补齐：C6A 对 synthetic cross-modal indirect 的命中让 indirect F1 从 0.0% 提升到 100.0%。
+- clean recall 保持稳定：300 样本中 clean recall 仍为 97.0%，说明当前规则没有造成大规模 clean 误杀。
 
 仍需谨慎解释的地方：
 
 - C6A 当前对 `synthetic_image_injection` 的高分，部分来自 source/metadata/template 信号，后续必须用更丰富的 OCR/图文冲突样本验证泛化性。
-- C5 direct recall 仍不足，300 样本里 direct recall 只有 0.61；下一步应分析 39 个 direct false negative，扩展高价值规则并做 clean 回归测试。
+- C5 direct recall 仍不足，300 样本里 direct recall 只有 61.0%；下一步应分析 39 个 direct false negative，扩展高价值规则并做 clean 回归测试。
 - C4 当前在这套轻量执行顺序中主要是“置信度决策统计”，不是主要省时来源；真正的中间层早退版本仍属于后续优化方向。
+
+后续评估应继续按两个主维度推进：
+
+- **推理效果**：扩展真实 OCR/图文冲突 indirect 样本，复查 C6A 是否仍能维持高 recall；针对 direct false negative 做错误簇分析；所有规则扩展都必须同步做 clean 回归测试。
+- **推理时间**：单独报告 clean/direct/indirect 的平均耗时和 P50/P95；重点验证 clean 场景额外开销是否长期保持在可接受范围内，同时确认 direct/indirect 在真实攻击数据上仍能显著省时。
 
 ---
 

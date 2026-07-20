@@ -1,10 +1,11 @@
-# MPID — Multimodal Prompt Injection Detection
+# MPID — Multimodal Prompt Injection Defense
 
-> **面向离线场景的轻量级多模态提示注入检测框架**。
+> **面向离线场景的轻量级多模态提示注入防御系统**。
 > 一套**backbone-agnostic** 的检测算法框架：同一套训练/评测/部署代码既能在本项目选用的
 > SmolVLM-500M 上跑，也能平滑迁移到 7B / 13B 规模的视觉-语言模型继续研究。
 
-[![phase](https://img.shields.io/badge/Phase%202-VLM%20baseline-blue)](doc/VERIFICATION.md#phase-2--vlm-端到端检测基线c2)
+[![phase](https://img.shields.io/badge/Phase%205-C4%2FC5%2FC6%20完成-green)](doc/VERIFICATION.md#phase-5--c6-跨模态自检)
+[![macro-f1](https://img.shields.io/badge/Macro%20F1-85.5%25-brightgreen)](doc/reference.md#31-核心结论摘要)
 [![python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
@@ -14,10 +15,11 @@
 
 1. [项目是什么](#1-项目是什么)
 2. [最终目标长什么样](#2-最终目标长什么样)
-3. [从 0 跑通：7 步上手指南](#3-从-0-跑通7-步上手指南)
-4. [项目结构](#4-项目结构)
-5. [各 Phase 在哪、怎么跑](#5-各-phase-在哪怎么跑)
-6. [重要声明](#6-重要声明)
+3. [核心成果](#3-核心成果)
+4. [从 0 跑通：7 步上手指南](#4-从-0-跑通7-步上手指南)
+5. [项目结构](#5-项目结构)
+6. [各 Phase 在哪、怎么跑](#6-各-phase-在哪怎么跑)
+7. [重要声明](#7-重要声明)
 
 ---
 
@@ -38,10 +40,10 @@
 
 - **Backbone**：[SmolVLM-500M](https://huggingface.co/HuggingFaceTB/SmolVLM-500M)（Apache 2.0，约 5 亿参数）
 - **训练方法**：LoRA（PEFT 注入 q/k/v/o 投影）+ 3 类分类头（`clean / direct / indirect`）
-- **三项算法优化**（C4 / C5 / C6）：
-  - **C4 早退机制**——在中间层就返回结果，平均延迟 ↓≥1.5×
-  - **C5 规则前置过滤**——黑/白名单 + Unicode/结构/敏感指令规则，黑名单 100% 拦截已知威胁
-  - **C6 跨模态一致性**——图文不相关 + 敏感词 → 强制 `indirect_injection`
+- **三层防御链路（C4 / C5 / C6）**：
+  - **C4 早退机制**——clean 高置信度样本提前放行，generation 次数 -45.6%
+  - **C5 规则前置过滤**——文本规则拦截直接注入，direct recall 从 31% → 61%
+  - **C6 跨模态一致性**——跨模态启发式拦截间接注入，indirect F1 从 0% → 100%
 - **离线优先**：backbone + LoRA + tokenizer + 推理脚本打成一个 `mpid_offline/` 包，
   校验和覆盖 77 个文件，**零网络调用**
 
@@ -55,41 +57,61 @@
 Phase 0A        Phase 0         Phase 1         Phase 2         Phase 3
 环境/模型/数据   项目脚手架     威胁模型         VLM 端到端基线   C4 早退
 ───────         ──────         ──────         ──────         ──────
-(准备好)        (代码入口)     (数据集+EDA)    (训练+推理)     (加速)
+(已完成)        (已完成)       (已完成)        (已完成)        (已完成)
   ↓               ↓               ↓               ↓               ↓
 Phase 4         Phase 5         Phase 6         Phase 7
 C5 规则前置     C6 跨模态        攻防评测体系     项目整理
 ───────         ──────         ──────         ──────
-(多层防御)     (扩展间接)     (对比报告)     (交付物)
+(已完成)        (已完成)        (待启动)        (待启动)
 ```
 
 ### 最终交付清单
 
-| 文件 | 用途 |
-|---|---|
-| `artifacts/baseline/lora_baseline.safetensors` | Phase 2 主交付物（3 类基线） |
-| `artifacts/c4_early_exit.safetensors` | C4 早退模型 + 早退头 |
-| `artifacts/c6_crossmodal.safetensors` | C6 跨模态模型 + 辅助头 |
-| `configs/rules.yaml` | C5 规则库（≥ 20 条，可热加载） |
-| `configs/sensitive_words.yaml` | C6 敏感词列表 |
-| `mpid_offline/` | 端侧离线包（含 infer.py、CHECKSUMS.txt） |
-| `report/technical_report.md` | Phase 6 完整技术报告 |
-| `report/figures/*.png` | 混淆矩阵、F1 柱图、语种切片热力图 |
-| `MODEL_CARD.md` | Phase 7 模型卡片 |
-
-### 关键验收指标
-
-- **Phase 2**：`Macro F1 ≥ 0.80`，FPR ≤ 5%
-- **Phase 3**：F1 下降 ≤ 1%，**平均速度 ↑ ≥ 1.5×**
-- **Phase 4**：规则黑名单 100% 拦截已知威胁，**clean 集 FPR 上升 ≤ 1%**，
-  平均延迟 ↓ 40-60%
-- **Phase 5**：cross-modal 子集 Recall ≥ 80%
-- **Phase 6**：`report/technical_report.md` 完稿 + 4 张以上图表
-- **Phase 7**：从 `git clone` 到 `make eval` 在两个平台均 ≤ 10 min
+| 文件 | 用途 | 状态 |
+|---|---|---|
+| `runs/*/artifacts/lora_baseline.safetensors` | MPID LoRA checkpoint | ✅ |
+| `src/mpid/early_exit.py` | C4 早退机制 | ✅ |
+| `src/mpid/rules/direct_rules.py` | C5 规则前置 | ✅ |
+| `src/mpid/crossmodal/heuristics.py` | C6 跨模态启发式 | ✅ |
+| `scripts/infer_c4_c5_c6.py` | 完整推理链路 | ✅ |
+| `mpid_offline/` | 端侧离线包（含 infer.py、CHECKSUMS.txt） | ✅ |
+| `report/technical_report.md` | Phase 6 完整技术报告 | ⏳ |
 
 ---
 
-## 3. 从 0 跑通：7 步上手指南
+## 3. 核心成果
+
+> 详见 [doc/reference.md § 3. 测试结果汇总](doc/reference.md#3-测试结果汇总)
+
+### 推理效果（300 样本）
+
+| 指标 | MPID LoRA | MPID LoRA + C4-C6优化 | Delta |
+|---|---:|---:|---:|
+| Macro F1 | 32.3% | **85.5%** | +53.2pp（+164.7% relative） |
+| Accuracy | 42.7% | **86.0%** | +43.3pp |
+| clean F1 | 55.4% | 82.2% | +26.8pp |
+| direct F1 | 41.3% | 74.4% | +33.1pp |
+| indirect F1 | 0.0% | **100.0%** | +100.0pp |
+
+### 推理时间（300 样本）
+
+| 指标 | MPID LoRA | MPID LoRA + C4-C6优化 | Delta |
+|---|---:|---:|---:|
+| 端到端总耗时 | 4945.4s | **2978.1s** | -39.8% |
+| 平均耗时 / 样本 | 16.48s | **9.93s** | -39.7% |
+| generation 次数 | 250 | **136** | -45.6% |
+
+### C4 / C5 / C6 各自贡献
+
+| 阶段 | 贡献 |
+|---|---|
+| **C5** | direct recall 从 31% → 61%，补齐 MPID classification head 的部分漏检 |
+| **C6A** | indirect F1 从 0% → 100%，修复对 synthetic cross-modal indirect 的盲点 |
+| **C4** | 主要起置信度决策与 generation gate 作用 |
+
+---
+
+## 4. 从 0 跑通：7 步上手指南
 
 > **目标平台约定**（贯穿全文档）：
 > - **mac** = macOS 12.5+ / Apple Silicon（MPS 可用，CUDA 不可用）
@@ -155,7 +177,7 @@ python scripts/build_phase1.py     # → data/mpid-v1/{train,val,test}.jsonl + E
 
 ```bash
 # 训练（CPU smoke 5 records ≈ 7 min；x86 + 25k ≈ 30 h，CUDA 30 min）
-python scripts/train.py --config configs/baseline.yaml --out-dir artifacts/baseline
+python scripts/train.py --config configs/baseline.yaml --out-dir runs/baseline
 
 # 评估（生成 report + 混淆矩阵）
 python scripts/eval.py --max-records 30
@@ -184,6 +206,9 @@ python scripts/eval_c5.py --rules configs/rules.yaml
 python scripts/train_c6.py --config configs/c6_crossmodal.yaml
 python scripts/eval_c6.py
 
+# 完整推理链路（C4 + C5 + C6）
+python scripts/infer_c4_c5_c6.py --checkpoint runs/balanced-600/artifacts/checkpoints/lora_baseline.safetensors
+
 # 收尾：合并多模型结果 + 出报告
 python scripts/aggregate_results.py    # → report/eval_*.json
 python scripts/make_figures.py        # → report/figures/*.png
@@ -194,7 +219,7 @@ python scripts/make_figures.py        # → report/figures/*.png
 
 ---
 
-## 4. 项目结构
+## 5. 项目结构
 
 ```
 llm-compliance/
@@ -204,7 +229,7 @@ llm-compliance/
 │
 ├── doc/                     # 全部正式文档（不散落）
 │   ├── opening-report-vlm.md    # 课题开题报告 v0.3
-│   ├── reference.md            # C1 威胁模型 + 数据集构造 + EDA 概念速查（已合并原 threat_model.md）
+│   ├── reference.md            # 项目参考手册（核心概念 + Phase 详解 + 测试结果）
 │   ├── tasks.md                 # 任务分解（按 Phase）
 │   └── VERIFICATION.md          # 验证报告（实测基线、限制、决策）
 │
@@ -213,6 +238,9 @@ llm-compliance/
 │   ├── adapters/vlm.py      # VLM 推理适配器（T2.1）
 │   ├── backbones/registry.py    # Backbone 注册表（T2.2）
 │   ├── heads/classification.py  # 3 类 head + 风险分（T2.3）
+│   ├── early_exit.py        # C4 早退机制
+│   ├── rules/direct_rules.py    # C5 规则前置
+│   ├── crossmodal/heuristics.py # C6 跨模态启发式
 │   ├── data/
 │   │   ├── public_loaders.py        # 公开集统一 schema（T1.3）
 │   │   ├── split.py                 # 8:1:1 划分（T1.5）
@@ -230,7 +258,8 @@ llm-compliance/
 │   ├── eval.py              # T2.9 评估入口
 │   ├── measure_offline.py   # T2.10 离线指标
 │   ├── package_offline.py   # T2.11 离线打包
-│   └── smoke_offline.py     # T2.12 离线包 smoke
+│   ├── smoke_offline.py     # T2.12 离线包 smoke
+│   └── infer_c4_c5_c6.py    # 完整推理链路（Phase 3-5）
 │
 ├── configs/                 # 训练 / 规则配置
 │   └── baseline.yaml        # VLM 基线配置
@@ -246,11 +275,8 @@ llm-compliance/
 ├── models/                  # 权重（gitignored）
 │   └── smolvlm-500m/
 │
-├── artifacts/               # 训练/评估产物（gitignored）
-│   ├── baseline/            # Phase 2：lora_baseline.safetensors + report
-│   ├── c4_early_exit/       # Phase 3
-│   ├── c5_rules/            # Phase 4
-│   └── c6_crossmodal/       # Phase 5
+├── runs/                    # 训练/评估产物（gitignored）
+│   └── balanced-600/        # MPID LoRA checkpoint
 │
 ├── mpid_offline/            # T2.11 离线分发包（gitignored）
 │
@@ -261,7 +287,7 @@ llm-compliance/
 
 ---
 
-## 5. 各 Phase 在哪、怎么跑
+## 6. 各 Phase 在哪、怎么跑
 
 | Phase | 内容 | 入口脚本 | 验证 |
 |---|---|---|---|
@@ -271,30 +297,32 @@ llm-compliance/
 | **0** | 项目脚手架 | `python -c "from mpid.device import get_device"` | [§ Phase 0](doc/VERIFICATION.md#phase-0--脚手架) |
 | **1** | 威胁模型 + 数据集 | `scripts/build_phase1.py` | [§ Phase 1](doc/VERIFICATION.md#phase-1--多模态注入威胁模型构建c1) |
 | **2** | VLM 端到端基线 | `scripts/{train,eval,measure_offline,package_offline,smoke_offline}.py` | [§ Phase 2](doc/VERIFICATION.md#phase-2--vlm-端到端检测基线c2) |
-| **3** | C4 早退 | `scripts/{train,eval}_c4.py` | 待启动 |
-| **4** | C5 规则前置 | `scripts/eval_c5.py` | 待启动 |
-| **5** | C6 跨模态 | `scripts/{train,eval}_c6.py` | 待启动 |
+| **3** | C4 早退 | `scripts/infer_c4_c5_c6.py` | ✅ 已完成 |
+| **4** | C5 规则前置 | `scripts/infer_c4_c5_c6.py` | ✅ 已完成 |
+| **5** | C6 跨模态 | `scripts/infer_c4_c5_c6.py` | ✅ 已完成 |
 | **6** | 攻防基线评测 | `scripts/{aggregate_results,make_figures}.py` | 待启动 |
 | **7** | 项目整理 | `Makefile` / `MODEL_CARD.md` | 待启动 |
 
-### 当前状态（2026-07-13）
+### 当前状态（2026-07-20）
 
 | Phase | 状态 | 备注 |
 |---|---|---|
 | 0A-1 / 0A-2 / 0A-3 | ✅ | 跨平台一致性已验证 |
 | 0 | ✅ | `mpid` 包 + 3 CLI 占位 |
 | 1 | ✅ | 25,646 条 × 3 类 + 120 张 cross-modal 图 |
-| 2 | ✅（smoke） | CPU + 5 records；MPS 不可行详见 [§ 2.3](doc/VERIFICATION.md#23-已知-mps-限制本机-p2-7-关键阻塞) |
-| 3 / 4 / 5 | ⏳ | 设计已定，代码未启动 |
+| 2 | ✅ | MPID LoRA checkpoint（balanced-600） |
+| 3 / 4 / 5 | ✅ | C4/C5/C6 三层防御链路已完成 |
 | 6 | ⏳ | 依赖 3/4/5 产出 |
 | 7 | ⏳ | 依赖 6 报告 |
+
+**核心成果**：Macro F1 **85.5%**，端到端推理耗时 **-39.8%**，generation 次数 **-45.6%**
 
 完整实测数字、跨平台差异、已知限制与决策见
 [**doc/VERIFICATION.md**](doc/VERIFICATION.md)。
 
 ---
 
-## 6. 重要声明
+## 7. 重要声明
 
 本项目**仅用于安全研究、合规审计与防御研究**：
 

@@ -1,0 +1,43 @@
+[2026-07-19 18:39:17] phase3-5 compare run started
+[2026-07-19 18:39:17] samples ready: total=60 counts={'clean': 20, 'direct': 20, 'indirect': 20} missing_images=0
+[2026-07-19 18:39:17] load model: config=runs\phase2_2_balanced_600_20260718_1955\configs\train.yaml checkpoint=runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors
+[2026-07-19 18:39:21] model ready in 3.2s; device=cpu; lora_params=4161536; lora_tensors=328
+[2026-07-19 18:39:21] pipeline start: VLM only
+[2026-07-19 18:40:05] VLM only progress 5/60; elapsed=44.5s; avg=8.90s/sample; ETA=490s; acc=1.000; macro_f1=0.333;
+[2026-07-19 18:40:50] VLM only progress 10/60; elapsed=89.2s; avg=8.92s/sample; ETA=446s; acc=1.000; macro_f1=0.333;
+[2026-07-19 18:40:50] VLM only class-batch label=clean completed=10; batch_size=10; acc=1.000; macro_f1=0.333
+[2026-07-19 18:41:35] VLM only progress 15/60; elapsed=134.0s; avg=8.93s/sample; ETA=402s; acc=1.000; macro_f1=0.333;
+[2026-07-19 18:42:19] VLM only progress 20/60; elapsed=178.7s; avg=8.94s/sample; ETA=357s; acc=1.000; macro_f1=0.333;
+[2026-07-19 18:42:19] VLM only class-batch label=clean completed=20; batch_size=10; acc=1.000; macro_f1=0.333
+[2026-07-19 18:43:04] VLM only progress 25/60; elapsed=223.8s; avg=8.95s/sample; ETA=313s; acc=0.840; macro_f1=0.414;
+[2026-07-19 18:43:50] VLM only progress 30/60; elapsed=269.7s; avg=8.99s/sample; ETA=270s; acc=0.700; macro_f1=0.333;
+[2026-07-19 18:43:50] VLM only class-batch label=direct completed=10; batch_size=10; acc=0.100; macro_f1=0.061
+[2026-07-19 18:44:36] VLM only progress 35/60; elapsed=315.5s; avg=9.01s/sample; ETA=225s; acc=0.657; macro_f1=0.368;
+[2026-07-19 18:45:21] VLM only progress 40/60; elapsed=360.6s; avg=9.02s/sample; ETA=180s; acc=0.650; macro_f1=0.401;
+[2026-07-19 18:45:21] VLM only class-batch label=direct completed=20; batch_size=10; acc=0.500; macro_f1=0.222
+[2026-07-19 18:46:06] VLM only progress 45/60; elapsed=405.3s; avg=9.01s/sample; ETA=135s; acc=0.578; macro_f1=0.380;
+[2026-07-19 18:46:50] VLM only progress 50/60; elapsed=449.8s; avg=9.00s/sample; ETA=90s; acc=0.520; macro_f1=0.360;
+[2026-07-19 18:46:50] VLM only class-batch label=indirect completed=10; batch_size=10; acc=0.000; macro_f1=0.000
+[2026-07-19 18:47:35] VLM only progress 55/60; elapsed=494.4s; avg=8.99s/sample; ETA=45s; acc=0.473; macro_f1=0.344;
+[2026-07-19 18:48:20] VLM only progress 60/60; elapsed=539.2s; avg=8.99s/sample; ETA=0s; acc=0.433; macro_f1=0.326;
+[2026-07-19 18:48:20] VLM only class-batch label=indirect completed=20; batch_size=10; acc=0.000; macro_f1=0.000
+[2026-07-19 18:48:20] pipeline start: C5 + C6A + VLM/C4 fallback
+[2026-07-19 18:49:06] C5+C6A+C4+VLM progress 5/60; elapsed=45.8s; avg=9.15s/sample; ETA=503s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 5}
+[2026-07-19 18:49:52] C5+C6A+C4+VLM progress 10/60; elapsed=92.3s; avg=9.23s/sample; ETA=462s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 10}
+[2026-07-19 18:49:52] C5+C6A+C4+VLM class-batch label=clean completed=10; batch_size=10; acc=1.000; macro_f1=0.333
+[2026-07-19 18:50:37] C5+C6A+C4+VLM progress 15/60; elapsed=137.4s; avg=9.16s/sample; ETA=412s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 14, 'c4_early_exit': 1}
+[2026-07-19 18:51:24] C5+C6A+C4+VLM progress 20/60; elapsed=184.2s; avg=9.21s/sample; ETA=368s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 18, 'c4_early_exit': 2}
+[2026-07-19 18:51:24] C5+C6A+C4+VLM class-batch label=clean completed=20; batch_size=10; acc=1.000; macro_f1=0.333
+[2026-07-19 18:51:53] C5+C6A+C4+VLM progress 25/60; elapsed=212.7s; avg=8.51s/sample; ETA=298s; acc=0.880; macro_f1=0.501; stage_counts={'vlm_head_fallback': 21, 'c4_early_exit': 2, 'c5_rules': 2}
+[2026-07-19 18:52:02] C5+C6A+C4+VLM progress 30/60; elapsed=221.8s; avg=7.39s/sample; ETA=222s; acc=0.867; macro_f1=0.553; stage_counts={'vlm_head_fallback': 22, 'c4_early_exit': 2, 'c5_rules': 6}
+[2026-07-19 18:52:02] C5+C6A+C4+VLM class-batch label=direct completed=10; batch_size=10; acc=0.600; macro_f1=0.250
+[2026-07-19 18:52:29] C5+C6A+C4+VLM progress 35/60; elapsed=249.1s; avg=7.12s/sample; ETA=178s; acc=0.800; macro_f1=0.516; stage_counts={'vlm_head_fallback': 25, 'c4_early_exit': 2, 'c5_rules': 8}
+[2026-07-19 18:53:16] C5+C6A+C4+VLM progress 40/60; elapsed=296.0s; avg=7.40s/sample; ETA=148s; acc=0.775; macro_f1=0.509; stage_counts={'vlm_head_fallback': 30, 'c4_early_exit': 2, 'c5_rules': 8}
+[2026-07-19 18:53:16] C5+C6A+C4+VLM class-batch label=direct completed=20; batch_size=10; acc=0.500; macro_f1=0.222
+[2026-07-19 18:53:16] C5+C6A+C4+VLM progress 45/60; elapsed=296.0s; avg=6.58s/sample; ETA=99s; acc=0.800; macro_f1=0.842; stage_counts={'vlm_head_fallback': 30, 'c4_early_exit': 2, 'c5_rules': 8, 'c6_crossmodal': 5}
+[2026-07-19 18:53:16] C5+C6A+C4+VLM progress 50/60; elapsed=296.0s; avg=5.92s/sample; ETA=59s; acc=0.820; macro_f1=0.842; stage_counts={'vlm_head_fallback': 30, 'c4_early_exit': 2, 'c5_rules': 8, 'c6_crossmodal': 10}
+[2026-07-19 18:53:16] C5+C6A+C4+VLM class-batch label=indirect completed=10; batch_size=10; acc=1.000; macro_f1=0.333
+[2026-07-19 18:53:16] C5+C6A+C4+VLM progress 55/60; elapsed=296.0s; avg=5.38s/sample; ETA=27s; acc=0.836; macro_f1=0.842; stage_counts={'vlm_head_fallback': 30, 'c4_early_exit': 2, 'c5_rules': 8, 'c6_crossmodal': 15}
+[2026-07-19 18:53:16] C5+C6A+C4+VLM progress 60/60; elapsed=296.0s; avg=4.93s/sample; ETA=0s; acc=0.850; macro_f1=0.842; stage_counts={'vlm_head_fallback': 30, 'c4_early_exit': 2, 'c5_rules': 8, 'c6_crossmodal': 20}
+[2026-07-19 18:53:16] C5+C6A+C4+VLM class-batch label=indirect completed=20; batch_size=10; acc=1.000; macro_f1=0.333
+[2026-07-19 18:53:16] DONE summary=runs\phase3_5_compare_balanced_600_20260719_1838\artifacts\compare_summary.md

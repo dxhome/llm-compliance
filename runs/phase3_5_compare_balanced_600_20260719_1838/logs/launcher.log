@@ -1,0 +1,2 @@
+[2026-07-19 18:38:43] Start-Process failed due duplicate Path/PATH environment key; retrying with System.Diagnostics.ProcessStartInfo.
+[2026-07-19 18:39:15] started compare pid=5144

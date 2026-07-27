@@ -1,7 +1,12 @@
 # 任务分解 (Tasks)
 
 > 与 [opening-report-vlm.md](opening-report-vlm.md) 严格对应。任务按 Phase 排序，标 `[P]` 优先级、`[D]` 依赖、`[T]` 预估时长。
-> 文档版本：v2.6（优化 P0A-3 基础数据集准备范围）
+> 文档版本：v2.7（校准 Phase 2.2 balanced 600，并合并增强微调任务到 Phase 2.3）
+>
+> **v2.7 变更**：
+> - 校准 **Phase 2.2**：实际执行是 balanced 600 训练，使用 clean / direct / indirect 均衡的 600 条训练样本，不再描述为 2000+ 全量训练
+> - 合并今天新增的增强微调训练要求，统一纳入 **Phase 2.3 — 高 F1 增强微调**
+> - Phase 2.3 统一覆盖数据集契约、增强训练、训练期 compare、断点续训、best checkpoint 选择、package 和 offline smoke
 >
 > **v2.6 变更**：
 > - 优化 **P0A-3 训练 / 测试数据集准备**：将 core + synthesis 合并为默认基础数据，manual-review 作为候选保留
@@ -19,11 +24,11 @@
 > - 顶层 `scripts/` 只保留通用脚本和 `scripts/run_phase2_workflow.ps1` 模板入口
 >
 > **v2.3 变更**：
-> - **Phase 2 拆分为 2.1（smoke 训练）和 2.2（真实训练）两个子阶段**
+> - **Phase 2 拆分为 2.1（smoke 训练）和 2.2（balanced 600 训练）两个子阶段**
 >   - **Phase 2.1** = 用 `max_train_records=5` 跑通管线、**不验证指标**（避免误用 5 条训出的 head 跑 C4/C5/C6）
->   - **Phase 2.2** = 2000 样本 × 3 epoch 真实训练，**Macro F1 ≥ 0.50** 作为硬性指标，产出 `lora_full.safetensors` 作为 C4/C5/C6 的评估基线
-> - Phase 2.2 新增 9 个任务（T2.13-T2.21）：完整数据下载 → 全量 split → 真实训练 → 跨平台一致性 → 离线包升级
-> - 任务总览表 C2 对应 Phase 更新为 "Phase 2.1（smoke 训练）+ Phase 2.2（真实训练）"
+>   - **Phase 2.2** = 使用 clean / direct / indirect 均衡的 600 条样本完成端到端 balanced 训练，产出 `lora_full.safetensors` / 离线包，并作为 Phase 2.3 增强微调前的实验基线
+> - Phase 2.2 新增 9 个任务（T2.13-T2.21）：基础数据下载 → balanced 600 split → balanced 训练 → compare 复盘 → 离线包升级
+> - 任务总览表 C2 对应 Phase 更新为 "Phase 2.1（smoke 训练）+ Phase 2.2（balanced 600 训练）"
 >
 > **v2.2 变更**：
 > - **Phase 3 重新设计为"轻量级阈值判定"**（原设计的中间层 MLP + 联合训练太重，改为复用 Phase 2 head + 阈值判定）
@@ -60,11 +65,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 | 研究内容 | 对应 Phase |
 |---|---|
 | C1 多模态注入威胁模型构建 | Phase 1 |
-| C2 VLM 端到端检测基线 | **Phase 2.1（smoke 训练）+ Phase 2.2（真实训练）+ Phase 2.3（高 F1 微调改进）** |
+| C2 VLM 端到端检测基线 | **Phase 2.1（smoke 训练）+ Phase 2.2（balanced 600 训练）+ Phase 2.3（高 F1 增强微调）** |
 | C3 攻防基线评测体系 | Phase 6 |
-| **C4 早退机制（核心算法优化）** | **Phase 3**（依赖 Phase 2.2 真实训练模型） |
-| **C5 规则前置过滤 + VLM 精排（核心算法优化）** | **Phase 4**（依赖 Phase 2.2） |
-| **C6 跨模态语义一致性检测（核心算法优化）** | **Phase 5A + 5B**（依赖 Phase 2.2） |
+| **C4 早退机制（核心算法优化）** | **Phase 3**（依赖 Phase 2.2 balanced 600 基线模型；Phase 2.3 完成后切换到高 F1 checkpoint） |
+| **C5 规则前置过滤 + VLM 精排（核心算法优化）** | **Phase 4**（可先用 Phase 2.2 balanced 600 基线，Phase 2.3 完成后切换） |
+| **C6 跨模态语义一致性检测（核心算法优化）** | **Phase 5A + 5B**（可先用 Phase 2.2 balanced 600 基线，Phase 2.3 完成后切换） |
 
 ---
 
@@ -211,71 +216,68 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 - **不验收** Macro F1 ≥ 0.80（5 条训不出来）
 - **不验收** 误报率 ≤ 5%（同上）
 
-> ⚠️ **重要**：Phase 2.1 完成后**不要**用 `lora_baseline.safetensors` 跑 C4/C5/C6 评估——5 条训出的 head 没有真实能力。真实训练见 Phase 2.2。
+> ⚠️ **重要**：Phase 2.1 完成后**不要**用 `lora_baseline.safetensors` 跑 C4/C5/C6 评估——5 条训出的 head 没有真实能力。Phase 2.2 的 balanced 600 模型只能作为增强微调前的实验基线；真正高质量底座见 Phase 2.3。
 
 ---
 
-## Phase 2.2 — 真实数据全量微调（对应 C2 · 续）
+## Phase 2.2 — balanced 600 均衡训练（对应 C2 · 续）
 
-> **真实训练** = 用 2000+ 样本的全量数据集，训出**基本可用**的 LoRA + 3-class head 头。目的：为 Phase 3 / 4 / 5（C4 / C5 / C6）的所有评估提供 Macro F1 ≥ 0.50 的真实基线模型。
-> 与 Phase 2.1 的 smoke 训练相比，Phase 2.2 训出的 `lora_full.safetensors` **是 C4/C5/C6 的"标尺"**——后续所有优化（早退 / 规则前置 / 跨模态一致性）都基于这个模型做对比。
+> **balanced 600 训练** = 使用 clean / direct / indirect 三类均衡的 600 条训练样本，跑通从数据抽样、LoRA + 3-class head 训练、compare、package 到 offline smoke 的完整端到端流程。
+> 与 Phase 2.1 的 smoke 训练相比，Phase 2.2 训出的 `lora_full.safetensors` 是一个真实训练过的实验基线，但结果已证明还不足以作为最终高质量底座；后续 Phase 2.3 需要在更强数据集和训练设计上继续增强。
 >
 > **与 Phase 2.1 的关键差异**：
 >
-> | 维度 | Phase 2.1（smoke） | Phase 2.2（真实训练） |
+> | 维度 | Phase 2.1（smoke） | Phase 2.2（balanced 600） |
 > |---|---|---|
-> | 训练样本数 | 5 条 | ≥ 2000 条 |
-> | 数据集 | smoke 子集 | 全量数据（Flickr30k 完整图像 + JailbreakV-28K 全量 + 注入公开集） |
-> | 训练时长 | ≤ 15 min | 1-3 h（mac M1） / 5-10 h（x86 CPU） |
-> | 目标 | 验证管线 | **Macro F1 ≥ 0.50**（test set） |
-> | 产物用途 | CI / 回归 | C4/C5/C6 评估基线 |
+> | 训练样本数 | 5 条 | 600 条，clean / direct / indirect 各 200 |
+> | 数据集 | smoke 子集 | 从基础数据中均衡抽样，重点验证端到端训练流程 |
+> | 训练时长 | ≤ 15 min | 约数小时到十余小时，取决于 CPU / MPS 环境 |
+> | 目标 | 验证管线 | 验证 balanced 训练闭环并形成 Phase 2.3 的复盘基线 |
+> | 产物用途 | CI / 回归 | 增强微调前的实验基线，不作为最终高 F1 底座 |
 > | 离线包 | `lora_baseline.safetensors`（占位） | `lora_full.safetensors`（生产） |
 >
-> **为什么是 2000？**：
-> - 数据集去重后总量 ≥ 25k，2000 已能稳定学到 clean / direct / indirect 三类的判别特征
-> - 单次训练（2000 样本 × 3 epoch）在 M1 CPU 上 1-3 h 可完成，可接受的"一次性投入"
-> - 比 smoke 训出的 head 真实可用；比 25k 全量训快 10x
-> - 留出预算给 C4/C5/C6 优化阶段在 2000 样本上反复迭代
+> **为什么是 balanced 600？**：
+> - 三类各 200 条，避免 direct / indirect 被大规模 clean 或 direct 原始分布淹没
+> - 规模足够验证训练、compare、package、offline smoke 的端到端执行
+> - 成本低于增强训练，适合先发现路径、日志、恢复、报告和离线包问题
+> - 结果复盘显示：clean 表现好，但 direct 仍弱、indirect 基本未学到，因此后续统一进入 Phase 2.3 增强微调
 
 ### T2.13-T2.15 数据准备
 
-- [ ] **T2.13** 扩展 `scripts/download_data.py`：下载**完整数据集** `[P:high][D:T1.4]`
-  - **Flickr30k 完整图像**（annotations CSV 已下，补下 4.4 GB 图像 zip）
-  - **JailbreakV-28K 完整 figstep 图像**（原 22000 行 cap 改为全量）
-  - **JailbreakV-28K 完整 text-based 注入子集**（与 figstep 互补）
-  - 目标：总数据量 ≥ 25k 条（去重后）；下载到 `runs/_datasets/raw/`
+- [ ] **T2.13** 扩展 `scripts/download_data.py`：下载 Phase 2.2 balanced 600 所需基础数据 `[P:high][D:T1.4]`
+  - 覆盖 clean / direct / indirect 三类候选来源
+  - 支持后续从基础数据中进行均衡抽样
+  - 下载到 `runs/_datasets/raw/`
   - 进度条 + 断点续传 + sha256 校验
-- [ ] **T2.14** 重新跑 `scripts/build_phase1.py` 生成全量数据 split `[P:high][D:T2.13]`
-  - 全量 `runs/_datasets/mpid-v1/train.jsonl` / `val.jsonl` / `test.jsonl`（8:1:1，类别均衡）
-  - 训练集 ≥ 20k 条、验证集 ≥ 2.5k、测试集 ≥ 2.5k
-  - 输出 `runs/_datasets/mpid-v1/EDA_full.md`（类别 / 语种 / 长度分布）
-  - cross-modal 增强子集 `runs/_datasets/mpid-v1-crossmodal/` ≥ 2k 条（C6 用）
-- [ ] **T2.15** 写 `runs/_templates/configs/full.yaml` 真实训练配置 `[P:high][D:T2.14]`
+- [ ] **T2.14** 重新跑数据构建脚本生成 balanced 600 训练集和独立 compare 数据集 `[P:high][D:T2.13]`
+  - 训练集 600 条：clean / direct / indirect 各 200 条
+  - compare 使用 clean-only / direct-only / indirect-only 三组独立数据，尽量避免与训练样本重叠
+  - 输出数据分布说明（类别 / 来源 / 是否带图 / 模板类型）
+  - 保留 cross-modal 增强子集作为后续 C6 和 Phase 2.3 的候选数据
+- [ ] **T2.15** 写 `runs/_templates/configs/full.yaml` balanced 600 训练配置 `[P:high][D:T2.14]`
   - 复用 `runs/_templates/configs/baseline.yaml` 的 LoRA 超参（r=16, alpha=32）
-  - 训练规模：`max_train_records=2000`、`max_val_records=500`
-  - 训练轮数：3 epoch，batch=2，grad_accum=4（effective batch=8）
+  - 训练规模：`max_train_records=600`，clean / direct / indirect 均衡
+  - 训练轮数：以 run 配置为准，优先确保端到端流程可稳定完成
   - 学习率：2e-4（LoRA 标准），warmup_ratio=0.1
-  - 评估频率：每 200 step 跑一次 val
+  - 保留训练日志、checkpoint、compare、package 和 offline smoke 配置
 
 ### T2.16-T2.19 训练与跨平台验证
 
-- [ ] **T2.16** 在 mac MPS 上跑真实训练 2000 样本 × 3 epoch，保存 `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` `[P:high][D:T2.15]`
-  - 预计 1-3 小时（MacBook M1 CPU）/ 5-10 小时（x86 CPU）
+- [ ] **T2.16** 跑 balanced 600 训练，保存 `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` `[P:high][D:T2.15]`
+  - 输出 `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`
   - 输出 `runs/<run_id>/artifacts/checkpoints/train_summary_full.json`（loss 曲线、val F1、训练时长）
-  - 早停 patience=3（连续 3 个 eval 点 val F1 不升则停）
-- [ ] **T2.17** 评估真实训练模型：`python scripts/eval.py --ckpt runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` `[P:high][D:T2.16]`
-  - 输出 `report_full.json` + `confusion_matrix_full.png`
-  - **目标**：test set **Macro F1 ≥ 0.50**（clean / direct / indirect 三类平均）
-  - 三类各自 Recall ≥ 0.40（不能有类完全学不到）
-  - cross-modal 子集 Recall ≥ 0.30（间接注入基线）
-- [ ] **T2.18** 对比 smoke 与真实训练模型：`python scripts/eval.py --compare-smoke-vs-full` `[P:high][D:T2.17]`
-  - 输出 `comparison_full_vs_smoke.json`（两类模型在 test set 上的 F1 / Recall / risk 分布）
-  - 真实模型必须**全指标优于** smoke 模型（验证"训了真东西"）
-- [ ] **T2.19** 在 x86 CPU 上验证跨平台一致性 `[P:high][D:T2.16]`
-  - 同样配置（2000 样本 × 3 epoch）跑一遍 x86 CPU
-  - 对比 x86 与 MPS 两份 `lora_full.safetensors` 在相同 test set 上的 Macro F1
-  - **F1 差异 < 5%**（与 Phase 2.1 的 2% 标准不同——真实训练随机性更大，5% 可接受）
-  - 输出 `runs/<run_id>/artifacts/checkpoints/cross_platform_full.json`
+- [ ] **T2.17** 评估 balanced 600 模型：`python scripts/eval.py --ckpt runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` `[P:high][D:T2.16]`
+  - 输出模型绝对效果报告、混淆矩阵、预测分布
+  - 至少覆盖 clean-only / direct-only / indirect-only 三组独立 compare
+  - 记录三类目标类 Precision / Recall / F1，为 Phase 2.3 复盘提供基线
+- [ ] **T2.18** 对比 baseline 与 balanced 600 模型 `[P:high][D:T2.17]`
+  - 输出 baseline vs balanced 600 的分类指标差异
+  - 同时保留新模型绝对效果报告和 baseline 对比报告
+  - 记录已知结果：clean 较好，direct 有提升但仍不足，indirect 未达预期
+- [ ] **T2.19** 复盘 balanced 600 局限并形成 Phase 2.3 输入 `[P:high][D:T2.17]`
+  - 分析训练数据来源、标签分布、是否带图、文本长度、模板类型和预测混淆
+  - 明确未达预期的类别和原因假设
+  - 输出 Phase 2.3 数据与训练改造建议
 
 ### T2.20-T2.21 离线包更新
 
@@ -290,25 +292,22 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
   - 确认推理过程**零网络流量**
 
 **Phase 2.2 验收**：
-- 完整数据集已下载（≥ 25k 条去重后），`runs/_datasets/raw/` 有 Flickr30k 完整图像 + JailbreakV-28K 全量
-- 全量数据 split 生成：`train ≥ 20k` / `val ≥ 2.5k` / `test ≥ 2.5k`
-- 真实训练完成：`runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` 存在，`train_summary_full.json` 记录训练时长
-- **test set Macro F1 ≥ 0.50**（核心硬性指标，未达此值不进 Phase 3）
-- 跨平台一致性：x86 vs MPS F1 差异 < 5%
-- `lora_full.safetensors` 与 smoke 模型对比全指标优
+- balanced 600 训练数据已生成，clean / direct / indirect 各 200 条
+- 训练完成：`runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` 存在，`train_summary_full.json` 记录训练时长和 loss
+- clean-only / direct-only / indirect-only 三组 compare 均完成
+- 输出 balanced 600 模型绝对效果报告和 baseline 对比报告
+- 明确记录未达预期的类别与原因，作为 Phase 2.3 增强微调输入
 - 离线包 `runs/<run_id>/artifacts/package/mpid_offline/` 解包后能单样本推理，零网络流量
 
 **Phase 2.2 关键产物**：
-- `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` — **生产级 LoRA + head 权重**（C4/C5/C6 评估基线）
+- `runs/<run_id>/artifacts/checkpoints/lora_full.safetensors` — balanced 600 LoRA + head 权重（增强微调前实验基线）
 - `runs/<run_id>/artifacts/checkpoints/train_summary_full.json` — 训练时长 / loss / val F1
-- `runs/<run_id>/artifacts/checkpoints/report_full.json` — test set 评估报告
-- `runs/<run_id>/artifacts/checkpoints/comparison_full_vs_smoke.json` — smoke vs 真实训练对比
-- `runs/<run_id>/artifacts/checkpoints/cross_platform_full.json` — MPS vs x86 CPU 跨平台一致性
-- `runs/_datasets/raw/flickr30k-images/` + `runs/_datasets/raw/jailbreakv-28k/` — 完整数据集
-- `runs/_datasets/mpid-v1/{train,val,test}.jsonl` — 全量 split
+- `runs/<run_id>/artifacts/compare/` — clean-only / direct-only / indirect-only compare 报告
+- `runs/<run_id>/artifacts/compare/*baseline*` — baseline 对比报告
+- `runs/<run_id>/artifacts/reports/` — balanced 600 结果复盘与 Phase 2.3 改进输入
 - `runs/<run_id>/artifacts/package/mpid_offline/` — 基于 `lora_full` 的离线包
 
-**下游依赖**：Phase 3（C4 早退）/ Phase 4（C5 规则前置）/ Phase 5A + 5B（C6 跨模态一致性）可先依赖 Phase 2.2 的 `lora_full.safetensors` 作为基线；Phase 2.3 完成后，应优先切换到 Phase 2.3 高 F1 checkpoint 作为新的模型底座。
+**下游依赖**：Phase 2.2 的 `lora_full.safetensors` 只作为 balanced 600 实验基线和 Phase 2.3 复盘输入；Phase 3（C4 早退）/ Phase 4（C5 规则前置）/ Phase 5A + 5B（C6 跨模态一致性）在 Phase 2.3 完成后，应优先切换到 Phase 2.3 高 F1 checkpoint 作为新的模型底座。
 
 ---
 
@@ -320,35 +319,58 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 >
 > **阶段边界**：本阶段仍属于 Phase 2 的模型底座改进，不依赖 Phase 3/4/5 的规则或级联兜底来“补分”。Phase 3/4/5 可以后续叠加，但 Phase 2.3 的验收必须先证明 VLM + LoRA + head 本身达到可接受分类能力。
 >
-> **前置约束**：Phase 2.3 在启动训练前，必须先定义并冻结一套合适的训练 / 验证数据集契约，包括来源清单、标签映射、每类样本量、text-only 与 image+text 比例、去重规则、train/val/test 隔离规则、验证切片和验收指标。未形成数据集 manifest 前，不允许直接启动训练。
+> **前置约束**：Phase 2.3 在启动训练前，必须先定义并冻结一套合适的训练 / 验证数据集契约，包括来源清单、标签映射、每类样本量、text-only 与 image+text 比例、OCR / cross-modal / C6B 兼容字段、去重规则、train/val/test 隔离规则、验证切片和验收指标。未形成数据集 manifest 前，不允许直接启动训练。
 
 ### T2.22-T2.25 数据集改造
 
-- [ ] **T2.22** 建立 Phase 2.3 数据审计报告：复盘 balanced 600 的 train/eval 来源、标签分布、是否带图、文本长度、语言、模板类型和预测混淆 `[P:high][D:T2.21]`
-- [ ] **T2.23** 定义并冻结 Phase 2.3 数据集契约：明确 train / val / test / compare eval 的来源、标签映射、每类样本量、source/template/lang/has_image 分层比例、去重规则和验收指标；输出 `phase2_3_dataset_manifest.json` 与人工可读说明 `[P:high][D:T2.22]`
-- [ ] **T2.24** 重建训练集抽样策略：每类至少 1000 条；clean / direct / indirect 都要包含多来源、多语言、长短文本，并加入“带图 clean”负样本，避免模型把“有图”误学为 indirect；抽样必须严格遵守 T2.23 数据集契约 `[P:high][D:T2.23]`
-- [ ] **T2.25** 加强并冻结验证集：大幅引入 `synthetic_image_injection`、figstep、截图文字、水印、表格/list/聊天截图等多模板样本；clean-only / direct-only / indirect-only 验证集各 100-300 条，且验证分布必须覆盖训练分布但不与训练样本重叠 `[P:high][D:T2.23]`
+- [x] **T2.22** 建立 Phase 2.3 数据审计报告：复盘 balanced 600 的 train/eval 来源、标签分布、是否带图、文本长度、语言、模板类型和预测混淆；输出 `phase2_3_data_audit.md`，明确 clean / direct / indirect 未达预期的可验证原因假设 `[P:high][D:T2.21][T:0.2-0.5h 实测约 10min]`
+- [x] **T2.23** 定义并冻结 Phase 2.3 数据集契约：明确 train / val / test / compare eval 的来源、标签映射、每类样本量、source/template/lang/has_image 分层比例、去重规则和验收指标；必须包含后续 C6B 可复用字段：`ocr_text`、`ocr_confidence`、`text_image_consistency_label`、`cross_modal_attack_type`、`has_instruction_override`、`hard_negative_type`；输出 `phase2_3_dataset_manifest.json` 与人工可读说明 `[P:high][D:T2.22][T:1-2h]`
+- [x] **T2.24** 重建训练集抽样策略：每类至少 1000 条；clean / direct / indirect 都要包含多来源、多语言、长短文本；indirect 必须覆盖 text-only indirect、OCR/image indirect、email/tool-use indirect 和非模板化改写；加入带图 clean、含 OCR 但无攻击、图文不相关但无攻击等 hard negative，避免模型把“有图/OCR/不相关”误学为 indirect；抽样必须严格遵守 T2.23 数据集契约。已在 `runs/phase2_3_full_2000_20260727_1211/data/train.jsonl` 生成 3000 条训练样本，clean/direct/indirect 各 1000 条 `[P:high][D:T2.23][T:3-8h 实测约几十分钟]`
+- [x] **T2.25** 加强并冻结验证集：冻结两套互斥 compare eval set，quick set 为 clean-only / direct-only / indirect-only 各 50 条，full set 为三类各 200 条；大幅引入 `synthetic_image_injection`、figstep、截图文字、水印、表格/list/聊天截图、OCR 改写、跨语言和 hard negative；验证分布必须覆盖训练分布但不与训练样本重叠。已生成 `compare_quick_*`、`compare_full_*`、`resume_smoke.jsonl` 与 `phase2_3_dataset_hashes.json`，并确认与训练集无 `dedup_key/source_record_id` 交叉 `[P:high][D:T2.23][T:1-3h 实测约几十分钟]`
 
 ### T2.26-T2.29 训练设计改造
 
-- [ ] **T2.26** 设计 Phase 2.3 训练配置模板 `runs/_templates/configs/phase2_3_high_f1.yaml`：建议起点为 2000-3000 steps、等效 batch size 8-16、LoRA r=16/32、lr sweep=`5e-5,1e-4,2e-4`、dropout=`0.05,0.10` `[P:high][D:T2.25]`
-- [ ] **T2.27** 增加训练期 checkpoint 评估：每 250 或 500 step 在三组验证集上跑目标类 F1，保存 `best_by_min_class_f1` checkpoint，而不是只保存最后一步 `[P:high][D:T2.26]`
-- [ ] **T2.28** 评估是否扩展可训练模块：除语言 attention 的 `q_proj,k_proj,v_proj,o_proj` 外，调研 vision projector / multimodal connector / 更高 rank LoRA 是否能改善 indirect；先记录风险和成本，不默认启用 `[P:medium][D:T2.26]`
-- [ ] **T2.29** 评估两阶段分类方案：先做 clean vs attack，再做 direct vs indirect；如三分类 argmax 继续偏 clean，则将两阶段方案作为 Phase 2.3 的备选训练目标 `[P:medium][D:T2.27]`
+- [x] **T2.26** 设计并冻结 Phase 2.3 完整训练配置：将原训练配置模板与 run 决策冻结合并处理，输出 `runs/_templates/configs/phase2_3_high_f1.yaml`、run-local 配置副本和 `phase2_3_run_decisions.md`；必须一次性确认 run id、随机种子、训练步数、首轮 sweep 组合数量、是否启用两阶段分类、是否启用扩展可训练模块、训练集 manifest、quick/full compare set 路径、checkpoint/log/断点续训策略、best checkpoint 选择标准；未完成本项前不启动 resume smoke 或正式训练。已冻结首轮单组配置：2000 steps、LoRA r=32/alpha=64/dropout=0.10、lr=1e-4、每 5 step log、每 50 step checkpoint、10% quick compare、50%/100% full compare、best_by_min_class_f1 选优；readiness 预检通过 `[P:high][D:T2.25][T:1.5-3h]`
+- [ ] **T2.27** 增加训练期 checkpoint 评估：根据配置中的 `train_steps`，每完成 10% steps 在 quick set 上跑目标类 F1，50% / 100% / best candidate 在 full set 上跑完整 compare，保存 `best_by_min_class_f1` checkpoint，而不是只保存最后一步 `[P:high][D:T2.26][T:1-3h 开发；每次 quick compare 约 1.5-2h CPU；每次 full compare 约 3-4h CPU]`
+- [ ] **T2.28** 评估是否扩展可训练模块：除语言 attention 的 `q_proj,k_proj,v_proj,o_proj` 外，调研 vision projector / multimodal connector / 更高 rank LoRA 是否能改善 indirect；必须先用小规模 smoke/sanity run 记录显存/CPU 时间、loss 稳定性和 clean FPR 风险，不默认启用 `[P:medium][D:T2.26][T:1-2h]`
+- [ ] **T2.29** 评估两阶段分类方案：先做 clean vs attack，再做 direct vs indirect；如三分类 argmax 继续偏 clean，则将两阶段方案作为 Phase 2.3 的备选训练目标；若启用，compare 报告必须同时输出三分类口径和两阶段口径 `[P:medium][D:T2.27][T:0.5-1h]`
 
 ### T2.30-T2.32 验证与报告改造
 
-- [ ] **T2.30** 校验三组独立验证集：确认 clean-only / direct-only / indirect-only 均符合 T2.23 数据集契约，按 source/template/lang/has_image 输出切片分布，并在训练前冻结 `[P:high][D:T2.25]`
-- [ ] **T2.31** 扩展 compare 报告：同时输出新模型绝对效果、baseline 对比、目标类 P/R/F1、混淆矩阵、预测分布、按 source/template/lang/has_image 切片指标和误判样本清单 `[P:high][D:T2.30]`
-- [ ] **T2.32** 跑 Phase 2.3 端到端训练与最终验收：训练 → 三组 compare → package → offline smoke；最终报告必须说明三个目标类 F1 是否均 > 0.70，以及未达标类别的下一步原因定位 `[P:high][D:T2.31]`
+- [ ] **T2.30** 校验三组独立验证集：确认 quick/full 两套 clean-only / direct-only / indirect-only 均符合 T2.23 数据集契约，按 source/template/lang/has_image/ocr_present/cross_modal_attack_type/hard_negative_type 输出切片分布，并在训练前冻结 sha256 `[P:high][D:T2.25][T:0.5-1h]`
+- [ ] **T2.31** 扩展 compare 报告：同时输出新模型绝对效果、baseline 对比、目标类 P/R/F1、混淆矩阵、预测分布、按 source/template/lang/has_image/ocr_present/cross_modal_attack_type/hard_negative_type 切片指标和误判样本清单；报告必须标注使用 quick set 还是 full set `[P:high][D:T2.30][T:1-3h]`
+- [ ] **T2.32** 跑 Phase 2.3 端到端训练与最终验收：resume smoke → 正式训练 → 训练期 compare → best checkpoint 选择 → 三组 full compare → package → offline smoke；最终报告必须说明三个目标类 F1 是否均 > 0.70，以及未达标类别的下一步原因定位 `[P:high][D:T2.31,T2.36,T2.37][T:resume smoke ≤1h；训练约 16-30h CPU；compare 合计约 15-24h CPU；package/smoke 约 1h]`
+
+### T2.33-T2.39 增强训练执行控制
+
+- [ ] **T2.33** 明确训练期 compare 节奏：每完成 10% training steps 触发一次 quick compare；如果 `train_steps` 不是 10 的倍数，使用向上取整 step 边界，最终 100% 必跑 `[P:high][D:T2.26,T2.30][T:0.5-1h]`
+- [ ] **T2.34** 明确训练期 compare 样本规模：quick compare 固定使用 clean / direct / indirect 各 50 条样本（共 150 条）；关键 checkpoint（50% / 100% / best candidate）追加 clean / direct / indirect 各 200 条 full compare（共 600 条） `[P:high][D:T2.30][T:0.5h]`
+- [ ] **T2.35** 保留训练日志和 checkpoint 频率：每 5 step 打一次训练 log，每 50 step 保存一次 checkpoint；compare 报告必须标注当前 step、样本规模、目标类 P/R/F1、loss 摘要和预测分布 `[P:high][D:T2.26,T2.31][T:0.5-1h]`
+- [ ] **T2.36** 完成第 4 步：补齐 checkpoint / resume 能力并通过 resume smoke 验收。先改造或封装训练 launcher，使正式长训练前具备以下能力：每 50 step 保存 `checkpoint_step_<step>.safetensors`，同步维护 `latest.safetensors`，恢复时自动按 `latest.safetensors` → 最新 `checkpoint_step_*.safetensors` → 兼容旧 `partial_name` 的顺序发现 checkpoint，恢复 LoRA/head 权重、逻辑 step、`resume_global_step`、日志追加模式和 compare 调度状态；再用 `configs/resume_smoke.yaml` 与 `data/resume_smoke.jsonl` 做短步数验证，第一段跑到 10 step 并生成 checkpoint，第二段从 checkpoint 恢复再跑 5 step，确认 step 不回退、日志不覆盖、checkpoint 可发现、compare 调度不重复或漏跑；输出 `phase2_3_resume_smoke_report.md/json`，目标总耗时 ≤ 1h。未通过本项前不启动正式长训练 `[P:high][D:T2.26][T:≤1h]`
+- [ ] **T2.37** 明确 best checkpoint 选择标准：训练期不只保留最后一步，必须输出 `best_by_min_class_f1`，优先选择 clean / direct / indirect 三类目标 F1 的最小值最高的 checkpoint；若 min F1 并列，再按 macro F1、indirect F1、clean FPR 依次打破平局 `[P:high][D:T2.27,T2.31][T:0.5-1h]`
+- [ ] **T2.38** 补充阶段时间评估：数据审计 0.2-0.5h；数据契约冻结 1-2h；数据构造 3-8h；验证集冻结 1-3h；训练配置 1-2h；resume smoke ≤1h；训练主流程 16-30h；训练期 compare 15-24h；最终验收 2-4h；整体约 40-75h，不含人工复核返工 `[P:high][D:T2.22-T2.37][T:0.5h]`
+- [ ] **T2.39** 输出增强微调执行报告：报告需要覆盖训练耗时、compare 耗时、sweep 组合与选择理由、各 checkpoint 指标走势、最终 best checkpoint 指标、C6B 兼容数据字段覆盖情况、是否达到所有分类目标类 F1 > 0.70，以及未达标类别的下一步定位 `[P:high][D:T2.32,T2.37][T:1-3h]`
+
+### T2.40-T2.42 执行前决策冻结
+
+- [x] **T2.40** 并入 T2.26，不再作为独立执行项：Phase 2.3 run 配置冻结、训练参数选择和执行决策统一在 T2.26 中完成；`phase2_3_run_decisions.md` 仍作为 T2.26 的输出之一 `[P:high][D:T2.26]`
+- [x] **T2.41** 冻结数据源纳入规则：确认哪些 downloaded basic 数据直接进入训练，哪些只进入 validation/compare，哪些保留 manual review；明确 license/terms 状态、重复样本处理和 label 冲突处理策略 `[P:high][D:T2.23][T:1-2h]`
+- [ ] **T2.42** 冻结成功/失败处理策略：若任一分类 full-set F1 ≤ 0.70，必须先输出失败分析和下一轮数据/超参改动建议；若 clean FPR 明显上升，必须优先回滚到更保守 checkpoint 或增加 hard negative，不允许只追求 indirect F1 `[P:high][D:T2.31,T2.37][T:0.5-1h]`
 
 **Phase 2.3 验收**：
 - 训练前已冻结数据集契约和 manifest，且训练 / 验证 / compare 全部引用同一份契约
+- 已冻结 `phase2_3_run_decisions.md`，明确 run id、随机种子、sweep 组合、训练步数和是否启用备选训练方案
 - clean-only 目标类 F1 > 0.70
 - direct-only 目标类 F1 > 0.70
 - indirect-only 目标类 F1 > 0.70
 - 三组验证集均输出绝对效果报告和 baseline 对比报告
 - indirect 验证集中不能出现目标类 recall = 0 的失败模式
+- 训练期 compare 样本规模明确：快速集 3×100，完整集 3×200
+- 中断后可从最新 checkpoint 继续训练
+- 训练过程保持每 5 step log、每 50 step checkpoint
+- 正式长训练前 resume smoke 验证通过：中断恢复后 step/log/checkpoint/compare 调度均连续，且耗时 ≤ 1h
+- 最终 checkpoint 按 `best_by_min_class_f1` 选择，而不是默认最后一步
+- 报告说明 C6B 兼容字段覆盖情况，后续 C6B 可复用 Phase 2.3 数据资产
 - 通过 package 和 offline smoke，产出可离线运行的 Phase 2.3 checkpoint 包
 
 **Phase 2.3 暂缓事项**：

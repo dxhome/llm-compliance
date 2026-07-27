@@ -1,0 +1,21 @@
+# Phase 3-5 Lightweight Execution Log
+
+- [2026-07-19 08:52:50] Created run directory: runs\phase3_5_lightweight_20260719_085250
+- [2026-07-19 08:53:18] C4 tests finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\02_c4_tests.log
+- [2026-07-19 08:56:39] C4 eval smoke finished with exit code 1. Log: runs\phase3_5_lightweight_20260719_085250\logs\03_c4_eval_10.log Out: runs\phase3_5_lightweight_20260719_085250\artifacts\c4
+- [2026-07-19 08:58:06] Created text-only C4 smoke dataset/config: runs\phase3_5_lightweight_20260719_085250\data\val_text_only.jsonl, runs\phase3_5_lightweight_20260719_085250\configs\c4_smoke.yaml
+- [2026-07-19 08:58:37] C4 text-only eval smoke finished with exit code 1. Log: runs\phase3_5_lightweight_20260719_085250\logs\03b_c4_eval_text_only_10.log Out: C:\work\llm-compliance\runs\phase3_5_lightweight_20260719_085250\artifacts\c4
+- [2026-07-19 08:58:52] Rewrote C4 smoke JSONL/config as UTF-8 without BOM.
+- [2026-07-19 09:01:51] C4 text-only eval smoke retry finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\03c_c4_eval_text_only_10.log Out: C:\work\llm-compliance\runs\phase3_5_lightweight_20260719_085250\artifacts\c4
+- [2026-07-19 09:03:28] C5 rules smoke finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\05_c5_rules_smoke.log
+- [2026-07-19 09:03:29] C5 rules tests finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\04_c5_tests.log
+- [2026-07-19 09:04:44] C6 crossmodal smoke finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\07_c6_crossmodal_smoke.log
+- [2026-07-19 09:04:44] C6 heuristic tests finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\06_c6_tests.log
+- [2026-07-19 09:06:09] Lightweight pipeline tests finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\08_pipeline_tests.log
+- [2026-07-19 09:06:14] Lightweight pipeline CLI smoke finished with exit code 1. Log: runs\phase3_5_lightweight_20260719_085250\logs\09_pipeline_cli_smoke.log
+- [2026-07-19 09:08:10] Lightweight pipeline CLI smoke retry finished with exit code 1. Log: runs\phase3_5_lightweight_20260719_085250\logs\09b_pipeline_cli_smoke.log Out: runs\phase3_5_lightweight_20260719_085250\artifacts\pipeline\pipeline_cli_smoke.jsonl
+- [2026-07-19 09:08:53] Pipeline tests after CLI patch finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\08b_pipeline_tests_after_cli_patch.log
+- [2026-07-19 09:09:22] Lightweight pipeline CLI smoke retry finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\09b_pipeline_cli_smoke.log Out: runs\phase3_5_lightweight_20260719_085250\artifacts\pipeline\pipeline_cli_smoke.jsonl
+- [2026-07-19 09:09:36] Offline package build finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\10_package_offline.log Out: runs\phase3_5_lightweight_20260719_085250\artifacts\package\mpid_offline_light
+- [2026-07-19 09:10:10] Offline package lightweight import smoke finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\11_package_import_smoke.log
+- [2026-07-19 09:11:01] Final lightweight Phase 3-5 test sweep finished with exit code 0. Log: runs\phase3_5_lightweight_20260719_085250\logs\12_final_lightweight_tests.log

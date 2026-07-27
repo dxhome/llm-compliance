@@ -1,0 +1,89 @@
+﻿  "run_name": "phase2_2_full_500_20260718_1956",
+  "eval_records": 500,
+  "batch_size": 1,
+{
+  "train_distribution": {
+  "train_steps": 500,
+  "offline_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\artifacts\\package\\mpid_offline",
+  "train_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\data\\train.jsonl",
+  "save_every": 50,
+  "config": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\configs\\train.yaml",
+  "log_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs",
+  "eval_after_epoch": false,
+  "epochs": 1,
+  "max_train_records": 500,
+  "log_every": 5,
+    "total": 500,
+    "labels": {
+      "direct": 403,
+      "indirect": 46,
+      "clean": 51
+    }
+  },
+  "val_distribution": {
+    "total": 2565,
+    "labels": {
+      "direct": 2068,
+      "clean": 297,
+      "indirect": 200
+    }
+  },
+  "steps": [
+    {
+      "id": "01_preflight",
+      "name": "Preflight checks",
+      "estimate_seconds": 5,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\01_preflight.log",
+      "estimate_hms": "5s"
+    },
+    {
+      "id": "02_smoke_train",
+      "name": "Smoke training check",
+      "estimate_seconds": 720,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\02_smoke_train.log",
+      "estimate_hms": "12m 0s"
+    },
+    {
+      "id": "03_train",
+      "name": "Train phase2_2_full_500_20260718_1956",
+      "estimate_seconds": 16336.0,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\03_train.log",
+      "estimate_hms": "4h 32m 16s"
+    },
+    {
+      "id": "04_eval",
+      "name": "Single-model eval (500 stratified records)",
+      "estimate_seconds": 5490.0,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\04_eval.log",
+      "estimate_hms": "1h 31m 30s"
+    },
+    {
+      "id": "05_compare",
+      "name": "Smoke-vs-full comparison (500 stratified records)",
+      "estimate_seconds": 10980.0,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\05_compare.log",
+      "estimate_hms": "3h 3m 0s"
+    },
+    {
+      "id": "06_package",
+      "name": "Offline package rebuild",
+      "estimate_seconds": 300,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\06_package.log",
+      "estimate_hms": "5m 0s"
+    },
+    {
+      "id": "07_offline_smoke",
+      "name": "Offline smoke validation",
+      "estimate_seconds": 300,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\07_offline_smoke.log",
+      "estimate_hms": "5m 0s"
+    }
+  ],
+  "total_estimate_seconds": 34131.0,
+  "total_estimate_hms": "9h 28m 51s"
+}
+  "out_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\artifacts\\checkpoints",
+  "execution_log": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\logs\\execution_log.md",
+  "checkpoint": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\artifacts\\checkpoints\\lora_full_500_restart.safetensors",
+  "run_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956",
+  "val_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_full_500_20260718_1956\\data\\val.jsonl",

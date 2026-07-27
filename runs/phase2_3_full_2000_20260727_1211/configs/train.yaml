@@ -1,0 +1,99 @@
+# Phase 2.3 high-F1 enhanced fine-tuning run-local config.
+# This file is frozen by T2.26 before resume smoke and long training.
+
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32
+  device: cpu
+  quantization: null
+  gradient_checkpointing: false
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.10
+  target: q_proj,k_proj,v_proj,o_proj
+
+training:
+  epochs: 1
+  max_train_records: 3000
+  max_val_records: 150
+  max_train_steps: 2000
+  batch_size: 1
+  lr: 1.0e-4
+  weight_decay: 0.0
+  class_weighted: true
+  early_stop_patience: 3
+  log_every: 5
+  save_every: 50
+  partial_name: lora_phase2_3_latest.safetensors
+  checkpoint_name: lora_phase2_3_high_f1.safetensors
+  eval_after_epoch: false
+  seed: 42
+  preload_dataset: true
+  max_train_seconds: 0.0
+  resume_from: ""
+  skip_train_batches: 0
+  resume_global_step: 0
+
+io:
+  train_jsonl: ../data/train.jsonl
+  val_jsonl: ../data/compare_quick_all.jsonl
+  out_dir: ../artifacts/checkpoints
+
+phase2_3:
+  run_name: phase2_3_full_2000_20260727_1211
+  objective: clean_direct_indirect_target_f1_gt_0_70
+  selection_metric: best_by_min_class_f1
+  baseline_run: ../../phase2_2_balanced_600_20260718_1955
+  dataset_manifest: ../data/phase2_3_dataset_manifest.json
+  dataset_hashes: ../data/phase2_3_dataset_hashes.json
+
+compare:
+  quick:
+    records_per_label: 50
+    total_records: 150
+    sets:
+      clean: ../data/compare_quick_clean.jsonl
+      direct: ../data/compare_quick_direct.jsonl
+      indirect: ../data/compare_quick_indirect.jsonl
+      all: ../data/compare_quick_all.jsonl
+    schedule_percent: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    log_every_samples: 5
+  full:
+    records_per_label: 200
+    total_records: 600
+    sets:
+      clean: ../data/compare_full_clean.jsonl
+      direct: ../data/compare_full_direct.jsonl
+      indirect: ../data/compare_full_indirect.jsonl
+      all: ../data/compare_full_all.jsonl
+    schedule_steps: [1000, 2000]
+    run_for_best_candidate: true
+    log_every_samples: 5
+
+checkpoint_policy:
+  save_every_steps: 50
+  latest_name: latest.safetensors
+  step_name_pattern: checkpoint_step_{step}.safetensors
+  final_name: lora_phase2_3_high_f1.safetensors
+  best_name: lora_phase2_3_best_by_min_class_f1.safetensors
+  resume_discovery_order:
+    - latest.safetensors
+    - checkpoint_step_*.safetensors
+    - lora_phase2_3_latest.safetensors
+
+resume_smoke:
+  data: ../data/resume_smoke.jsonl
+  max_train_records: 18
+  max_train_steps_first_leg: 10
+  max_train_steps_resume_leg: 5
+  log_every: 5
+  save_every: 10
+  target_total_time_minutes_max: 60
+
+decisions:
+  first_run_sweep_count: 1
+  two_stage_classifier: disabled_initially
+  extended_trainable_modules: disabled_initially
+  escalation_if_underfit: resume_to_3000_steps_after_compare_review

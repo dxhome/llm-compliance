@@ -1,0 +1,16 @@
+{
+  "run_name": "phase2_3_full_2000_20260727_1211",
+  "phase": "phase2.3",
+  "target": "enhanced full 2000-style fine-tuning",
+  "baseline_run": "runs/phase2_2_balanced_600_20260718_1955",
+  "current_step": "T2.36",
+  "steps": [
+    {"id": "T2.22", "name": "Data audit", "status": "completed"},
+    {"id": "T2.23", "name": "Dataset contract and manifest", "status": "completed"},
+    {"id": "T2.24", "name": "Training set sampling strategy", "status": "completed"},
+    {"id": "T2.25", "name": "Quick/full eval set construction", "status": "completed"},
+    {"id": "T2.26", "name": "Training config and run decision freeze", "status": "completed"},
+    {"id": "T2.36", "name": "Resume smoke before long training", "status": "pending"},
+    {"id": "T2.32", "name": "Full training, compare, package, offline smoke", "status": "pending"}
+  ]
+}

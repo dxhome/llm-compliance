@@ -1,0 +1,126 @@
+﻿[2026-07-19 17:07:51] STEP: Build execution plan
+[2026-07-19 17:07:51] ATTEMPT: 1/1
+[2026-07-19 17:07:51] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/plan_phase2_workflow.py --config C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\configs\train.yaml --run-name phase2_2_balanced_600_20260718_1955 --run-dir C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955 --eval-records 100 --log-dir C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\logs --offline-dir C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\package\mpid_offline --json-out C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\execution_plan.json --md-out C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\execution_plan.md
+[2026-07-19 17:07:51] ESTIMATE_SECONDS: 5
+
+
+[stdout]
+
+  "run_name": "phase2_2_balanced_600_20260718_1955",
+  "log_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs",
+  "run_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955",
+    "indirect": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_indirect_100.jsonl"
+  "eval_sets": {
+  "config": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\configs\\train.yaml",
+    "clean": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_clean_100.jsonl",
+  "batch_size": 1,
+  "execution_log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\execution_log.md",
+  "train_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\train.jsonl",
+  "out_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\artifacts\\checkpoints",
+  "offline_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\artifacts\\package\\mpid_offline",
+  "eval_records": 100,
+  },
+  "max_train_records": 600,
+  "save_every": 50,
+  "epochs": 1,
+    "direct": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_direct_100.jsonl",
+  "train_steps": 600,
+  "log_every": 5,
+  "eval_after_epoch": false,
+  "train_distribution": {
+    "total": 600,
+    "labels": {
+      "direct": 200,
+      "indirect": 200,
+      "clean": 200
+    }
+  },
+  "val_distribution": {
+    "total": 2565,
+    "labels": {
+      "direct": 2068,
+      "clean": 297,
+      "indirect": 200
+    }
+  },
+  "steps": [
+    {
+      "id": "01_preflight",
+      "name": "Preflight checks",
+      "estimate_seconds": 5,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\01_preflight.log",
+      "estimate_hms": "5s"
+    },
+    {
+      "id": "02_smoke_train",
+      "estimate_seconds": 720,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\02_smoke_train.log",
+      "estimate_hms": "12m 0s"
+    },
+    {
+      "name": "Smoke training check",
+      "name": "Train phase2_2_balanced_600_20260718_1955",
+      "id": "03_train",
+      "estimate_seconds": 19572.0,
+      "estimate_hms": "5h 26m 12s"
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\03_train.log",
+    },
+    {
+      "name": "Build label-only eval sets (100 records each)",
+      "id": "04_build_eval_sets",
+      "estimate_seconds": 30,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\04_build_eval_sets.log",
+      "estimate_hms": "30s"
+    },
+    {
+      "name": "Clean-only smoke-vs-full comparison (100 records)",
+      "id": "05_compare_clean",
+      "estimate_seconds": 2340.0,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\05_compare_clean.log",
+      "label": "clean",
+      "val_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_clean_100.jsonl",
+    {
+    },
+      "name": "Direct-only smoke-vs-full comparison (100 records)",
+      "id": "06_compare_direct",
+      "estimate_seconds": 2340.0,
+      "estimate_hms": "39m 0s"
+    },
+    {
+      "id": "07_compare_indirect",
+      "name": "Indirect-only smoke-vs-full comparison (100 records)",
+      "estimate_seconds": 2340.0,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\07_compare_indirect.log",
+      "label": "indirect",
+      "val_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_indirect_100.jsonl",
+      "estimate_hms": "39m 0s"
+    {
+      "id": "08_package",
+      "name": "Offline package rebuild",
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\06_compare_direct.log",
+      "label": "direct",
+    },
+      "estimate_seconds": 300,
+      "estimate_hms": "5m 0s"
+    },
+    {
+      "id": "09_offline_smoke",
+      "estimate_seconds": 300,
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\09_offline_smoke.log",
+      "name": "Offline smoke validation",
+      "estimate_hms": "5m 0s"
+    }
+  ],
+  "total_estimate_seconds": 27947.0,
+}
+  "total_estimate_hms": "7h 45m 47s"
+      "log": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\logs\\08_package.log",
+      "estimate_hms": "39m 0s"
+      "val_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_direct_100.jsonl",
+  "val_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\val.jsonl",
+{
+  "checkpoint": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\artifacts\\checkpoints\\lora_balanced_600.safetensors",
+
+
+[stderr]
+

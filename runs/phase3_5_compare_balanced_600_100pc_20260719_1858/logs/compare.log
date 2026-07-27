@@ -1,0 +1,139 @@
+[2026-07-19 18:59:44] phase3-5 compare run started
+[2026-07-19 18:59:44] samples ready: total=300 counts={'clean': 100, 'direct': 100, 'indirect': 100} missing_images=0
+[2026-07-19 18:59:44] load model: config=runs\phase2_2_balanced_600_20260718_1955\configs\train.yaml checkpoint=runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors
+[2026-07-19 18:59:47] model ready in 3.2s; device=cpu; lora_params=4161536; lora_tensors=328
+[2026-07-19 18:59:47] pipeline start: VLM only
+[2026-07-19 19:00:32] VLM only progress 5/300; elapsed=44.5s; avg=8.90s/sample; ETA=2625s; acc=1.000; macro_f1=0.333;
+[2026-07-19 19:01:17] VLM only progress 10/300; elapsed=89.8s; avg=8.98s/sample; ETA=2603s; acc=1.000; macro_f1=0.333;
+[2026-07-19 19:02:04] VLM only progress 15/300; elapsed=137.2s; avg=9.15s/sample; ETA=2606s; acc=1.000; macro_f1=0.333;
+[2026-07-19 19:02:54] VLM only progress 20/300; elapsed=186.7s; avg=9.34s/sample; ETA=2614s; acc=1.000; macro_f1=0.333;
+[2026-07-19 19:03:42] VLM only progress 25/300; elapsed=234.6s; avg=9.39s/sample; ETA=2581s; acc=1.000; macro_f1=0.333;
+[2026-07-19 19:04:28] VLM only progress 30/300; elapsed=281.0s; avg=9.37s/sample; ETA=2529s; acc=0.967; macro_f1=0.328;
+[2026-07-19 19:05:15] VLM only progress 35/300; elapsed=327.8s; avg=9.37s/sample; ETA=2482s; acc=0.971; macro_f1=0.329;
+[2026-07-19 19:06:01] VLM only progress 40/300; elapsed=373.8s; avg=9.34s/sample; ETA=2429s; acc=0.975; macro_f1=0.329;
+[2026-07-19 19:06:48] VLM only progress 45/300; elapsed=421.2s; avg=9.36s/sample; ETA=2387s; acc=0.978; macro_f1=0.330;
+[2026-07-19 19:07:35] VLM only progress 50/300; elapsed=467.7s; avg=9.35s/sample; ETA=2338s; acc=0.980; macro_f1=0.330;
+[2026-07-19 19:07:35] VLM only class-batch label=clean completed=50; batch_size=50; acc=0.980; macro_f1=0.330
+[2026-07-19 19:08:20] VLM only progress 55/300; elapsed=513.1s; avg=9.33s/sample; ETA=2286s; acc=0.982; macro_f1=0.330;
+[2026-07-19 19:09:05] VLM only progress 60/300; elapsed=558.4s; avg=9.31s/sample; ETA=2234s; acc=0.983; macro_f1=0.331;
+[2026-07-19 19:09:51] VLM only progress 65/300; elapsed=603.6s; avg=9.29s/sample; ETA=2182s; acc=0.985; macro_f1=0.331;
+[2026-07-19 19:10:36] VLM only progress 70/300; elapsed=648.9s; avg=9.27s/sample; ETA=2132s; acc=0.986; macro_f1=0.331;
+[2026-07-19 19:11:21] VLM only progress 75/300; elapsed=694.2s; avg=9.26s/sample; ETA=2083s; acc=0.973; macro_f1=0.329;
+[2026-07-19 19:12:06] VLM only progress 80/300; elapsed=739.2s; avg=9.24s/sample; ETA=2033s; acc=0.975; macro_f1=0.329;
+[2026-07-19 19:12:51] VLM only progress 85/300; elapsed=784.4s; avg=9.23s/sample; ETA=1984s; acc=0.965; macro_f1=0.327;
+[2026-07-19 19:13:37] VLM only progress 90/300; elapsed=829.9s; avg=9.22s/sample; ETA=1936s; acc=0.967; macro_f1=0.328;
+[2026-07-19 19:14:21] VLM only progress 95/300; elapsed=874.1s; avg=9.20s/sample; ETA=1886s; acc=0.968; macro_f1=0.328;
+[2026-07-19 19:15:03] VLM only progress 100/300; elapsed=916.4s; avg=9.16s/sample; ETA=1833s; acc=0.970; macro_f1=0.328;
+[2026-07-19 19:15:03] VLM only class-batch label=clean completed=100; batch_size=50; acc=0.960; macro_f1=0.327
+[2026-07-19 19:15:46] VLM only progress 105/300; elapsed=959.1s; avg=9.13s/sample; ETA=1781s; acc=0.933; macro_f1=0.396;
+[2026-07-19 19:16:29] VLM only progress 110/300; elapsed=1002.2s; avg=9.11s/sample; ETA=1731s; acc=0.891; macro_f1=0.362;
+[2026-07-19 19:17:14] VLM only progress 115/300; elapsed=1047.1s; avg=9.11s/sample; ETA=1684s; acc=0.870; macro_f1=0.405;
+[2026-07-19 19:17:57] VLM only progress 120/300; elapsed=1089.9s; avg=9.08s/sample; ETA=1635s; acc=0.858; macro_f1=0.444;
+[2026-07-19 19:18:40] VLM only progress 125/300; elapsed=1132.9s; avg=9.06s/sample; ETA=1586s; acc=0.848; macro_f1=0.466;
+[2026-07-19 19:19:24] VLM only progress 130/300; elapsed=1176.5s; avg=9.05s/sample; ETA=1539s; acc=0.831; macro_f1=0.466;
+[2026-07-19 19:20:10] VLM only progress 135/300; elapsed=1223.2s; avg=9.06s/sample; ETA=1495s; acc=0.815; macro_f1=0.465;
+[2026-07-19 19:20:56] VLM only progress 140/300; elapsed=1268.7s; avg=9.06s/sample; ETA=1450s; acc=0.793; macro_f1=0.454;
+[2026-07-19 19:21:42] VLM only progress 145/300; elapsed=1314.6s; avg=9.07s/sample; ETA=1405s; acc=0.772; macro_f1=0.444;
+[2026-07-19 19:22:28] VLM only progress 150/300; elapsed=1360.9s; avg=9.07s/sample; ETA=1361s; acc=0.753; macro_f1=0.435;
+[2026-07-19 19:22:28] VLM only class-batch label=direct completed=50; batch_size=50; acc=0.320; macro_f1=0.162
+[2026-07-19 19:23:14] VLM only progress 155/300; elapsed=1407.1s; avg=9.08s/sample; ETA=1316s; acc=0.742; macro_f1=0.434;
+[2026-07-19 19:23:58] VLM only progress 160/300; elapsed=1450.8s; avg=9.07s/sample; ETA=1269s; acc=0.725; macro_f1=0.426;
+[2026-07-19 19:24:41] VLM only progress 165/300; elapsed=1494.3s; avg=9.06s/sample; ETA=1223s; acc=0.709; macro_f1=0.419;
+[2026-07-19 19:25:24] VLM only progress 170/300; elapsed=1537.1s; avg=9.04s/sample; ETA=1175s; acc=0.700; macro_f1=0.418;
+[2026-07-19 19:26:08] VLM only progress 175/300; elapsed=1580.9s; avg=9.03s/sample; ETA=1129s; acc=0.686; macro_f1=0.412;
+[2026-07-19 19:26:54] VLM only progress 180/300; elapsed=1626.7s; avg=9.04s/sample; ETA=1084s; acc=0.667; macro_f1=0.399;
+[2026-07-19 19:27:42] VLM only progress 185/300; elapsed=1674.9s; avg=9.05s/sample; ETA=1041s; acc=0.659; macro_f1=0.399;
+[2026-07-19 19:28:28] VLM only progress 190/300; elapsed=1721.0s; avg=9.06s/sample; ETA=996s; acc=0.647; macro_f1=0.393;
+[2026-07-19 19:29:15] VLM only progress 195/300; elapsed=1767.5s; avg=9.06s/sample; ETA=952s; acc=0.641; macro_f1=0.393;
+[2026-07-19 19:30:00] VLM only progress 200/300; elapsed=1813.4s; avg=9.07s/sample; ETA=907s; acc=0.640; macro_f1=0.397;
+[2026-07-19 19:30:00] VLM only class-batch label=direct completed=100; batch_size=50; acc=0.300; macro_f1=0.154
+[2026-07-19 19:30:43] VLM only progress 205/300; elapsed=1856.2s; avg=9.05s/sample; ETA=860s; acc=0.624; macro_f1=0.393;
+[2026-07-19 19:31:25] VLM only progress 210/300; elapsed=1898.2s; avg=9.04s/sample; ETA=814s; acc=0.610; macro_f1=0.388;
+[2026-07-19 19:32:08] VLM only progress 215/300; elapsed=1940.9s; avg=9.03s/sample; ETA=767s; acc=0.595; macro_f1=0.384;
+[2026-07-19 19:32:50] VLM only progress 220/300; elapsed=1983.1s; avg=9.01s/sample; ETA=721s; acc=0.582; macro_f1=0.379;
+[2026-07-19 19:33:32] VLM only progress 225/300; elapsed=2025.1s; avg=9.00s/sample; ETA=675s; acc=0.569; macro_f1=0.375;
+[2026-07-19 19:34:15] VLM only progress 230/300; elapsed=2067.8s; avg=8.99s/sample; ETA=629s; acc=0.557; macro_f1=0.372;
+[2026-07-19 19:34:57] VLM only progress 235/300; elapsed=2109.9s; avg=8.98s/sample; ETA=584s; acc=0.545; macro_f1=0.367;
+[2026-07-19 19:35:39] VLM only progress 240/300; elapsed=2152.3s; avg=8.97s/sample; ETA=538s; acc=0.533; macro_f1=0.364;
+[2026-07-19 19:36:21] VLM only progress 245/300; elapsed=2194.4s; avg=8.96s/sample; ETA=493s; acc=0.522; macro_f1=0.360;
+[2026-07-19 19:37:03] VLM only progress 250/300; elapsed=2236.5s; avg=8.95s/sample; ETA=447s; acc=0.512; macro_f1=0.357;
+[2026-07-19 19:37:03] VLM only class-batch label=indirect completed=50; batch_size=50; acc=0.000; macro_f1=0.000
+[2026-07-19 19:37:46] VLM only progress 255/300; elapsed=2278.9s; avg=8.94s/sample; ETA=402s; acc=0.502; macro_f1=0.353;
+[2026-07-19 19:38:28] VLM only progress 260/300; elapsed=2321.3s; avg=8.93s/sample; ETA=357s; acc=0.492; macro_f1=0.349;
+[2026-07-19 19:39:11] VLM only progress 265/300; elapsed=2363.9s; avg=8.92s/sample; ETA=312s; acc=0.483; macro_f1=0.345;
+[2026-07-19 19:39:53] VLM only progress 270/300; elapsed=2405.9s; avg=8.91s/sample; ETA=267s; acc=0.474; macro_f1=0.342;
+[2026-07-19 19:40:38] VLM only progress 275/300; elapsed=2451.0s; avg=8.91s/sample; ETA=223s; acc=0.465; macro_f1=0.339;
+[2026-07-19 19:41:24] VLM only progress 280/300; elapsed=2496.9s; avg=8.92s/sample; ETA=178s; acc=0.457; macro_f1=0.336;
+[2026-07-19 19:42:09] VLM only progress 285/300; elapsed=2542.4s; avg=8.92s/sample; ETA=134s; acc=0.449; macro_f1=0.332;
+[2026-07-19 19:42:55] VLM only progress 290/300; elapsed=2587.6s; avg=8.92s/sample; ETA=89s; acc=0.441; macro_f1=0.329;
+[2026-07-19 19:43:40] VLM only progress 295/300; elapsed=2632.9s; avg=8.93s/sample; ETA=45s; acc=0.434; macro_f1=0.325;
+[2026-07-19 19:44:23] VLM only progress 300/300; elapsed=2676.0s; avg=8.92s/sample; ETA=0s; acc=0.427; macro_f1=0.323;
+[2026-07-19 19:44:23] VLM only class-batch label=indirect completed=100; batch_size=50; acc=0.000; macro_f1=0.000
+[2026-07-19 19:44:23] pipeline start: C5 + C6A + VLM/C4 fallback
+[2026-07-19 19:45:06] C5+C6A+C4+VLM progress 5/300; elapsed=42.7s; avg=8.54s/sample; ETA=2520s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 5}
+[2026-07-19 19:45:49] C5+C6A+C4+VLM progress 10/300; elapsed=85.6s; avg=8.56s/sample; ETA=2483s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 10}
+[2026-07-19 19:46:31] C5+C6A+C4+VLM progress 15/300; elapsed=128.3s; avg=8.55s/sample; ETA=2438s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 14, 'c4_early_exit': 1}
+[2026-07-19 19:47:14] C5+C6A+C4+VLM progress 20/300; elapsed=171.0s; avg=8.55s/sample; ETA=2394s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 18, 'c4_early_exit': 2}
+[2026-07-19 19:47:57] C5+C6A+C4+VLM progress 25/300; elapsed=213.8s; avg=8.55s/sample; ETA=2351s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 23, 'c4_early_exit': 2}
+[2026-07-19 19:48:40] C5+C6A+C4+VLM progress 30/300; elapsed=256.5s; avg=8.55s/sample; ETA=2309s; acc=0.967; macro_f1=0.328; stage_counts={'vlm_head_fallback': 26, 'c4_early_exit': 4}
+[2026-07-19 19:49:22] C5+C6A+C4+VLM progress 35/300; elapsed=299.4s; avg=8.56s/sample; ETA=2267s; acc=0.971; macro_f1=0.329; stage_counts={'vlm_head_fallback': 31, 'c4_early_exit': 4}
+[2026-07-19 19:50:05] C5+C6A+C4+VLM progress 40/300; elapsed=342.4s; avg=8.56s/sample; ETA=2226s; acc=0.975; macro_f1=0.329; stage_counts={'vlm_head_fallback': 35, 'c4_early_exit': 5}
+[2026-07-19 19:50:48] C5+C6A+C4+VLM progress 45/300; elapsed=385.0s; avg=8.55s/sample; ETA=2181s; acc=0.978; macro_f1=0.330; stage_counts={'vlm_head_fallback': 39, 'c4_early_exit': 6}
+[2026-07-19 19:51:31] C5+C6A+C4+VLM progress 50/300; elapsed=427.6s; avg=8.55s/sample; ETA=2138s; acc=0.980; macro_f1=0.330; stage_counts={'vlm_head_fallback': 43, 'c4_early_exit': 7}
+[2026-07-19 19:51:31] C5+C6A+C4+VLM class-batch label=clean completed=50; batch_size=50; acc=0.980; macro_f1=0.330
+[2026-07-19 19:52:14] C5+C6A+C4+VLM progress 55/300; elapsed=470.7s; avg=8.56s/sample; ETA=2097s; acc=0.982; macro_f1=0.330; stage_counts={'vlm_head_fallback': 47, 'c4_early_exit': 8}
+[2026-07-19 19:52:56] C5+C6A+C4+VLM progress 60/300; elapsed=513.3s; avg=8.56s/sample; ETA=2053s; acc=0.983; macro_f1=0.331; stage_counts={'vlm_head_fallback': 52, 'c4_early_exit': 8}
+[2026-07-19 19:53:39] C5+C6A+C4+VLM progress 65/300; elapsed=556.2s; avg=8.56s/sample; ETA=2011s; acc=0.985; macro_f1=0.331; stage_counts={'vlm_head_fallback': 57, 'c4_early_exit': 8}
+[2026-07-19 19:54:22] C5+C6A+C4+VLM progress 70/300; elapsed=599.0s; avg=8.56s/sample; ETA=1968s; acc=0.986; macro_f1=0.331; stage_counts={'vlm_head_fallback': 61, 'c4_early_exit': 9}
+[2026-07-19 19:55:05] C5+C6A+C4+VLM progress 75/300; elapsed=642.0s; avg=8.56s/sample; ETA=1926s; acc=0.973; macro_f1=0.329; stage_counts={'vlm_head_fallback': 66, 'c4_early_exit': 9}
+[2026-07-19 19:55:52] C5+C6A+C4+VLM progress 80/300; elapsed=689.2s; avg=8.62s/sample; ETA=1895s; acc=0.975; macro_f1=0.329; stage_counts={'vlm_head_fallback': 70, 'c4_early_exit': 10}
+[2026-07-19 19:56:38] C5+C6A+C4+VLM progress 85/300; elapsed=734.9s; avg=8.65s/sample; ETA=1859s; acc=0.965; macro_f1=0.327; stage_counts={'vlm_head_fallback': 75, 'c4_early_exit': 10}
+[2026-07-19 19:57:23] C5+C6A+C4+VLM progress 90/300; elapsed=780.2s; avg=8.67s/sample; ETA=1820s; acc=0.967; macro_f1=0.328; stage_counts={'vlm_head_fallback': 79, 'c4_early_exit': 11}
+[2026-07-19 19:58:09] C5+C6A+C4+VLM progress 95/300; elapsed=826.0s; avg=8.69s/sample; ETA=1782s; acc=0.968; macro_f1=0.328; stage_counts={'vlm_head_fallback': 84, 'c4_early_exit': 11}
+[2026-07-19 19:58:54] C5+C6A+C4+VLM progress 100/300; elapsed=870.7s; avg=8.71s/sample; ETA=1741s; acc=0.970; macro_f1=0.328; stage_counts={'vlm_head_fallback': 89, 'c4_early_exit': 11}
+[2026-07-19 19:58:54] C5+C6A+C4+VLM class-batch label=clean completed=100; batch_size=50; acc=0.960; macro_f1=0.327
+[2026-07-19 19:59:20] C5+C6A+C4+VLM progress 105/300; elapsed=896.5s; avg=8.54s/sample; ETA=1665s; acc=0.943; macro_f1=0.457; stage_counts={'vlm_head_fallback': 92, 'c4_early_exit': 11, 'c5_rules': 2}
+[2026-07-19 19:59:28] C5+C6A+C4+VLM progress 110/300; elapsed=905.0s; avg=8.23s/sample; ETA=1563s; acc=0.936; macro_f1=0.532; stage_counts={'vlm_head_fallback': 93, 'c4_early_exit': 11, 'c5_rules': 6}
+[2026-07-19 19:59:54] C5+C6A+C4+VLM progress 115/300; elapsed=930.5s; avg=8.09s/sample; ETA=1497s; acc=0.913; macro_f1=0.522; stage_counts={'vlm_head_fallback': 96, 'c4_early_exit': 11, 'c5_rules': 8}
+[2026-07-19 20:00:36] C5+C6A+C4+VLM progress 120/300; elapsed=973.4s; avg=8.11s/sample; ETA=1460s; acc=0.900; macro_f1=0.530; stage_counts={'vlm_head_fallback': 101, 'c4_early_exit': 11, 'c5_rules': 8}
+[2026-07-19 20:00:54] C5+C6A+C4+VLM progress 125/300; elapsed=990.5s; avg=7.92s/sample; ETA=1387s; acc=0.896; macro_f1=0.545; stage_counts={'vlm_head_fallback': 103, 'c4_early_exit': 11, 'c5_rules': 11}
+[2026-07-19 20:01:28] C5+C6A+C4+VLM progress 130/300; elapsed=1024.8s; avg=7.88s/sample; ETA=1340s; acc=0.885; macro_f1=0.545; stage_counts={'vlm_head_fallback': 107, 'c4_early_exit': 11, 'c5_rules': 12}
+[2026-07-19 20:01:45] C5+C6A+C4+VLM progress 135/300; elapsed=1042.0s; avg=7.72s/sample; ETA=1274s; acc=0.881; macro_f1=0.552; stage_counts={'vlm_head_fallback': 109, 'c4_early_exit': 11, 'c5_rules': 15}
+[2026-07-19 20:02:11] C5+C6A+C4+VLM progress 140/300; elapsed=1067.6s; avg=7.63s/sample; ETA=1220s; acc=0.864; macro_f1=0.542; stage_counts={'vlm_head_fallback': 112, 'c4_early_exit': 11, 'c5_rules': 17}
+[2026-07-19 20:02:36] C5+C6A+C4+VLM progress 145/300; elapsed=1093.3s; avg=7.54s/sample; ETA=1169s; acc=0.855; macro_f1=0.541; stage_counts={'vlm_head_fallback': 115, 'c4_early_exit': 11, 'c5_rules': 19}
+[2026-07-19 20:02:45] C5+C6A+C4+VLM progress 150/300; elapsed=1102.1s; avg=7.35s/sample; ETA=1102s; acc=0.853; macro_f1=0.545; stage_counts={'vlm_head_fallback': 116, 'c4_early_exit': 11, 'c5_rules': 23}
+[2026-07-19 20:02:45] C5+C6A+C4+VLM class-batch label=direct completed=50; batch_size=50; acc=0.620; macro_f1=0.255
+[2026-07-19 20:03:02] C5+C6A+C4+VLM progress 155/300; elapsed=1119.4s; avg=7.22s/sample; ETA=1047s; acc=0.852; macro_f1=0.549; stage_counts={'vlm_head_fallback': 118, 'c4_early_exit': 11, 'c5_rules': 26}
+[2026-07-19 20:03:29] C5+C6A+C4+VLM progress 160/300; elapsed=1145.5s; avg=7.16s/sample; ETA=1002s; acc=0.838; macro_f1=0.541; stage_counts={'vlm_head_fallback': 121, 'c4_early_exit': 11, 'c5_rules': 28}
+[2026-07-19 20:03:46] C5+C6A+C4+VLM progress 165/300; elapsed=1163.0s; avg=7.05s/sample; ETA=952s; acc=0.830; macro_f1=0.538; stage_counts={'vlm_head_fallback': 123, 'c4_early_exit': 11, 'c5_rules': 31}
+[2026-07-19 20:04:03] C5+C6A+C4+VLM progress 170/300; elapsed=1179.9s; avg=6.94s/sample; ETA=902s; acc=0.829; macro_f1=0.541; stage_counts={'vlm_head_fallback': 125, 'c4_early_exit': 11, 'c5_rules': 34}
+[2026-07-19 20:04:29] C5+C6A+C4+VLM progress 175/300; elapsed=1205.9s; avg=6.89s/sample; ETA=861s; acc=0.823; macro_f1=0.538; stage_counts={'vlm_head_fallback': 128, 'c4_early_exit': 11, 'c5_rules': 36}
+[2026-07-19 20:04:56] C5+C6A+C4+VLM progress 180/300; elapsed=1232.8s; avg=6.85s/sample; ETA=822s; acc=0.811; macro_f1=0.531; stage_counts={'vlm_head_fallback': 131, 'c4_early_exit': 11, 'c5_rules': 38}
+[2026-07-19 20:05:13] C5+C6A+C4+VLM progress 185/300; elapsed=1250.1s; avg=6.76s/sample; ETA=777s; acc=0.805; macro_f1=0.529; stage_counts={'vlm_head_fallback': 133, 'c4_early_exit': 11, 'c5_rules': 41}
+[2026-07-19 20:05:48] C5+C6A+C4+VLM progress 190/300; elapsed=1284.5s; avg=6.76s/sample; ETA=744s; acc=0.795; macro_f1=0.522; stage_counts={'vlm_head_fallback': 137, 'c4_early_exit': 11, 'c5_rules': 42}
+[2026-07-19 20:06:05] C5+C6A+C4+VLM progress 195/300; elapsed=1301.7s; avg=6.68s/sample; ETA=701s; acc=0.790; macro_f1=0.520; stage_counts={'vlm_head_fallback': 139, 'c4_early_exit': 11, 'c5_rules': 45}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 200/300; elapsed=1318.9s; avg=6.59s/sample; ETA=659s; acc=0.790; macro_f1=0.522; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM class-batch label=direct completed=100; batch_size=50; acc=0.600; macro_f1=0.250
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 205/300; elapsed=1318.9s; avg=6.43s/sample; ETA=611s; acc=0.795; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 5}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 210/300; elapsed=1318.9s; avg=6.28s/sample; ETA=565s; acc=0.800; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 10}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 215/300; elapsed=1318.9s; avg=6.13s/sample; ETA=521s; acc=0.805; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 15}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 220/300; elapsed=1318.9s; avg=6.00s/sample; ETA=480s; acc=0.809; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 20}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 225/300; elapsed=1318.9s; avg=5.86s/sample; ETA=440s; acc=0.813; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 25}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 230/300; elapsed=1318.9s; avg=5.73s/sample; ETA=401s; acc=0.817; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 30}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 235/300; elapsed=1318.9s; avg=5.61s/sample; ETA=365s; acc=0.821; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 35}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 240/300; elapsed=1318.9s; avg=5.50s/sample; ETA=330s; acc=0.825; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 40}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 245/300; elapsed=1318.9s; avg=5.38s/sample; ETA=296s; acc=0.829; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 45}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 250/300; elapsed=1318.9s; avg=5.28s/sample; ETA=264s; acc=0.832; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 50}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM class-batch label=indirect completed=50; batch_size=50; acc=1.000; macro_f1=0.333
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 255/300; elapsed=1318.9s; avg=5.17s/sample; ETA=233s; acc=0.835; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 55}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 260/300; elapsed=1319.0s; avg=5.07s/sample; ETA=203s; acc=0.838; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 60}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 265/300; elapsed=1319.0s; avg=4.98s/sample; ETA=174s; acc=0.842; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 65}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 270/300; elapsed=1319.0s; avg=4.89s/sample; ETA=147s; acc=0.844; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 70}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 275/300; elapsed=1319.0s; avg=4.80s/sample; ETA=120s; acc=0.847; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 75}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 280/300; elapsed=1319.0s; avg=4.71s/sample; ETA=94s; acc=0.850; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 80}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 285/300; elapsed=1319.0s; avg=4.63s/sample; ETA=69s; acc=0.853; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 85}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 290/300; elapsed=1319.0s; avg=4.55s/sample; ETA=45s; acc=0.855; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 90}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 295/300; elapsed=1319.0s; avg=4.47s/sample; ETA=22s; acc=0.858; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 95}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM progress 300/300; elapsed=1319.0s; avg=4.40s/sample; ETA=0s; acc=0.860; macro_f1=0.855; stage_counts={'vlm_head_fallback': 141, 'c4_early_exit': 11, 'c5_rules': 48, 'c6_crossmodal': 100}
+[2026-07-19 20:06:22] C5+C6A+C4+VLM class-batch label=indirect completed=100; batch_size=50; acc=1.000; macro_f1=0.333
+[2026-07-19 20:06:22] DONE summary=runs\phase3_5_compare_balanced_600_100pc_20260719_1858\artifacts\compare_summary.md

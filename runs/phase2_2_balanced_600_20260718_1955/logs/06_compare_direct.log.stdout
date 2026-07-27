@@ -1,0 +1,77 @@
+﻿[eval] mode:       COMPARE-SMOKE-VS-FULL (T2.18)
+[eval] full:       C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors
+[eval] out_dir:    C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct
+[eval] smoke:      C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\smoke\lora_benchmark_100.safetensors
+[eval] val:        C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\data\eval_direct_100.jsonl
+[eval] val size: 100
+
+[eval] === chunk 1 smoke-vs-full compare (50 records) -> C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\chunks\smoke_vs_full_group_001 ===
+[eval] chunk 1: building SMOKE model
+[eval] chunk 1: smoke LoRA=4,161,536 Head=2,883
+[eval-smoke-g001] progress: 5/50 samples  step_dt=nans  eval_elapsed=49.1s  ETA=nans
+[eval-smoke-g001] progress: 10/50 samples  step_dt=9.81s  eval_elapsed=98.1s  ETA=392s
+[eval-smoke-g001] progress: 15/50 samples  step_dt=9.74s  eval_elapsed=146.5s  ETA=341s
+[eval-smoke-g001] progress: 20/50 samples  step_dt=9.71s  eval_elapsed=194.7s  ETA=291s
+[eval-smoke-g001] progress: 25/50 samples  step_dt=9.99s  eval_elapsed=248.9s  ETA=250s
+[eval-smoke-g001] progress: 30/50 samples  step_dt=10.31s  eval_elapsed=306.8s  ETA=206s
+[eval-smoke-g001] progress: 35/50 samples  step_dt=10.98s  eval_elapsed=378.4s  ETA=165s
+[eval-smoke-g001] progress: 40/50 samples  step_dt=11.15s  eval_elapsed=439.4s  ETA=112s
+[eval-smoke-g001] progress: 45/50 samples  step_dt=11.27s  eval_elapsed=499.8s  ETA=56s
+[eval-smoke-g001] progress: 50/50 samples  step_dt=11.36s  eval_elapsed=560.1s  ETA=0s
+[eval] chunk 1: building FULL model
+[eval] chunk 1: full LoRA=4,161,536 Head=2,883
+[eval-full-g001] progress: 5/50 samples  step_dt=nans  eval_elapsed=44.7s  ETA=nans
+[eval-full-g001] progress: 10/50 samples  step_dt=9.34s  eval_elapsed=91.4s  ETA=373s
+[eval-full-g001] progress: 15/50 samples  step_dt=9.44s  eval_elapsed=139.1s  ETA=330s
+[eval-full-g001] progress: 20/50 samples  step_dt=9.35s  eval_elapsed=185.0s  ETA=281s
+[eval-full-g001] progress: 25/50 samples  step_dt=9.36s  eval_elapsed=232.0s  ETA=234s
+[eval-full-g001] progress: 30/50 samples  step_dt=9.32s  eval_elapsed=277.7s  ETA=186s
+[eval-full-g001] progress: 35/50 samples  step_dt=9.25s  eval_elapsed=322.2s  ETA=139s
+[eval-full-g001] progress: 40/50 samples  step_dt=9.21s  eval_elapsed=367.1s  ETA=92s
+[eval-full-g001] progress: 45/50 samples  step_dt=9.18s  eval_elapsed=412.0s  ETA=46s
+[eval-full-g001] progress: 50/50 samples  step_dt=9.48s  eval_elapsed=471.3s  ETA=0s
+[eval] chunk 1: smoke macro F1=0.0131, full macro F1=0.1458, delta=+0.1328
+[eval] chunk 1: wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\chunks\smoke_vs_full_group_001\comparison_full_vs_smoke.json
+
+[eval] === chunk 2 smoke-vs-full compare (50 records) -> C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\chunks\smoke_vs_full_group_002 ===
+[eval] chunk 2: building SMOKE model
+[eval] chunk 2: smoke LoRA=4,161,536 Head=2,883
+[eval-smoke-g002] progress: 5/50 samples  step_dt=nans  eval_elapsed=66.1s  ETA=nans
+[eval-smoke-g002] progress: 10/50 samples  step_dt=14.22s  eval_elapsed=137.2s  ETA=569s
+[eval-smoke-g002] progress: 15/50 samples  step_dt=11.99s  eval_elapsed=186.1s  ETA=420s
+[eval-smoke-g002] progress: 20/50 samples  step_dt=12.76s  eval_elapsed=257.6s  ETA=383s
+[eval-smoke-g002] progress: 25/50 samples  step_dt=12.84s  eval_elapsed=323.0s  ETA=321s
+[eval-smoke-g002] progress: 30/50 samples  step_dt=12.55s  eval_elapsed=379.9s  ETA=251s
+[eval-smoke-g002] progress: 35/50 samples  step_dt=12.07s  eval_elapsed=428.3s  ETA=181s
+[eval-smoke-g002] progress: 40/50 samples  step_dt=11.73s  eval_elapsed=476.6s  ETA=117s
+[eval-smoke-g002] progress: 45/50 samples  step_dt=11.45s  eval_elapsed=524.1s  ETA=57s
+[eval-smoke-g002] progress: 50/50 samples  step_dt=11.22s  eval_elapsed=571.2s  ETA=0s
+[eval] chunk 2: building FULL model
+[eval] chunk 2: full LoRA=4,161,536 Head=2,883
+[eval-full-g002] progress: 5/50 samples  step_dt=nans  eval_elapsed=46.3s  ETA=nans
+[eval-full-g002] progress: 10/50 samples  step_dt=9.12s  eval_elapsed=91.9s  ETA=365s
+[eval-full-g002] progress: 15/50 samples  step_dt=9.11s  eval_elapsed=137.4s  ETA=319s
+[eval-full-g002] progress: 20/50 samples  step_dt=9.09s  eval_elapsed=182.6s  ETA=273s
+[eval-full-g002] progress: 25/50 samples  step_dt=9.05s  eval_elapsed=227.4s  ETA=226s
+[eval-full-g002] progress: 30/50 samples  step_dt=9.12s  eval_elapsed=274.2s  ETA=182s
+[eval-full-g002] progress: 35/50 samples  step_dt=9.10s  eval_elapsed=319.4s  ETA=137s
+[eval-full-g002] progress: 40/50 samples  step_dt=9.10s  eval_elapsed=364.6s  ETA=91s
+[eval-full-g002] progress: 45/50 samples  step_dt=9.08s  eval_elapsed=409.7s  ETA=45s
+[eval-full-g002] progress: 50/50 samples  step_dt=9.08s  eval_elapsed=455.1s  ETA=0s
+[eval] chunk 2: smoke macro F1=0.0256, full macro F1=0.1692, delta=+0.1435
+[eval] chunk 2: wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\chunks\smoke_vs_full_group_002\comparison_full_vs_smoke.json
+[eval] === chunked smoke-vs-full aggregate ===
+
+[eval] F1 delta:     +0.1383  (smoke 0.0194 鈫?full 0.1578)
+[eval] recall delta  [ indirect]: +0.0000
+[eval] Acc delta:    +0.2800
+[eval] recall delta  [    clean]: +0.0000
+[eval] === Delta (full - smoke) ===
+[eval] recall delta  [   direct]: +0.2800
+[eval] PASS = full strictly better than smoke on all metrics: NO
+
+[eval] wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\full_model_report.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\full_model_report.md
+
+[eval] wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\comparison_full_vs_smoke.md
+[eval] wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\comparison\direct\comparison_full_vs_smoke.json

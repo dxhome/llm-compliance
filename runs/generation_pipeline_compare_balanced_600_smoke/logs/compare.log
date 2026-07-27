@@ -1,0 +1,19 @@
+[2026-07-19 21:44:34] generation pipeline compare run started
+[2026-07-19 21:44:34] samples ready: total=3 counts={'clean': 1, 'direct': 1, 'indirect': 1}
+[2026-07-19 21:44:34] load model: config=runs\phase2_2_balanced_600_20260718_1955\configs\train.yaml checkpoint=runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors
+[2026-07-19 21:44:38] model ready in 3.9s; device=cpu; lora_params=4161536; lora_tensors=328; max_new_tokens=8
+[2026-07-19 21:44:38] pipeline start: LoRA only
+[2026-07-19 21:44:58] LoRA only progress 1/3; elapsed=20.3s; avg=20.28s/sample; ETA=41s; acc=1.000; macro_f1=0.333; generations=1; stage_counts={'lora_head_clean': 1}
+[2026-07-19 21:44:58] LoRA only class-batch label=clean completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 21:45:17] LoRA only progress 2/3; elapsed=39.2s; avg=19.62s/sample; ETA=20s; acc=0.500; macro_f1=0.222; generations=2; stage_counts={'lora_head_clean': 2}
+[2026-07-19 21:45:17] LoRA only class-batch label=direct completed=1; batch_size=1; acc=0.000; macro_f1=0.000
+[2026-07-19 21:45:35] LoRA only progress 3/3; elapsed=57.7s; avg=19.24s/sample; ETA=0s; acc=0.333; macro_f1=0.167; generations=3; stage_counts={'lora_head_clean': 3}
+[2026-07-19 21:45:35] LoRA only class-batch label=indirect completed=1; batch_size=1; acc=0.000; macro_f1=0.000
+[2026-07-19 21:45:35] pipeline start: LoRA + C4-C6 optimized
+[2026-07-19 21:45:54] LoRA + C4-C6 optimized progress 1/3; elapsed=18.5s; avg=18.46s/sample; ETA=37s; acc=1.000; macro_f1=0.333; generations=1; stage_counts={'head_clean_fallback': 1}
+[2026-07-19 21:45:54] LoRA + C4-C6 optimized class-batch label=clean completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 21:45:54] LoRA + C4-C6 optimized progress 2/3; elapsed=18.5s; avg=9.23s/sample; ETA=9s; acc=1.000; macro_f1=0.667; generations=1; stage_counts={'head_clean_fallback': 1, 'c5_rules': 1}
+[2026-07-19 21:45:54] LoRA + C4-C6 optimized class-batch label=direct completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 21:45:54] LoRA + C4-C6 optimized progress 3/3; elapsed=18.5s; avg=6.16s/sample; ETA=0s; acc=1.000; macro_f1=1.000; generations=1; stage_counts={'head_clean_fallback': 1, 'c5_rules': 1, 'c6_crossmodal': 1}
+[2026-07-19 21:45:54] LoRA + C4-C6 optimized class-batch label=indirect completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 21:45:54] DONE summary=runs\generation_pipeline_compare_balanced_600_smoke\artifacts\compare_summary.md

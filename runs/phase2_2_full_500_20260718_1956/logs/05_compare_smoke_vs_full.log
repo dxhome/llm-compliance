@@ -1,0 +1,87 @@
+﻿[2026-07-18 17:45:41] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/eval.py --config configs/full_500_restart.yaml --compare-smoke-vs-full --smoke-checkpoint artifacts/baseline/lora_baseline.safetensors --full-checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors --out artifacts/full_500_restart --stratified-max-records 500 --sample-seed 42
+[eval] mode:       COMPARE-SMOKE-VS-FULL (T2.18)
+[eval] smoke:      artifacts\baseline\lora_baseline.safetensors
+[eval] full:       artifacts\full_500_restart\lora_full_500_restart.safetensors
+[eval] val:        C:\work\llm-compliance\data\mpid-v1\val.jsonl
+[eval] out_dir:    artifacts\full_500_restart
+[eval] stratified sample enabled: 500/2565 records (seed=42, counts={'direct': 401, 'clean': 58, 'indirect': 41})
+[eval] val size: 500
+
+[eval] === Running SMOKE model (5 records) ===
+[eval] smoke: LoRA=4,161,536 Head=2,883
+[eval-smoke] progress: 5/500 samples  step_dt=nans  eval_elapsed=56.4s  ETA=nans
+[eval-smoke] progress: 10/500 samples  step_dt=11.45s  eval_elapsed=113.7s  ETA=5612s
+[eval-smoke] progress: 15/500 samples  step_dt=11.22s  eval_elapsed=168.6s  ETA=5442s
+[eval-smoke] progress: 20/500 samples  step_dt=10.92s  eval_elapsed=220.2s  ETA=5242s
+[eval-smoke] progress: 25/500 samples  step_dt=10.51s  eval_elapsed=266.7s  ETA=4994s
+[eval-smoke] progress: 30/500 samples  step_dt=10.45s  eval_elapsed=317.6s  ETA=4911s
+[eval-smoke] progress: 35/500 samples  step_dt=10.30s  eval_elapsed=365.5s  ETA=4791s
+[eval-smoke] progress: 40/500 samples  step_dt=10.33s  eval_elapsed=418.1s  ETA=4753s
+[eval-smoke] progress: 45/500 samples  step_dt=10.28s  eval_elapsed=467.6s  ETA=4678s
+[eval-smoke] progress: 50/500 samples  step_dt=10.33s  eval_elapsed=521.4s  ETA=4650s
+[eval-smoke] progress: 55/500 samples  step_dt=10.38s  eval_elapsed=575.6s  ETA=4621s
+[eval-smoke] progress: 60/500 samples  step_dt=10.43s  eval_elapsed=630.1s  ETA=4589s
+[eval-smoke] progress: 65/500 samples  step_dt=10.39s  eval_elapsed=679.7s  ETA=4519s
+[eval-smoke] progress: 70/500 samples  step_dt=10.34s  eval_elapsed=728.5s  ETA=4446s
+[eval-smoke] progress: 75/500 samples  step_dt=10.35s  eval_elapsed=780.8s  ETA=4398s
+[eval-smoke] progress: 80/500 samples  step_dt=10.33s  eval_elapsed=830.8s  ETA=4337s
+[eval-smoke] progress: 85/500 samples  step_dt=10.36s  eval_elapsed=885.5s  ETA=4301s
+[eval-smoke] progress: 90/500 samples  step_dt=10.34s  eval_elapsed=935.3s  ETA=4240s
+[eval-smoke] progress: 95/500 samples  step_dt=10.30s  eval_elapsed=983.5s  ETA=4172s
+[eval-smoke] progress: 100/500 samples  step_dt=10.24s  eval_elapsed=1029.2s  ETA=4096s
+[eval-smoke] progress: 105/500 samples  step_dt=10.21s  eval_elapsed=1077.8s  ETA=4035s
+[eval-smoke] progress: 110/500 samples  step_dt=10.17s  eval_elapsed=1124.1s  ETA=3966s
+[eval-smoke] progress: 115/500 samples  step_dt=10.19s  eval_elapsed=1177.0s  ETA=3922s
+[eval-smoke] progress: 120/500 samples  step_dt=10.17s  eval_elapsed=1226.0s  ETA=3865s
+[eval-smoke] progress: 125/500 samples  step_dt=10.15s  eval_elapsed=1274.4s  ETA=3806s
+[eval-smoke] progress: 130/500 samples  step_dt=10.12s  eval_elapsed=1321.2s  ETA=3744s
+[eval-smoke] progress: 135/500 samples  step_dt=10.07s  eval_elapsed=1365.3s  ETA=3675s
+[eval-smoke] progress: 140/500 samples  step_dt=10.03s  eval_elapsed=1410.6s  ETA=3611s
+[eval-smoke] progress: 145/500 samples  step_dt=10.00s  eval_elapsed=1456.7s  ETA=3551s
+[eval-smoke] progress: 150/500 samples  step_dt=10.01s  eval_elapsed=1508.6s  ETA=3505s
+[eval-smoke] progress: 155/500 samples  step_dt=10.02s  eval_elapsed=1559.0s  ETA=3456s
+[eval-smoke] progress: 160/500 samples  step_dt=10.00s  eval_elapsed=1606.7s  ETA=3401s
+[eval-smoke] progress: 165/500 samples  step_dt=9.98s  eval_elapsed=1653.9s  ETA=3345s
+[eval-smoke] progress: 170/500 samples  step_dt=9.97s  eval_elapsed=1701.7s  ETA=3291s
+[eval-smoke] progress: 175/500 samples  step_dt=9.96s  eval_elapsed=1749.5s  ETA=3237s
+[eval-smoke] progress: 180/500 samples  step_dt=9.97s  eval_elapsed=1801.5s  ETA=3191s
+[eval-smoke] progress: 185/500 samples  step_dt=9.96s  eval_elapsed=1849.9s  ETA=3139s
+[eval-smoke] progress: 190/500 samples  step_dt=9.93s  eval_elapsed=1894.3s  ETA=3080s
+[eval-smoke] progress: 195/500 samples  step_dt=9.91s  eval_elapsed=1940.1s  ETA=3024s
+[eval-smoke] progress: 200/500 samples  step_dt=9.95s  eval_elapsed=1996.2s  ETA=2984s
+[eval-smoke] progress: 205/500 samples  step_dt=9.98s  eval_elapsed=2051.5s  ETA=2943s
+[eval-smoke] progress: 210/500 samples  step_dt=10.00s  eval_elapsed=2106.9s  ETA=2901s
+[eval-smoke] progress: 215/500 samples  step_dt=10.01s  eval_elapsed=2158.7s  ETA=2853s
+[eval-smoke] progress: 220/500 samples  step_dt=9.99s  eval_elapsed=2203.8s  ETA=2797s
+[eval-smoke] progress: 225/500 samples  step_dt=9.96s  eval_elapsed=2248.3s  ETA=2740s
+[eval-smoke] progress: 230/500 samples  step_dt=9.94s  eval_elapsed=2292.9s  ETA=2684s
+[eval-smoke] progress: 235/500 samples  step_dt=9.93s  eval_elapsed=2340.5s  ETA=2632s
+[eval-smoke] progress: 240/500 samples  step_dt=9.93s  eval_elapsed=2389.0s  ETA=2581s
+[eval-smoke] progress: 245/500 samples  step_dt=9.90s  eval_elapsed=2432.9s  ETA=2525s
+[eval-smoke] progress: 250/500 samples  step_dt=9.88s  eval_elapsed=2477.8s  ETA=2471s
+[eval-smoke] progress: 255/500 samples  step_dt=9.87s  eval_elapsed=2524.6s  ETA=2419s
+[eval-smoke] progress: 260/500 samples  step_dt=9.85s  eval_elapsed=2568.9s  ETA=2365s
+[eval-smoke] progress: 265/500 samples  step_dt=9.83s  eval_elapsed=2613.3s  ETA=2311s
+[eval-smoke] progress: 270/500 samples  step_dt=9.82s  eval_elapsed=2658.5s  ETA=2258s
+[eval-smoke] progress: 275/500 samples  step_dt=9.80s  eval_elapsed=2703.1s  ETA=2206s
+[eval-smoke] progress: 280/500 samples  step_dt=9.79s  eval_elapsed=2748.9s  ETA=2154s
+[eval-smoke] progress: 285/500 samples  step_dt=9.81s  eval_elapsed=2802.9s  ETA=2109s
+[eval-smoke] progress: 290/500 samples  step_dt=9.83s  eval_elapsed=2858.6s  ETA=2065s
+
+
+[stderr]
+
+python.exe : C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarni
+ng: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToTe
+xt` instead.
+所在位置 C:\work\llm-compliance\scripts\run_phase2_2_from_step4_v3.ps1:47 字符: 5
++     & $Python @ArgumentList 1>> $stdout 2>> $stderr
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\work\llm-com...oText` instead.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU
+ quantization are unavailable.
+

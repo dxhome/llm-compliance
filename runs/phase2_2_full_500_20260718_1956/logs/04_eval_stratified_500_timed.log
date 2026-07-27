@@ -1,0 +1,129 @@
+﻿[2026-07-18 16:15:42] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/eval.py --config configs/full_500_restart.yaml --checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors --out artifacts/full_500_restart --stratified-max-records 500 --sample-seed 42
+[eval] config:     checkpoint=artifacts\full_500_restart\lora_full_500_restart.safetensors val=C:\work\llm-compliance\data\mpid-v1\val.jsonl out=artifacts\full_500_restart
+[eval] loading adapter on cpu ...
+[eval] LoRA params: 4,161,536  Head params: 2,883
+[eval] loaded checkpoint (332 tensors, has_lora_state=True)
+[eval] stratified sample enabled: 500/2565 records (seed=42, counts={'direct': 401, 'clean': 58, 'indirect': 41})
+[eval] val size: 500
+[eval] progress: 5/500 samples  step_dt=nans  eval_elapsed=51.8s  ETA=nans
+[eval] progress: 10/500 samples  step_dt=9.64s  eval_elapsed=100.1s  ETA=4725s
+[eval] progress: 15/500 samples  step_dt=9.60s  eval_elapsed=147.8s  ETA=4654s
+[eval] progress: 20/500 samples  step_dt=10.01s  eval_elapsed=202.0s  ETA=4806s
+[eval] progress: 25/500 samples  step_dt=10.24s  eval_elapsed=256.7s  ETA=4865s
+[eval] progress: 30/500 samples  step_dt=10.23s  eval_elapsed=307.7s  ETA=4809s
+[eval] progress: 35/500 samples  step_dt=10.08s  eval_elapsed=354.3s  ETA=4687s
+[eval] progress: 40/500 samples  step_dt=10.07s  eval_elapsed=404.2s  ETA=4632s
+[eval] progress: 45/500 samples  step_dt=10.11s  eval_elapsed=456.1s  ETA=4599s
+[eval] progress: 50/500 samples  step_dt=10.05s  eval_elapsed=504.2s  ETA=4524s
+[eval] progress: 55/500 samples  step_dt=10.04s  eval_elapsed=554.0s  ETA=4470s
+[eval] progress: 60/500 samples  step_dt=10.00s  eval_elapsed=601.9s  ETA=4401s
+[eval] progress: 65/500 samples  step_dt=9.96s  eval_elapsed=649.1s  ETA=4330s
+[eval] progress: 70/500 samples  step_dt=9.86s  eval_elapsed=693.0s  ETA=4242s
+[eval] progress: 75/500 samples  step_dt=9.78s  eval_elapsed=736.5s  ETA=4157s
+[eval] progress: 80/500 samples  step_dt=9.72s  eval_elapsed=780.6s  ETA=4081s
+[eval] progress: 85/500 samples  step_dt=9.65s  eval_elapsed=823.8s  ETA=4004s
+[eval] progress: 90/500 samples  step_dt=9.60s  eval_elapsed=867.7s  ETA=3935s
+[eval] progress: 95/500 samples  step_dt=9.66s  eval_elapsed=920.9s  ETA=3911s
+[eval] progress: 100/500 samples  step_dt=9.72s  eval_elapsed=975.2s  ETA=3888s
+[eval] progress: 105/500 samples  step_dt=9.70s  eval_elapsed=1021.8s  ETA=3831s
+[eval] progress: 110/500 samples  step_dt=9.65s  eval_elapsed=1065.6s  ETA=3765s
+[eval] progress: 115/500 samples  step_dt=9.62s  eval_elapsed=1109.8s  ETA=3703s
+[eval] progress: 120/500 samples  step_dt=9.58s  eval_elapsed=1153.7s  ETA=3641s
+[eval] progress: 125/500 samples  step_dt=9.55s  eval_elapsed=1197.4s  ETA=3580s
+[eval] progress: 130/500 samples  step_dt=9.53s  eval_elapsed=1242.6s  ETA=3525s
+[eval] progress: 135/500 samples  step_dt=9.58s  eval_elapsed=1297.7s  ETA=3498s
+[eval] progress: 140/500 samples  step_dt=9.65s  eval_elapsed=1354.0s  ETA=3472s
+[eval] progress: 145/500 samples  step_dt=9.70s  eval_elapsed=1410.1s  ETA=3444s
+[eval] progress: 150/500 samples  step_dt=9.75s  eval_elapsed=1465.5s  ETA=3412s
+[eval] progress: 155/500 samples  step_dt=9.79s  eval_elapsed=1520.1s  ETA=3377s
+[eval] progress: 160/500 samples  step_dt=9.83s  eval_elapsed=1576.0s  ETA=3343s
+[eval] progress: 165/500 samples  step_dt=9.87s  eval_elapsed=1631.8s  ETA=3308s
+[eval] progress: 170/500 samples  step_dt=9.91s  eval_elapsed=1687.2s  ETA=3271s
+[eval] progress: 175/500 samples  step_dt=9.94s  eval_elapsed=1742.1s  ETA=3231s
+[eval] progress: 180/500 samples  step_dt=9.97s  eval_elapsed=1797.4s  ETA=3192s
+[eval] progress: 185/500 samples  step_dt=10.01s  eval_elapsed=1853.7s  ETA=3153s
+[eval] progress: 190/500 samples  step_dt=10.04s  eval_elapsed=1908.4s  ETA=3111s
+[eval] progress: 195/500 samples  step_dt=10.06s  eval_elapsed=1963.3s  ETA=3068s
+[eval] progress: 200/500 samples  step_dt=10.09s  eval_elapsed=2019.6s  ETA=3027s
+[eval] progress: 205/500 samples  step_dt=10.11s  eval_elapsed=2074.7s  ETA=2984s
+[eval] progress: 210/500 samples  step_dt=10.14s  eval_elapsed=2130.4s  ETA=2940s
+[eval] progress: 215/500 samples  step_dt=10.17s  eval_elapsed=2187.2s  ETA=2898s
+[eval] progress: 220/500 samples  step_dt=10.20s  eval_elapsed=2245.3s  ETA=2857s
+[eval] progress: 225/500 samples  step_dt=10.23s  eval_elapsed=2303.3s  ETA=2814s
+[eval] progress: 230/500 samples  step_dt=10.26s  eval_elapsed=2361.5s  ETA=2772s
+[eval] progress: 235/500 samples  step_dt=10.30s  eval_elapsed=2420.2s  ETA=2729s
+[eval] progress: 240/500 samples  step_dt=10.33s  eval_elapsed=2478.5s  ETA=2685s
+[eval] progress: 245/500 samples  step_dt=10.36s  eval_elapsed=2537.2s  ETA=2641s
+[eval] progress: 250/500 samples  step_dt=10.38s  eval_elapsed=2595.4s  ETA=2595s
+[eval] progress: 255/500 samples  step_dt=10.40s  eval_elapsed=2653.0s  ETA=2549s
+[eval] progress: 260/500 samples  step_dt=10.43s  eval_elapsed=2710.7s  ETA=2502s
+[eval] progress: 265/500 samples  step_dt=10.45s  eval_elapsed=2769.6s  ETA=2456s
+[eval] progress: 270/500 samples  step_dt=10.48s  eval_elapsed=2828.4s  ETA=2410s
+[eval] progress: 275/500 samples  step_dt=10.50s  eval_elapsed=2886.9s  ETA=2363s
+[eval] progress: 280/500 samples  step_dt=10.52s  eval_elapsed=2945.4s  ETA=2315s
+[eval] progress: 285/500 samples  step_dt=10.54s  eval_elapsed=3002.7s  ETA=2266s
+[eval] progress: 290/500 samples  step_dt=10.56s  eval_elapsed=3060.9s  ETA=2217s
+[eval] progress: 295/500 samples  step_dt=10.58s  eval_elapsed=3119.5s  ETA=2169s
+[eval] progress: 300/500 samples  step_dt=10.60s  eval_elapsed=3177.7s  ETA=2119s
+[eval] progress: 305/500 samples  step_dt=10.61s  eval_elapsed=3235.6s  ETA=2069s
+[eval] progress: 310/500 samples  step_dt=10.63s  eval_elapsed=3294.6s  ETA=2020s
+[eval] progress: 315/500 samples  step_dt=10.65s  eval_elapsed=3354.9s  ETA=1971s
+[eval] progress: 320/500 samples  step_dt=10.67s  eval_elapsed=3412.1s  ETA=1920s
+[eval] progress: 325/500 samples  step_dt=10.68s  eval_elapsed=3468.5s  ETA=1869s
+[eval] progress: 330/500 samples  step_dt=10.69s  eval_elapsed=3524.5s  ETA=1816s
+[eval] progress: 335/500 samples  step_dt=10.69s  eval_elapsed=3580.0s  ETA=1764s
+[eval] progress: 340/500 samples  step_dt=10.70s  eval_elapsed=3636.2s  ETA=1712s
+[eval] progress: 345/500 samples  step_dt=10.71s  eval_elapsed=3693.7s  ETA=1660s
+[eval] progress: 350/500 samples  step_dt=10.71s  eval_elapsed=3746.9s  ETA=1607s
+[eval] progress: 355/500 samples  step_dt=10.69s  eval_elapsed=3793.9s  ETA=1550s
+[eval] progress: 360/500 samples  step_dt=10.67s  eval_elapsed=3841.2s  ETA=1494s
+[eval] progress: 365/500 samples  step_dt=10.66s  eval_elapsed=3887.9s  ETA=1439s
+[eval] progress: 370/500 samples  step_dt=10.64s  eval_elapsed=3936.9s  ETA=1384s
+[eval] progress: 375/500 samples  step_dt=10.66s  eval_elapsed=3996.0s  ETA=1332s
+[eval] progress: 380/500 samples  step_dt=10.64s  eval_elapsed=4042.9s  ETA=1277s
+[eval] progress: 385/500 samples  step_dt=10.63s  eval_elapsed=4089.8s  ETA=1222s
+[eval] progress: 390/500 samples  step_dt=10.61s  eval_elapsed=4137.3s  ETA=1167s
+[eval] progress: 395/500 samples  step_dt=10.61s  eval_elapsed=4190.3s  ETA=1114s
+[eval] progress: 400/500 samples  step_dt=10.63s  eval_elapsed=4250.8s  ETA=1063s
+[eval] progress: 405/500 samples  step_dt=10.65s  eval_elapsed=4311.7s  ETA=1012s
+[eval] progress: 410/500 samples  step_dt=10.67s  eval_elapsed=4372.4s  ETA=960s
+[eval] progress: 415/500 samples  step_dt=10.69s  eval_elapsed=4435.0s  ETA=909s
+[eval] progress: 420/500 samples  step_dt=10.70s  eval_elapsed=4494.2s  ETA=856s
+[eval] progress: 425/500 samples  step_dt=10.72s  eval_elapsed=4553.8s  ETA=804s
+[eval] progress: 430/500 samples  step_dt=10.73s  eval_elapsed=4613.6s  ETA=751s
+[eval] progress: 435/500 samples  step_dt=10.74s  eval_elapsed=4670.4s  ETA=698s
+[eval] progress: 440/500 samples  step_dt=10.75s  eval_elapsed=4727.8s  ETA=645s
+[eval] progress: 445/500 samples  step_dt=10.76s  eval_elapsed=4785.0s  ETA=592s
+[eval] progress: 450/500 samples  step_dt=10.77s  eval_elapsed=4844.3s  ETA=538s
+[eval] progress: 455/500 samples  step_dt=10.78s  eval_elapsed=4903.3s  ETA=485s
+[eval] progress: 460/500 samples  step_dt=10.79s  eval_elapsed=4962.4s  ETA=432s
+[eval] progress: 465/500 samples  step_dt=10.80s  eval_elapsed=5021.6s  ETA=378s
+[eval] progress: 470/500 samples  step_dt=10.81s  eval_elapsed=5080.2s  ETA=324s
+[eval] progress: 475/500 samples  step_dt=10.81s  eval_elapsed=5130.2s  ETA=270s
+[eval] progress: 480/500 samples  step_dt=10.80s  eval_elapsed=5181.8s  ETA=216s
+[eval] progress: 485/500 samples  step_dt=10.79s  eval_elapsed=5233.3s  ETA=162s
+[eval] progress: 490/500 samples  step_dt=10.79s  eval_elapsed=5284.0s  ETA=108s
+[eval] progress: 495/500 samples  step_dt=10.78s  eval_elapsed=5333.4s  ETA=54s
+[eval] progress: 500/500 samples  step_dt=10.78s  eval_elapsed=5389.6s  ETA=0s
+[eval] accuracy=0.7140  macro F1=0.4240  weighted F1=0.7063
+[eval] wrote artifacts\full_500_restart\report_baseline.json
+[eval] wrote artifacts\full_500_restart\confusion_matrix.json
+[eval] wrote artifacts\full_500_restart\report_baseline.md
+
+
+[stderr]
+
+python.exe : C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarni
+ng: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToTe
+xt` instead.
+所在位置 C:\work\llm-compliance\scripts\run_phase2_2_from_step4_v3.ps1:47 字符: 5
++     & $Python @ArgumentList 1>> $stdout 2>> $stderr
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\work\llm-com...oText` instead.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU
+ quantization are unavailable.
+

@@ -1,0 +1,84 @@
+﻿[2026-07-19 16:25:52] STEP: Build label-only eval sets (100 records each)
+[2026-07-19 16:25:52] ATTEMPT: 1/1
+[2026-07-19 16:25:52] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/build_label_eval_sets.py --run-dir C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955 --train-jsonl C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\data\train.jsonl --out-dir C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\data --records-per-label 100 --seed 42 --json-out C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\data\eval_label_sets_manifest.json
+[2026-07-19 16:25:52] ESTIMATE_SECONDS: 30
+
+
+[stdout]
+
+{
+  "train_jsonl": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\train.jsonl",
+  "source_jsonl": [
+  "excluded_duplicate": 14892,
+  "run_dir": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955",
+    "C:\\work\\llm-compliance\\runs\\_datasets\\mpid-v1-crossmodal\\train.jsonl",
+    "direct": 5470,
+    "C:\\work\\llm-compliance\\runs\\_datasets\\mpid-v1-crossmodal\\test.jsonl"
+  "records_per_label": 100,
+    "indirect": 129
+  "available_after_exclusion": {
+    "direct:jailbreakv_28k": 4900,
+  "excluded_train_overlap": 2524,
+    "clean:safe_guard_prompt_injection": 974,
+    "C:\\work\\llm-compliance\\runs\\_datasets\\mpid-v1\\train.jsonl",
+  "source_counts_after_exclusion": {
+    "clean:haonan_li_cmmlu": 270,
+    "clean:cais_mmlu": 254,
+    "direct:safe_guard_prompt_injection": 407,
+    "clean:deepset_prompt_injections": 303,
+    "clean:nlphuji_flickr30k": 950,
+    "direct:deepset_prompt_injections": 163,
+    "indirect:synthetic_image_injection": 120
+    "C:\\work\\llm-compliance\\runs\\_datasets\\mpid-v1-crossmodal\\val.jsonl",
+  },
+    "clean": {
+  "sets": {
+      "path": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_clean_100.jsonl",
+    "indirect:jailbreakv_28k": 9,
+      "records": 100,
+      "labels": {
+        "clean": 100
+      },
+        "nlphuji_flickr30k": 34,
+      "sources": {
+        "safe_guard_prompt_injection": 35,
+        "deepset_prompt_injections": 7,
+        "haonan_li_cmmlu": 12,
+        "cais_mmlu": 12
+    "clean": 2751,
+      }
+    },
+    "direct": {
+      "path": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_direct_100.jsonl",
+      "records": 100,
+        "direct": 100
+      "labels": {
+      "sources": {
+      },
+        "jailbreakv_28k": 85,
+    "C:\\work\\llm-compliance\\runs\\_datasets\\mpid-v1\\val.jsonl",
+        "safe_guard_prompt_injection": 9,
+        "deepset_prompt_injections": 6
+  "seed": 42,
+    },
+    "indirect": {
+      "path": "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\data\\eval_indirect_100.jsonl",
+      }
+      "records": 100,
+      "labels": {
+        "indirect": 100
+      },
+      "sources": {
+        "synthetic_image_injection": 93,
+        "jailbreakv_28k": 7
+      }
+  }
+    }
+}
+  },
+  ],
+    "C:\\work\\llm-compliance\\runs\\_datasets\\mpid-v1\\test.jsonl",
+
+
+[stderr]
+

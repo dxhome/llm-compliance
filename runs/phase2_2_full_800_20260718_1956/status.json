@@ -1,0 +1,16 @@
+﻿{
+    "run_name":  "phase2_2_full_800_20260718_1956",
+    "status":  "completed",
+    "step_id":  "01_preflight",
+    "step_name":  "Preflight only",
+    "step_status":  "completed",
+    "log":  "C:\\work\\llm-compliance\\runs\\phase2_2_full_800_20260718_1956\\logs\\01_preflight.log",
+    "stdout":  "C:\\work\\llm-compliance\\runs\\phase2_2_full_800_20260718_1956\\logs\\01_preflight.log.stdout",
+    "stderr":  "C:\\work\\llm-compliance\\runs\\phase2_2_full_800_20260718_1956\\logs\\01_preflight.log.stderr",
+    "exitcode":  "C:\\work\\llm-compliance\\runs\\phase2_2_full_800_20260718_1956\\logs\\01_preflight.log.exitcode",
+    "exit_code":  0,
+    "elapsed_seconds":  0,
+    "estimate_seconds":  0,
+    "updated_at":  "2026-07-18 20:07:04",
+    "message":  "Preflight-only mode completed. No training/eval/package steps were started."
+}

@@ -1,0 +1,18 @@
+﻿[train] PRELOAD: enabled (~4 MB × 100 ≈ 0.4 GB RAM)
+[train] epochs=1  max_train_records=100  batch_size=1  lr=0.0002
+[train] out_dir: C:\work\llm-compliance\runs\phase2_2_full_500\artifacts\smoke
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train] config: C:\work\llm-compliance\runs\phase2_2_full_500\configs\smoke.yaml
+[train] STEP LIMIT: 20
+[train] val:   C:\work\llm-compliance\runs\phase2_2_full_500\data\val.jsonl
+[train] train: C:\work\llm-compliance\runs\phase2_2_full_500\data\train.jsonl
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train][+   3.5s] === phase 2/6 LoRA + head 注入 ===
+[train]   backbone loaded in 3.5s
+[train][+   3.7s] === phase 3/6 数据集加载 ===
+[train] LoRA params: 4,161,536  Head params: 2,883
+[train] dataset: train=100 val=20
+[train] batch_size=1  steps_per_epoch=100
+[train][+   3.7s] === phase 3b/6 预编码数据到 RAM (--preload-dataset) ===
+[ds] preloading 100 records into RAM (cache_size=4096) ...

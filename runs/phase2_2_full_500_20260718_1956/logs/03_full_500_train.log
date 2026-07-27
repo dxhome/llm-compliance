@@ -1,0 +1,85 @@
+﻿[2026-07-18 08:43:06] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/train.py --config configs/full_500_restart.yaml --preload-dataset --save-every 100 --max-train-seconds 172800 --checkpoint-name lora_full_500_restart.safetensors --partial-name lora_full_500_restart.safetensors
+[train] config: configs\full_500_restart.yaml
+[train] out_dir: C:\work\llm-compliance\artifacts\full_500_restart
+[train] train: C:\work\llm-compliance\data\mpid-v1\train.jsonl
+[train] val:   C:\work\llm-compliance\data\mpid-v1\val.jsonl
+[train] epochs=1  max_train_records=500  batch_size=1  lr=0.0002
+[train] BUDGET: 172800.0s
+[train] PRELOAD: enabled (~4 MB 脳 500 鈮?2.0 GB RAM)
+[train][+   0.0s] === phase 1/6 鍔犺浇 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 3.2s
+[train][+   3.2s] === phase 2/6 LoRA + head 娉ㄥ叆 ===
+[train] LoRA params: 4,161,536  Head params: 2,883
+[train][+   3.5s] === phase 3/6 鏁版嵁闆嗗姞杞?===
+[train] dataset: train=500 val=100
+[train] batch_size=1  steps_per_epoch=500
+[train][+   3.5s] === phase 3b/6 棰勭紪鐮佹暟鎹埌 RAM (--preload-dataset) ===
+[ds] preloading 500 records into RAM (cache_size=4096) ...
+[ds]   preload 200/500  (3.3 rec/s, 60.4s elapsed)
+[ds]   preload 400/500  (3.3 rec/s, 119.5s elapsed)
+[ds]   preload 500/500  (3.3 rec/s, 149.4s elapsed)
+[ds] preload done: 500 records in 149.4s (avg 3.3 rec/s)
+[ds] preloading 100 records into RAM (cache_size=4096) ...
+[ds]   preload 100/100  (3.0 rec/s, 33.4s elapsed)
+[ds] preload done: 100 records in 33.4s (avg 3.0 rec/s)
+[train] preload done in 182.7s
+[train][+ 186.3s] === phase 4/6 浼樺寲鍣?+ class weights ===
+[train] class weights: [1.3421337604522705, 0.16984818875789642, 1.4880179166793823]
+[train] total trainable params: 4,164,419
+[train][+ 186.3s] === phase 5/6 璁粌寰幆  (1 epoch 脳 500 sample 脳 bs=1) ===
+[train] epoch 1/1 step 1/500 (global 1/500) loss=0.3244  step_dt=nans  epoch_elapsed=40.2s  ETA=nans  total_elapsed=226.5s
+[train] epoch 1/1 step 25/500 (global 25/500) loss=1.3422  step_dt=31.22s  epoch_elapsed=789.5s  ETA=14828s  total_elapsed=975.8s
+[train] epoch 1/1 step 50/500 (global 50/500) loss=0.9540  step_dt=32.39s  epoch_elapsed=1627.1s  ETA=14573s  total_elapsed=1813.4s
+[train] epoch 1/1 step 75/500 (global 75/500) loss=0.9563  step_dt=31.97s  epoch_elapsed=2406.0s  ETA=13587s  total_elapsed=2592.3s
+[train] epoch 1/1 step 100/500 (global 100/500) loss=0.8188  step_dt=31.99s  epoch_elapsed=3206.9s  ETA=12794s  total_elapsed=3393.2s
+[train]   -> periodic save: lora_full_500_restart.safetensors (step 100)
+[train] saved C:\work\llm-compliance\artifacts\full_500_restart\lora_full_500_restart.safetensors (332 tensors)
+[train] epoch 1/1 step 125/500 (global 125/500) loss=0.7220  step_dt=32.12s  epoch_elapsed=4023.5s  ETA=12046s  total_elapsed=4209.8s
+[train] epoch 1/1 step 150/500 (global 150/500) loss=0.6345  step_dt=31.83s  epoch_elapsed=4782.8s  ETA=11140s  total_elapsed=4969.0s
+[train] epoch 1/1 step 175/500 (global 175/500) loss=0.5964  step_dt=31.98s  epoch_elapsed=5604.2s  ETA=10392s  total_elapsed=5790.5s
+[train] epoch 1/1 step 200/500 (global 200/500) loss=0.5264  step_dt=31.98s  epoch_elapsed=6404.3s  ETA=9594s  total_elapsed=6590.6s
+[train]   -> periodic save: lora_full_500_restart.safetensors (step 200)
+[train] saved C:\work\llm-compliance\artifacts\full_500_restart\lora_full_500_restart.safetensors (332 tensors)
+[train] epoch 1/1 step 225/500 (global 225/500) loss=0.4679  step_dt=31.83s  epoch_elapsed=7169.4s  ETA=8752s  total_elapsed=7355.7s
+[train] epoch 1/1 step 250/500 (global 250/500) loss=0.4429  step_dt=31.72s  epoch_elapsed=7938.9s  ETA=7930s  total_elapsed=8125.2s
+[train] epoch 1/1 step 275/500 (global 275/500) loss=0.4256  step_dt=31.81s  epoch_elapsed=8757.2s  ETA=7158s  total_elapsed=8943.5s
+[train] epoch 1/1 step 300/500 (global 300/500) loss=0.4108  step_dt=31.92s  epoch_elapsed=9583.5s  ETA=6383s  total_elapsed=9769.8s
+[train]   -> periodic save: lora_full_500_restart.safetensors (step 300)
+[train] saved C:\work\llm-compliance\artifacts\full_500_restart\lora_full_500_restart.safetensors (332 tensors)
+[train] epoch 1/1 step 325/500 (global 325/500) loss=0.3937  step_dt=31.84s  epoch_elapsed=10355.7s  ETA=5572s  total_elapsed=10542.0s
+[train] epoch 1/1 step 350/500 (global 350/500) loss=0.3932  step_dt=31.71s  epoch_elapsed=11107.3s  ETA=4757s  total_elapsed=11293.6s
+[train] epoch 1/1 step 375/500 (global 375/500) loss=0.3929  step_dt=31.86s  epoch_elapsed=11956.2s  ETA=3983s  total_elapsed=12142.5s
+[train] epoch 1/1 step 400/500 (global 400/500) loss=0.3690  step_dt=31.91s  epoch_elapsed=12772.3s  ETA=3191s  total_elapsed=12958.6s
+[train]   -> periodic save: lora_full_500_restart.safetensors (step 400)
+[train] saved C:\work\llm-compliance\artifacts\full_500_restart\lora_full_500_restart.safetensors (332 tensors)
+[train] epoch 1/1 step 425/500 (global 425/500) loss=0.3529  step_dt=31.75s  epoch_elapsed=13502.0s  ETA=2381s  total_elapsed=13688.3s
+[train] epoch 1/1 step 450/500 (global 450/500) loss=0.3333  step_dt=31.78s  epoch_elapsed=14309.4s  ETA=1589s  total_elapsed=14495.7s
+[train] epoch 1/1 step 475/500 (global 475/500) loss=0.3173  step_dt=31.82s  epoch_elapsed=15124.8s  ETA=796s  total_elapsed=15311.0s
+[train] epoch 1/1 step 500/500 (global 500/500) loss=0.3015  step_dt=31.93s  epoch_elapsed=15973.0s  ETA=0s  total_elapsed=16159.3s
+[train]   -> periodic save: lora_full_500_restart.safetensors (step 500)
+[train] saved C:\work\llm-compliance\artifacts\full_500_restart\lora_full_500_restart.safetensors (332 tensors)
+[train] epoch 1 train done; starting eval ...
+[train] epoch 1: val Macro F1=0.9821  acc=0.9900  (eval in 1097.0s, total_elapsed=17256.3s)
+[train] saving checkpoint lora_full_500_restart.safetensors ...
+[train] saved C:\work\llm-compliance\artifacts\full_500_restart\lora_full_500_restart.safetensors (332 tensors)
+[train][+17256.3s] === phase 6/6 鏀跺熬 + 鍐?train_summary.json ===
+[train] DONE  best Macro F1 = 0.9821 at epoch 1, total time = 17256.3s
+
+
+[stderr]
+
+python.exe : C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarni
+ng: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToTe
+xt` instead.
+所在位置 行:5 字符: 9
++         & $FilePath @ArgumentList 1>> $StdoutLog 2>> $StderrLog
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\work\llm-com...oText` instead.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU
+ quantization are unavailable.
+

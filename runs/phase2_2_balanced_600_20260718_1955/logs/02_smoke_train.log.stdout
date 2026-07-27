@@ -1,0 +1,33 @@
+﻿[train] config: C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\configs\smoke.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\smoke
+[train] train: C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\data\train.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\data\val.jsonl
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train] epochs=1  max_train_records=100  batch_size=1  lr=0.0002
+[train] STEP LIMIT: 10
+[train] PRELOAD: enabled (~4 MB 脳 100 鈮?0.4 GB RAM)
+[train][+   0.0s] === phase 1/6 鍔犺浇 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 4.2s
+[train][+   4.2s] === phase 2/6 LoRA + head 娉ㄥ叆 ===
+[train][+   4.4s] === phase 3/6 鏁版嵁闆嗗姞杞?===
+[train] LoRA params: 4,161,536  Head params: 2,883
+[train] dataset: train=100 val=20
+[train][+   4.4s] === phase 3b/6 棰勭紪鐮佹暟鎹埌 RAM (--preload-dataset) ===
+[ds] preloading 100 records into RAM (cache_size=4096) ...
+[train] batch_size=1  steps_per_epoch=100
+[ds]   preload 100/100  (4.4 rec/s, 22.7s elapsed)
+[ds] preload done: 100 records in 22.7s (avg 4.4 rec/s)
+[ds] preloading 20 records into RAM (cache_size=4096) ...
+[ds]   preload 20/20  (4.5 rec/s, 4.5s elapsed)
+[train] preload done in 27.2s
+[ds] preload done: 20 records in 4.5s (avg 4.5 rec/s)
+[train][+  31.6s] === phase 4/6 浼樺寲鍣?+ class weights ===
+[train] class weights: [0.8955762386322021, 1.0355099439620972, 1.0689135789871216]
+[train] total trainable params: 4,164,419
+[train][+  31.6s] === phase 5/6 璁粌寰幆  (1 epoch 脳 100 sample 脳 bs=1) ===
+[train] epoch 1/1 step 1/100 (global 1/100) loss=4.6585  step_dt=nans  epoch_elapsed=27.2s  ETA=nans  total_elapsed=58.8s
+[train] epoch 1/1 step 5/100 (global 5/100) loss=2.4474  step_dt=27.40s  epoch_elapsed=136.8s  ETA=2603s  total_elapsed=168.4s
+[train] epoch 1/1 step 10/100 (global 10/100) loss=1.8317  step_dt=27.40s  epoch_elapsed=273.7s  ETA=2466s  total_elapsed=305.3s
+[train] STEP LIMIT REACHED (10) - stopping at epoch 1 step 10
+[train] saved C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\smoke\lora_benchmark_100.safetensors (332 tensors)

@@ -1,0 +1,13 @@
+﻿[2026-07-19 17:08:00] STEP: Offline package rebuild
+[2026-07-19 17:08:00] ATTEMPT: 1/1
+[2026-07-19 17:08:00] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/package_offline.py --ckpt C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors --out C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\package\mpid_offline --report C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\package\package_offline.json
+[2026-07-19 17:08:00] ESTIMATE_SECONDS: 300
+
+
+[stdout]
+
+[package] wrote C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\package\mpid_offline (988.84 MB, 78 files)
+
+
+[stderr]
+

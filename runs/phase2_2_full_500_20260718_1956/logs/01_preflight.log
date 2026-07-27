@@ -1,0 +1,7 @@
+﻿Preflight checks for phase2_2_full_500_20260718_1956
+OK: C:\work\llm-compliance\.venv\Scripts\python.exe
+OK: C:\work\llm-compliance\runs\phase2_2_full_500_20260718_1956\configs\train.yaml
+OK: C:\work\llm-compliance\runs\phase2_2_full_500_20260718_1956\data\train.jsonl
+OK: C:\work\llm-compliance\runs\phase2_2_full_500_20260718_1956\data\val.jsonl
+OK: C:\work\llm-compliance\runs\_models\smolvlm-500m\config.json
+OK: C:\work\llm-compliance\runs\phase2_2_full_500_20260718_1956\configs\smoke.yaml

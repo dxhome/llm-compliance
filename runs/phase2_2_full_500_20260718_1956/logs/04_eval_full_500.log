@@ -1,0 +1,1 @@
+﻿[2026-07-18 14:23:23] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 scripts/eval.py --config configs/full_500_restart.yaml --checkpoint artifacts/full_500_restart/lora_full_500_restart.safetensors --out artifacts/full_500_restart

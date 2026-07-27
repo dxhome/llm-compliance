@@ -1,0 +1,54 @@
+﻿[2026-07-18 19:56:09] STEP: Smoke training check
+[2026-07-18 19:56:09] ATTEMPT: 2/2
+[2026-07-18 19:56:09] COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/train.py --config C:\work\llm-compliance\runs\phase2_2_full_800\configs\smoke.yaml --preload-dataset --max-train-steps 20 --checkpoint-name lora_benchmark_100.safetensors --partial-name lora_benchmark_100.safetensors --save-every 50
+[2026-07-18 19:56:09] ESTIMATE_SECONDS: 720
+
+
+[stdout]
+
+[train] out_dir: C:\work\llm-compliance\runs\phase2_2_full_800\artifacts\smoke
+[train] config: C:\work\llm-compliance\runs\phase2_2_full_800\configs\smoke.yaml
+[train] train: C:\work\llm-compliance\runs\phase2_2_full_800\data\train.jsonl
+[train] STEP LIMIT: 20
+[train] val:   C:\work\llm-compliance\runs\phase2_2_full_800\data\val.jsonl
+[train] PRELOAD: enabled (~4 MB × 100 ≈ 0.4 GB RAM)
+[train] epochs=1  max_train_records=100  batch_size=1  lr=0.0002
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 3.6s
+[train][+   3.6s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 4,161,536  Head params: 2,883
+[train][+   3.8s] === phase 3/6 数据集加载 ===
+[train] dataset: train=100 val=20
+[train] batch_size=1  steps_per_epoch=100
+[train][+   3.8s] === phase 3b/6 预编码数据到 RAM (--preload-dataset) ===
+[ds] preloading 100 records into RAM (cache_size=4096) ...
+
+
+[stderr]
+
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+Traceback (most recent call last):
+  File "C:\work\llm-compliance\scripts\train.py", line 266, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+    ~~~~~^^^^^
+  File "C:\work\llm-compliance\scripts\train.py", line 261, in main
+    train(cfg)
+  File "C:\work\llm-compliance\src\mpid\train\trainer.py", line 428, in train
+  File "C:\work\llm-compliance\src\mpid\data\dataset.py", line 96, in preload
+    _ = self[i]
+        ~~~~^^^
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\work\llm-compliance\src\mpid\data\dataset.py", line 120, in __getitem__
+          ~~~~~~~~~~^^^^^^^
+    img = Image.open(image).convert("RGB")
+    fp = builtins.open(filename, "rb")
+  File "C:\work\llm-compliance\.venv\Lib\site-packages\PIL\Image.py", line 3513, in open
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\work\\llm-compliance\\data\\raw\\jailbreakv_28k\\JailBreakV_28K\\figstep\\query_image_1032.png'
+    train_ds.preload(log_every=200)
+

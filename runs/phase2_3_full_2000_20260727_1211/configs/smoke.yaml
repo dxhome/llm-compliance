@@ -1,0 +1,49 @@
+# Phase 2.3 smoke alias.
+# Kept for existing readiness and launcher scripts; content matches resume_smoke.yaml.
+
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32
+  device: cpu
+  quantization: null
+  gradient_checkpointing: false
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.10
+  target: q_proj,k_proj,v_proj,o_proj
+
+training:
+  epochs: 1
+  max_train_records: 18
+  max_val_records: 18
+  max_train_steps: 10
+  batch_size: 1
+  lr: 1.0e-4
+  weight_decay: 0.0
+  class_weighted: true
+  early_stop_patience: 1
+  log_every: 5
+  save_every: 10
+  partial_name: lora_phase2_3_resume_smoke_latest.safetensors
+  checkpoint_name: lora_phase2_3_resume_smoke.safetensors
+  eval_after_epoch: false
+  seed: 42
+  preload_dataset: false
+  max_train_seconds: 0.0
+  resume_from: ""
+  skip_train_batches: 0
+  resume_global_step: 0
+
+io:
+  train_jsonl: ../data/resume_smoke.jsonl
+  val_jsonl: ../data/resume_smoke.jsonl
+  out_dir: ../artifacts/resume_smoke
+
+resume_smoke:
+  first_leg_steps: 10
+  resume_leg_steps: 5
+  expected_checkpoint_after_first_leg: ../artifacts/resume_smoke/lora_phase2_3_resume_smoke.safetensors
+  expected_resume_global_step: 10
+  target_total_time_minutes_max: 60

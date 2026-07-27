@@ -1,0 +1,16 @@
+﻿{
+    "run_name":  "phase2_2_balanced_600_20260718_1955",
+    "status":  "completed",
+    "step_id":  "done",
+    "step_name":  "Workflow complete",
+    "step_status":  "completed",
+    "log":  "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\execution_log.md",
+    "stdout":  "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\execution_log.md.stdout",
+    "stderr":  "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\execution_log.md.stderr",
+    "exitcode":  "C:\\work\\llm-compliance\\runs\\phase2_2_balanced_600_20260718_1955\\execution_log.md.exitcode",
+    "exit_code":  -999,
+    "elapsed_seconds":  0,
+    "estimate_seconds":  0,
+    "updated_at":  "2026-07-19 17:08:53",
+    "message":  "All requested steps completed."
+}

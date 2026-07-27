@@ -1,0 +1,23 @@
+﻿  warnings.warn(
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+Traceback (most recent call last):
+  File "C:\work\llm-compliance\scripts\train.py", line 266, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\work\llm-compliance\src\mpid\train\trainer.py", line 428, in train
+    train(cfg)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+    train_ds.preload(log_every=200)
+    _ = self[i]
+  File "C:\work\llm-compliance\scripts\train.py", line 261, in main
+    ~~~~~^^^^^
+  File "C:\work\llm-compliance\src\mpid\data\dataset.py", line 96, in preload
+        ~~~~^^^
+    img = Image.open(image).convert("RGB")
+    fp = builtins.open(filename, "rb")
+  File "C:\work\llm-compliance\.venv\Lib\site-packages\PIL\Image.py", line 3513, in open
+  File "C:\work\llm-compliance\src\mpid\data\dataset.py", line 120, in __getitem__
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\work\\llm-compliance\\data\\raw\\jailbreakv_28k\\JailBreakV_28K\\figstep\\query_image_1032.png'
+          ~~~~~~~~~~^^^^^^^

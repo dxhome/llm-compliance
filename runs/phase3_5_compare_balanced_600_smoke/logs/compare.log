@@ -1,0 +1,19 @@
+[2026-07-19 18:37:20] phase3-5 compare run started
+[2026-07-19 18:37:20] samples ready: total=3 counts={'clean': 1, 'direct': 1, 'indirect': 1} missing_images=0
+[2026-07-19 18:37:20] load model: config=runs\phase2_2_balanced_600_20260718_1955\configs\train.yaml checkpoint=runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors
+[2026-07-19 18:37:23] model ready in 3.3s; device=cpu; lora_params=4161536; lora_tensors=328
+[2026-07-19 18:37:23] pipeline start: VLM only
+[2026-07-19 18:37:32] VLM only progress 1/3; elapsed=8.8s; avg=8.75s/sample; ETA=18s; acc=1.000; macro_f1=0.333;
+[2026-07-19 18:37:32] VLM only class-batch label=clean completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 18:37:41] VLM only progress 2/3; elapsed=17.9s; avg=8.96s/sample; ETA=9s; acc=0.500; macro_f1=0.222;
+[2026-07-19 18:37:41] VLM only class-batch label=direct completed=1; batch_size=1; acc=0.000; macro_f1=0.000
+[2026-07-19 18:37:50] VLM only progress 3/3; elapsed=26.7s; avg=8.89s/sample; ETA=0s; acc=0.333; macro_f1=0.167;
+[2026-07-19 18:37:50] VLM only class-batch label=indirect completed=1; batch_size=1; acc=0.000; macro_f1=0.000
+[2026-07-19 18:37:50] pipeline start: C5 + C6A + VLM/C4 fallback
+[2026-07-19 18:37:58] C5+C6A+C4+VLM progress 1/3; elapsed=8.8s; avg=8.82s/sample; ETA=18s; acc=1.000; macro_f1=0.333; stage_counts={'vlm_head_fallback': 1}
+[2026-07-19 18:37:58] C5+C6A+C4+VLM class-batch label=clean completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 18:37:58] C5+C6A+C4+VLM progress 2/3; elapsed=8.8s; avg=4.41s/sample; ETA=4s; acc=1.000; macro_f1=0.667; stage_counts={'vlm_head_fallback': 1, 'c5_rules': 1}
+[2026-07-19 18:37:58] C5+C6A+C4+VLM class-batch label=direct completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 18:37:58] C5+C6A+C4+VLM progress 3/3; elapsed=8.8s; avg=2.94s/sample; ETA=0s; acc=1.000; macro_f1=1.000; stage_counts={'vlm_head_fallback': 1, 'c5_rules': 1, 'c6_crossmodal': 1}
+[2026-07-19 18:37:58] C5+C6A+C4+VLM class-batch label=indirect completed=1; batch_size=1; acc=1.000; macro_f1=0.333
+[2026-07-19 18:37:58] DONE summary=runs\phase3_5_compare_balanced_600_smoke\artifacts\compare_summary.md

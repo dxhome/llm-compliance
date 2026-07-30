@@ -1,0 +1,69 @@
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\smoke.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_train_120.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\resume_smoke.jsonl
+[train] epochs=1  max_train_records=120  batch_size=1  lr=2e-05
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] HEAD_WARMUP_STEPS: 20
+[train] STEP LIMIT: 120
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 3.7s
+[train][+   3.7s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train][+   3.9s] === phase 3/6 数据集加载 ===
+[train] dataset: train=120 val=18
+[train] batch_size=1  steps_per_epoch=120
+[train][+   3.9s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] head warm-up enabled for 20 steps; LoRA frozen
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=2e-05  head=0.0001
+[train][+   3.9s] === phase 5/6 训练循环  (1 epoch × 120 sample × bs=1) ===
+[train] epoch 1/1 step 1/120 (global 1/120) loss=0.8463  last_loss=0.8463  step_dt=nans  epoch_elapsed=36.2s  ETA=nans  total_elapsed=40.1s
+[train] epoch 1/1 step 5/120 (global 5/120) loss=0.8835  last_loss=1.2992  step_dt=45.68s  epoch_elapsed=218.9s  ETA=5254s  total_elapsed=222.9s
+[train] epoch 1/1 step 10/120 (global 10/120) loss=1.5398  last_loss=3.1059  step_dt=41.69s  epoch_elapsed=411.4s  ETA=4586s  total_elapsed=415.4s
+[train] epoch 1/1 step 15/120 (global 15/120) loss=1.5583  last_loss=0.4780  step_dt=39.84s  epoch_elapsed=593.9s  ETA=4183s  total_elapsed=597.9s
+[train] epoch 1/1 step 20/120 (global 20/120) loss=1.5280  last_loss=0.2607  step_dt=40.17s  epoch_elapsed=799.4s  ETA=4017s  total_elapsed=803.4s
+[train] head warm-up complete at global step 20; LoRA unfrozen
+[train] epoch 1/1 step 25/120 (global 25/120) loss=1.3442  last_loss=0.2180  step_dt=41.15s  epoch_elapsed=1023.7s  ETA=3909s  total_elapsed=1027.6s
+[train] epoch 1/1 step 30/120 (global 30/120) loss=1.4393  last_loss=0.3131  step_dt=41.26s  epoch_elapsed=1232.7s  ETA=3713s  total_elapsed=1236.7s
+[train] epoch 1/1 step 35/120 (global 35/120) loss=1.5686  last_loss=2.5165  step_dt=40.71s  epoch_elapsed=1420.4s  ETA=3461s  total_elapsed=1424.4s
+[train] epoch 1/1 step 40/120 (global 40/120) loss=1.6634  last_loss=2.0854  step_dt=40.15s  epoch_elapsed=1601.9s  ETA=3212s  total_elapsed=1605.8s
+[train] epoch 1/1 step 45/120 (global 45/120) loss=1.6620  last_loss=0.6035  step_dt=40.08s  epoch_elapsed=1799.8s  ETA=3006s  total_elapsed=1803.7s
+[train] epoch 1/1 step 50/120 (global 50/120) loss=1.6505  last_loss=1.9089  step_dt=40.01s  epoch_elapsed=1996.9s  ETA=2801s  total_elapsed=2000.8s
+[train]   -> periodic save: lora_phase2_3_full_3000_smoke_latest.safetensors (step 50)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\lora_phase2_3_full_3000_smoke_latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\lora_phase2_3_full_3000_smoke_latest.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\checkpoint_step_50.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\checkpoint_step_50.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\latest.state.pt
+[train] epoch 1/1 step 55/120 (global 55/120) loss=1.6038  last_loss=1.4631  step_dt=40.20s  epoch_elapsed=2206.8s  ETA=2613s  total_elapsed=2210.7s
+[train] epoch 1/1 step 60/120 (global 60/120) loss=1.5658  last_loss=0.4090  step_dt=39.80s  epoch_elapsed=2384.5s  ETA=2388s  total_elapsed=2388.5s
+[train] epoch 1/1 step 65/120 (global 65/120) loss=1.5565  last_loss=1.0792  step_dt=39.76s  epoch_elapsed=2581.0s  ETA=2187s  total_elapsed=2584.9s
+[train] epoch 1/1 step 70/120 (global 70/120) loss=1.5011  last_loss=1.3169  step_dt=39.93s  epoch_elapsed=2791.3s  ETA=1996s  total_elapsed=2795.2s
+[train] epoch 1/1 step 75/120 (global 75/120) loss=1.4983  last_loss=1.5923  step_dt=39.89s  epoch_elapsed=2988.0s  ETA=1795s  total_elapsed=2991.9s
+[train] epoch 1/1 step 80/120 (global 80/120) loss=1.4980  last_loss=0.5973  step_dt=39.97s  epoch_elapsed=3193.8s  ETA=1599s  total_elapsed=3197.8s
+[train] epoch 1/1 step 85/120 (global 85/120) loss=1.4728  last_loss=0.5840  step_dt=40.14s  epoch_elapsed=3407.8s  ETA=1405s  total_elapsed=3411.8s
+[train] epoch 1/1 step 90/120 (global 90/120) loss=1.4341  last_loss=0.7978  step_dt=40.38s  epoch_elapsed=3629.8s  ETA=1211s  total_elapsed=3633.8s
+[train] epoch 1/1 step 95/120 (global 95/120) loss=1.4235  last_loss=2.0091  step_dt=40.30s  epoch_elapsed=3824.0s  ETA=1007s  total_elapsed=3828.0s
+[train] epoch 1/1 step 100/120 (global 100/120) loss=1.3887  last_loss=1.0203  step_dt=40.21s  epoch_elapsed=4016.6s  ETA=804s  total_elapsed=4020.6s
+[train]   -> periodic save: lora_phase2_3_full_3000_smoke_latest.safetensors (step 100)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\lora_phase2_3_full_3000_smoke_latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\lora_phase2_3_full_3000_smoke_latest.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\checkpoint_step_100.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\checkpoint_step_100.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\latest.state.pt
+[train] epoch 1/1 step 105/120 (global 105/120) loss=1.3848  last_loss=1.2117  step_dt=40.03s  epoch_elapsed=4199.3s  ETA=600s  total_elapsed=4203.3s
+[train] epoch 1/1 step 110/120 (global 110/120) loss=1.3464  last_loss=0.1918  step_dt=39.90s  epoch_elapsed=4385.4s  ETA=399s  total_elapsed=4389.4s
+[train] epoch 1/1 step 115/120 (global 115/120) loss=1.3447  last_loss=1.9078  step_dt=39.86s  epoch_elapsed=4580.1s  ETA=199s  total_elapsed=4584.1s
+[train] epoch 1/1 step 120/120 (global 120/120) loss=1.3388  last_loss=1.8507  step_dt=39.89s  epoch_elapsed=4783.6s  ETA=0s  total_elapsed=4787.5s
+[train] STEP LIMIT REACHED (120) - stopping at epoch 1 step 120
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\lora_phase2_3_full_3000_smoke.safetensors (332 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\lora_phase2_3_full_3000_smoke.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_balanced_120\checkpoints\latest.state.pt

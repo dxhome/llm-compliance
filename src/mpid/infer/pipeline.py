@@ -18,7 +18,7 @@ from typing import Any, Callable
 
 import torch
 
-from mpid.crossmodal import check_crossmodal
+from mpid.crossmodal import check_crossmodal, check_ocr_conflict, extract_ocr_text
 from mpid.early_exit import EarlyExitConfig, should_early_exit
 from mpid.rules import scan_text
 
@@ -139,7 +139,21 @@ def run_optimized_pipeline(
             timings=timings,
         )
 
-    c6, timings["c6_seconds"] = _call_timed(check_crossmodal, record)
+    # C6B-lite reads image pixels first. C6A remains a compatibility fallback
+    # for legacy FigStep-style records where local OCR has no explicit signal.
+    ocr, timings["c6b_ocr_seconds"] = _call_timed(extract_ocr_text, image)
+    c6b, timings["c6b_rules_seconds"] = _call_timed(check_ocr_conflict, ocr)
+    if c6b.suspicious:
+        timings["total_seconds"] = sum(timings.values())
+        return PipelineResult(
+            label=c6b.label,
+            action="block",
+            stage="c6b_lite_ocr",
+            explanation=c6b.to_dict(),
+            timings=timings,
+        )
+
+    c6, timings["c6a_seconds"] = _call_timed(check_crossmodal, record)
     if c6.suspicious:
         timings["total_seconds"] = sum(timings.values())
         return PipelineResult(

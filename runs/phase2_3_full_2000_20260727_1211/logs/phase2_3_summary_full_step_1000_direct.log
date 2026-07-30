@@ -1,0 +1,9 @@
+[workflow] command: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 scripts/summarize_phase2_3_compare.py --compare-dir C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\full\step_1000\direct --val-jsonl C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\compare_full_direct.jsonl --scope full --step 1000 --label direct
+{
+  "scope": "full",
+  "step": 1000,
+  "label": "direct",
+  "target_label": "direct",
+  "new_target_f1": 0.9873417721518987,
+  "baseline_target_f1": 0.16513761467889906
+}

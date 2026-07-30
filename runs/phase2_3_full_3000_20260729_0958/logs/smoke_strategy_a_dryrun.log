@@ -1,0 +1,30 @@
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\smoke_strategy_a.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\a\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_train_300.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_mixed_90.jsonl
+[train] epochs=1  max_train_records=300  batch_size=1  lr=2e-05
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] HEAD_WARMUP_STEPS: 100
+[train] STEP LIMIT: 1
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 4.9s
+[train][+   4.9s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train][+   5.2s] === phase 3/6 数据集加载 ===
+[train] dataset: train=300 val=90
+[train] batch_size=1  steps_per_epoch=300
+[train][+   5.2s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] head warm-up enabled for 100 steps; LoRA frozen
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=2e-05  head=5e-05
+[train][+   5.2s] === phase 5/6 训练循环  (1 epoch × 300 sample × bs=1) ===
+[train] epoch 1/1 step 1/300 (global 1/300) loss=0.8706  last_loss=0.8706  step_dt=nans  epoch_elapsed=49.2s  ETA=nans  total_elapsed=54.4s
+[train] STEP LIMIT REACHED (1) - stopping at epoch 1 step 1
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\a\checkpoints\lora_baseline.safetensors (332 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\a\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\a\checkpoints\lora_baseline.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\a\checkpoints\latest.state.pt

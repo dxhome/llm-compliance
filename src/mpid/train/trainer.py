@@ -39,7 +39,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 from sklearn.metrics import classification_report, confusion_matrix
 
 from mpid.adapters.vlm import VLMAdapter
@@ -96,6 +96,10 @@ class TrainConfig:
     lr: float = 2e-4
     weight_decay: float = 0.0
     class_weighted: bool = True        # inverse-frequency weights
+    class_weights: Optional[list[float]] = None
+    teacher_checkpoint: Optional[str] = None
+    distill_weight: float = 0.0
+    distill_temperature: float = 1.0
 
     early_stop_patience: int = 2
     log_every: int = 5             # default tighter so progress is visible on CPU
@@ -110,6 +114,62 @@ class TrainConfig:
     save_every: int = 50           # >0 时每 N step 保存一次 partial checkpoint
                                     # 0 = 仅 epoch 结束或 budget 超时时保存
     partial_name: str = "lora_partial.safetensors"  # partial checkpoint 文件名
+    # Loads adapter tensors only.  This is intentionally different from a
+    # resumable checkpoint restore, which also reinstates head and optimizer.
+    init_from: Optional[str] = None
+    warmup_head_steps: int = 0
+    head_lr: Optional[float] = None
+    dataset_cache_size: int = 4096
+    paired_batch_mode: bool = False
+    logit_margin: float = 0.0
+    direct_margin: float = 0.0
+    triplet_balance_weight: float = 0.0
+
+
+class CounterfactualBatchSampler(Sampler[list[int]]):
+    """Keep clean/direct/indirect counterfactual records in one batch.
+
+    A plain shuffled one-sample batch cannot teach that the same payload has
+    a different label when it changes trusted boundary.  Complete ``pair_id``
+    triplets are emitted first; any remaining records are used only after all
+    triplets have been seen once.
+    """
+
+    def __init__(self, records: list[dict], batch_size: int, seed: int) -> None:
+        if batch_size != NUM_CLASSES:
+            raise ValueError(f"paired_batch_mode requires batch_size={NUM_CLASSES}")
+        groups: dict[object, dict[str, int]] = {}
+        for index, record in enumerate(records):
+            pair_id = (record.get("metadata") or {}).get("pair_id")
+            if pair_id is None:
+                continue
+            groups.setdefault(pair_id, {})[record["label"]] = index
+        self.triplets = [
+            [group[label] for label in LABEL_ORDER]
+            for group in groups.values()
+            if all(label in group for label in LABEL_ORDER)
+        ]
+        if not self.triplets:
+            raise ValueError("paired_batch_mode found no complete clean/direct/indirect triplets")
+        used = {index for triplet in self.triplets for index in triplet}
+        self.remaining = [index for index in range(len(records)) if index not in used]
+        self.seed = seed
+        self.epoch = 0
+        self.batch_size = batch_size
+
+    def __iter__(self):
+        rng = random.Random(self.seed + self.epoch)
+        self.epoch += 1
+        triplets = list(self.triplets)
+        rng.shuffle(triplets)
+        yield from triplets
+        remaining = list(self.remaining)
+        rng.shuffle(remaining)
+        for start in range(0, len(remaining) - self.batch_size + 1, self.batch_size):
+            yield remaining[start:start + self.batch_size]
+
+    def __len__(self) -> int:
+        return len(self.triplets) + len(self.remaining) // self.batch_size
 
 
 # ---------------------------------------------------------------------------
@@ -390,16 +450,55 @@ def train(cfg: TrainConfig) -> TrainResult:
     state_holder["peft_model"] = peft_model
     state_holder["head"] = head
 
+    init_from = getattr(cfg, "init_from", None)
+    if init_from:
+        init_path = Path(init_from)
+        if not init_path.exists():
+            raise FileNotFoundError(f"LoRA initialization checkpoint not found: {init_path}")
+        from safetensors.torch import load_file
+
+        init_state = load_file(str(init_path))
+        n_loaded_lora = apply_lora_state(peft_model, init_state)
+        log(f"[train] initialized LoRA only from {init_path} "
+            f"(lora tensors={n_loaded_lora}; head and optimizer are new)")
+
     resume_from = getattr(cfg, "resume_from", None)
+    resume_training_state = None
     if resume_from:
         ckpt_path = Path(resume_from)
         if not ckpt_path.exists():
             raise FileNotFoundError(f"resume checkpoint not found: {ckpt_path}")
         state = load_checkpoint(ckpt_path, head)
+        resume_training_state = load_training_state(ckpt_path)
         n_loaded_lora = apply_lora_state(peft_model, state)
         n_head_tensors = len([k for k in state if k.startswith("head.")])
         log(f"[train] resumed from {ckpt_path} "
             f"(lora tensors={n_loaded_lora}, head tensors={n_head_tensors})")
+
+    teacher_model = None
+    teacher_head = None
+    if cfg.teacher_checkpoint and cfg.distill_weight > 0:
+        teacher_path = Path(cfg.teacher_checkpoint)
+        if not teacher_path.exists():
+            raise FileNotFoundError(f"teacher checkpoint not found: {teacher_path}")
+        teacher_adapter = VLMAdapter(
+            backbone_name=cfg.backbone_name, dtype=cfg.dtype,
+            quantization=cfg.quantization, device=cfg.device,
+            gradient_checkpointing=False,
+        )
+        teacher_model, _ = inject_lora(teacher_adapter.model, cfg)
+        teacher_head = ClassificationHead(
+            in_dim=teacher_adapter.hidden_size, num_classes=NUM_CLASSES,
+        ).to(cfg.device)
+        teacher_state = load_checkpoint(teacher_path, teacher_head)
+        apply_lora_state(teacher_model, teacher_state)
+        for parameter in teacher_model.parameters():
+            parameter.requires_grad_(False)
+        for parameter in teacher_head.parameters():
+            parameter.requires_grad_(False)
+        teacher_model.eval(); teacher_head.eval()
+        log(f"[train] direct replay distillation enabled: weight={cfg.distill_weight:g} "
+            f"temperature={cfg.distill_temperature:g}")
 
     phase("phase 3/6 数据集加载")
     # 4. Data
@@ -408,12 +507,14 @@ def train(cfg: TrainConfig) -> TrainResult:
         processor=adapter.processor,
         device=cfg.device,
         max_records=cfg.max_train_records,
+        cache_size=cfg.dataset_cache_size,
     )
     val_ds = MPIDJsonlDataset(
         Path(cfg.val_jsonl),
         processor=adapter.processor,
         device=cfg.device,
         max_records=cfg.max_val_records,
+        cache_size=cfg.dataset_cache_size,
     )
     log(f"[train] dataset: train={len(train_ds)} val={len(val_ds)}")
     log(f"[train] batch_size={cfg.batch_size}  steps_per_epoch={len(train_ds)//cfg.batch_size}")
@@ -429,26 +530,68 @@ def train(cfg: TrainConfig) -> TrainResult:
         val_ds.preload(log_every=200)
         log(f"[train] preload done in {time.perf_counter()-t_pre:.1f}s")
 
-    train_dl = DataLoader(train_ds, batch_size=cfg.batch_size,
-                          shuffle=True, collate_fn=collate, num_workers=0)
+    train_generator = torch.Generator()
+    train_generator.manual_seed(int(cfg.seed))
+    if cfg.paired_batch_mode:
+        train_dl = DataLoader(
+            train_ds,
+            batch_sampler=CounterfactualBatchSampler(train_ds.records, cfg.batch_size, cfg.seed),
+            collate_fn=collate,
+            num_workers=0,
+        )
+        log("[train] paired batch mode: complete clean/direct/indirect triplets first")
+    else:
+        train_dl = DataLoader(train_ds, batch_size=cfg.batch_size,
+                              shuffle=True, generator=train_generator,
+                              collate_fn=collate, num_workers=0)
     val_dl = DataLoader(val_ds, batch_size=cfg.batch_size,
                         shuffle=False, collate_fn=collate, num_workers=0)
 
     phase("phase 4/6 优化器 + class weights")
     # 5. Loss + optimiser
-    if cfg.class_weighted:
+    if cfg.class_weights is not None:
+        if len(cfg.class_weights) != NUM_CLASSES:
+            raise ValueError(f"class_weights must contain {NUM_CLASSES} values")
+        weights = torch.tensor(cfg.class_weights, dtype=torch.float32, device=cfg.device)
+    elif cfg.class_weighted:
         weights = compute_class_weights(train_ds.records).to(cfg.device)
     else:
         weights = None
     log(f"[train] class weights: {weights.tolist() if weights is not None else 'None'}")
 
-    # Trainable params: LoRA + head. We do NOT freeze explicitly
-    # because LoRA already freezes the base; the head is fresh.
-    trainable = [p for p in peft_model.parameters() if p.requires_grad] \
-                + list(head.parameters())
+    # Keep LoRA parameters in the optimizer while head warm-up temporarily
+    # freezes them, so unfreezing does not reset optimizer state.
+    lora_trainable = [p for p in peft_model.parameters() if p.requires_grad]
+    warmup_head_steps = int(getattr(cfg, "warmup_head_steps", 0))
+    resume_step_global = int(resume_training_state.get("step_global", 0)) if resume_training_state else 0
+    warmup_remaining = warmup_head_steps > resume_step_global
+    if warmup_remaining:
+        for param in lora_trainable:
+            param.requires_grad_(False)
+        log(f"[train] head warm-up enabled for {warmup_head_steps} steps; LoRA frozen")
+    elif warmup_head_steps > 0 and resume_training_state:
+        log(f"[train] head warm-up already completed before resume at global step {resume_step_global}; LoRA remains unfrozen")
+    trainable = lora_trainable + list(head.parameters())
     n_trainable = sum(p.numel() for p in trainable)
     log(f"[train] total trainable params: {n_trainable:,}")
-    opt = torch.optim.AdamW(trainable, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    head_lr = float(cfg.head_lr) if cfg.head_lr is not None else cfg.lr
+    opt = torch.optim.AdamW(
+        [
+            {"params": lora_trainable, "lr": cfg.lr},
+            {"params": list(head.parameters()), "lr": head_lr},
+        ],
+        weight_decay=cfg.weight_decay,
+    )
+    log(f"[train] optimizer lr: LoRA={cfg.lr:g}  head={head_lr:g}")
+    if resume_training_state and resume_training_state.get("optimizer_state"):
+        opt.load_state_dict(resume_training_state["optimizer_state"])
+        log(
+            "[train] optimizer state resumed "
+            f"(step_global={resume_training_state.get('step_global')})"
+        )
+    if resume_training_state:
+        restore_rng_state(resume_training_state)
+        log("[train] RNG state resumed")
 
     phase(f"phase 5/6 训练循环  ({cfg.epochs} epoch × {len(train_ds)} sample × bs={cfg.batch_size})")
     # 6. Loop
@@ -475,6 +618,10 @@ def train(cfg: TrainConfig) -> TrainResult:
                 continue
             batch = {k: v.to(cfg.device) if torch.is_tensor(v) else v
                      for k, v in batch.items()}
+            if warmup_remaining and step_global == warmup_head_steps:
+                for param in lora_trainable:
+                    param.requires_grad_(True)
+                log(f"[train] head warm-up complete at global step {step_global}; LoRA unfrozen")
             outputs = peft_model(
                 input_ids=batch["input_ids"],
                 attention_mask=batch["attention_mask"],
@@ -488,6 +635,49 @@ def train(cfg: TrainConfig) -> TrainResult:
             pooled = last_hidden[b, last_idx]
             logits = head(pooled)
             loss = F.cross_entropy(logits, batch["label"], weight=weights)
+            direct_mask = batch["label"] == LABEL2IDX["direct"]
+            if cfg.logit_margin > 0:
+                target_logits = logits.gather(1, batch["label"].unsqueeze(1)).squeeze(1)
+                other_logits = logits.masked_fill(
+                    F.one_hot(batch["label"], num_classes=NUM_CLASSES).bool(),
+                    float("-inf"),
+                ).max(dim=1).values
+                boundary_loss = F.relu(float(cfg.logit_margin) - (target_logits - other_logits)).mean()
+                loss = loss + boundary_loss
+            if cfg.direct_margin > 0 and direct_mask.any():
+                direct_logits = logits[direct_mask, LABEL2IDX["direct"]]
+                other_direct_logits = logits[direct_mask].clone()
+                other_direct_logits[:, LABEL2IDX["direct"]] = float("-inf")
+                direct_anchor_loss = F.relu(
+                    float(cfg.direct_margin) - (direct_logits - other_direct_logits.max(dim=1).values)
+                ).mean()
+                loss = loss + direct_anchor_loss
+            if cfg.triplet_balance_weight > 0 and cfg.paired_batch_mode:
+                # Each counterfactual triplet has one record of every class.
+                # Cross-entropy fixes each label; this prevents set-level collapse.
+                mean_prob = F.softmax(logits, dim=-1).mean(dim=0)
+                uniform = torch.full_like(mean_prob, 1.0 / NUM_CLASSES)
+                coverage_loss = F.kl_div(mean_prob.log(), uniform, reduction="sum")
+                loss = loss + float(cfg.triplet_balance_weight) * coverage_loss
+            if teacher_model is not None and direct_mask.any():
+                with torch.inference_mode():
+                    teacher_outputs = teacher_model(
+                        input_ids=batch["input_ids"], attention_mask=batch["attention_mask"],
+                        pixel_values=batch["pixel_values"],
+                        pixel_attention_mask=batch.get("pixel_attention_mask"),
+                        output_hidden_states=True,
+                    )
+                    teacher_hidden = teacher_outputs.hidden_states[-1]
+                    teacher_idx = batch["attention_mask"].sum(dim=1).long() - 1
+                    teacher_pooled = teacher_hidden[torch.arange(teacher_hidden.size(0), device=cfg.device), teacher_idx]
+                    teacher_logits = teacher_head(teacher_pooled)
+                temperature = float(cfg.distill_temperature)
+                distill_loss = F.kl_div(
+                    F.log_softmax(logits[direct_mask] / temperature, dim=-1),
+                    F.softmax(teacher_logits[direct_mask] / temperature, dim=-1),
+                    reduction="batchmean",
+                ) * (temperature ** 2)
+                loss = loss + float(cfg.distill_weight) * distill_loss
             opt.zero_grad()
             loss.backward()
             # NaN / Inf guard BEFORE clipping. MPS + LoRA + grad-ckpt
@@ -533,6 +723,7 @@ def train(cfg: TrainConfig) -> TrainResult:
                     f"step {step+1}/{n_steps_per_epoch} "
                     f"(global {step_global}/{total_steps}) "
                     f"loss={avg:.4f}  "
+                    f"last_loss={float(loss.item()):.4f}  "
                     f"step_dt={per_step_s:.2f}s  "
                     f"epoch_elapsed={t_now-t_epoch:.1f}s  "
                     f"ETA={eta_s:.0f}s  "
@@ -546,12 +737,29 @@ def train(cfg: TrainConfig) -> TrainResult:
                     and step_global % cfg.save_every == 0:
                 log(f"[train]   -> periodic save: {cfg.partial_name} "
                     f"(step {step_global})")
-                save_checkpoint(out_dir / cfg.partial_name, peft_model, head, cfg)
+                save_step_checkpoint(
+                    out_dir,
+                    peft_model,
+                    head,
+                    cfg,
+                    opt=opt,
+                    step_global=step_global,
+                    epoch=epoch,
+                    batch_step=step,
+                    include_partial=True,
+                )
 
             if max_train_steps > 0 and resumed_this_run >= max_train_steps:
                 log(f"[train] STEP LIMIT REACHED ({max_train_steps}) - "
                     f"stopping at epoch {epoch+1} step {step+1}")
                 save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
+                save_latest_checkpoint(out_dir, peft_model, head, cfg)
+                save_training_state(out_dir / cfg.checkpoint_name, opt, cfg,
+                                    step_global=step_global, epoch=epoch,
+                                    batch_step=step)
+                save_training_state(out_dir / "latest.safetensors", opt, cfg,
+                                    step_global=step_global, epoch=epoch,
+                                    batch_step=step)
                 res.history.append({
                     "epoch": epoch,
                     "val_macro_f1": 0.0,
@@ -584,6 +792,13 @@ def train(cfg: TrainConfig) -> TrainResult:
                     f"stopping at epoch {epoch+1} step {step+1}")
                 # Save what we have and break.
                 save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
+                save_latest_checkpoint(out_dir, peft_model, head, cfg)
+                save_training_state(out_dir / cfg.checkpoint_name, opt, cfg,
+                                    step_global=step_global, epoch=epoch,
+                                    batch_step=step)
+                save_training_state(out_dir / "latest.safetensors", opt, cfg,
+                                    step_global=step_global, epoch=epoch,
+                                    batch_step=step)
                 res.history.append({
                     "epoch": epoch, "val_macro_f1": 0.0, "val_accuracy": 0.0,
                     "report": {}, "confusion_matrix": [],
@@ -635,6 +850,13 @@ def train(cfg: TrainConfig) -> TrainResult:
         # no-eval or sub-threshold run yields an artefact.
         log(f"[train] saving checkpoint {cfg.checkpoint_name} ...")
         save_checkpoint(out_dir / cfg.checkpoint_name, peft_model, head, cfg)
+        save_latest_checkpoint(out_dir, peft_model, head, cfg)
+        save_training_state(out_dir / cfg.checkpoint_name, opt, cfg,
+                            step_global=step_global, epoch=epoch,
+                            batch_step=n_steps_per_epoch - 1)
+        save_training_state(out_dir / "latest.safetensors", opt, cfg,
+                            step_global=step_global, epoch=epoch,
+                            batch_step=n_steps_per_epoch - 1)
         if bool(getattr(cfg, "eval_after_epoch", False)):
             if macro_f1 > res.best_macro_f1:
                 res.best_macro_f1 = macro_f1
@@ -705,6 +927,109 @@ def save_checkpoint(path: Path, peft_model, head: ClassificationHead, cfg: Train
     print(f"[train] saved {path} ({len(state)} tensors)", flush=True)
 
 
+def _state_sidecar_path(checkpoint_path: Path) -> Path:
+    return checkpoint_path.with_suffix(".state.pt")
+
+
+def save_training_state(
+    checkpoint_path: Path,
+    optimizer: torch.optim.Optimizer,
+    cfg: TrainConfig,
+    *,
+    step_global: int,
+    epoch: int,
+    batch_step: int,
+) -> Path:
+    """Save optimizer and resume metadata next to a model checkpoint."""
+    state_path = _state_sidecar_path(checkpoint_path)
+    torch.save(
+        {
+            "optimizer_state": optimizer.state_dict(),
+            "step_global": int(step_global),
+            "epoch": int(epoch),
+            "batch_step": int(batch_step),
+            "seed": int(cfg.seed),
+            "resume_global_step": int(step_global),
+            "skip_train_batches": int(step_global),
+            "rng_state_torch": torch.get_rng_state(),
+            "rng_state_numpy": np.random.get_state(),
+            "rng_state_python": random.getstate(),
+        },
+        state_path,
+    )
+    print(f"[train] saved training state {state_path}", flush=True)
+    return state_path
+
+
+def load_training_state(checkpoint_path: Path) -> dict | None:
+    """Load optimizer/resume metadata sidecar when present."""
+    state_path = _state_sidecar_path(checkpoint_path)
+    if not state_path.exists():
+        print(f"[train] no training state sidecar at {state_path}", flush=True)
+        return None
+    state = torch.load(state_path, map_location="cpu", weights_only=False)
+    print(f"[train] loaded training state {state_path}", flush=True)
+    return state
+
+
+def restore_rng_state(state: dict) -> None:
+    """Restore RNG streams saved with the training sidecar."""
+    if state.get("rng_state_python") is not None:
+        random.setstate(state["rng_state_python"])
+    if state.get("rng_state_numpy") is not None:
+        np.random.set_state(state["rng_state_numpy"])
+    if state.get("rng_state_torch") is not None:
+        torch.set_rng_state(state["rng_state_torch"])
+
+
+def save_latest_checkpoint(
+    out_dir: Path,
+    peft_model,
+    head: ClassificationHead,
+    cfg: TrainConfig,
+) -> Path:
+    """Save/refresh the run-local latest checkpoint alias."""
+    latest_path = out_dir / "latest.safetensors"
+    save_checkpoint(latest_path, peft_model, head, cfg)
+    return latest_path
+
+
+def save_step_checkpoint(
+    out_dir: Path,
+    peft_model,
+    head: ClassificationHead,
+    cfg: TrainConfig,
+    *,
+    opt: torch.optim.Optimizer,
+    step_global: int,
+    epoch: int,
+    batch_step: int,
+    include_partial: bool = True,
+) -> tuple[Path, Path]:
+    """Save a numbered step checkpoint and refresh latest.
+
+    ``partial_name`` is still written for backward compatibility with the
+    older Phase 2 launcher, but the numbered checkpoint is the source of truth
+    for resumable long runs.
+    """
+    if include_partial:
+        partial_path = out_dir / cfg.partial_name
+        save_checkpoint(partial_path, peft_model, head, cfg)
+        save_training_state(partial_path, opt, cfg,
+                            step_global=step_global, epoch=epoch,
+                            batch_step=batch_step)
+    step_path = out_dir / f"checkpoint_step_{int(step_global)}.safetensors"
+    save_checkpoint(step_path, peft_model, head, cfg)
+    save_training_state(step_path, opt, cfg,
+                        step_global=step_global, epoch=epoch,
+                        batch_step=batch_step)
+    latest_path = save_latest_checkpoint(out_dir, peft_model, head, cfg)
+    save_training_state(latest_path, opt, cfg,
+                        step_global=step_global, epoch=epoch,
+                        batch_step=batch_step)
+    return step_path, latest_path
+
+
 def load_checkpoint(path: Path, head: ClassificationHead) -> dict:
     """Load a saved checkpoint and apply the head weights in place."""
     from safetensors.torch import load_file
@@ -722,7 +1047,10 @@ __all__ = [
     "evaluate",
     "save_checkpoint",
     "load_checkpoint",
+    "load_training_state",
     "apply_lora_state",
     "compute_class_weights",
     "inject_lora",
+    "save_latest_checkpoint",
+    "save_step_checkpoint",
 ]

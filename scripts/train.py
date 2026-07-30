@@ -91,8 +91,19 @@ def build_train_config(cfg: dict, out_dir_override: str | None,
         max_val_records=int(training.get("max_val_records", 200)),
         batch_size=int(training.get("batch_size", 1)),
         lr=float(training.get("lr", 2e-4)),
+        head_lr=(float(training["head_lr"]) if training.get("head_lr") is not None else None),
         weight_decay=float(training.get("weight_decay", 0.0)),
         class_weighted=bool(training.get("class_weighted", True)),
+        class_weights=([float(v) for v in training["class_weights"]]
+                       if training.get("class_weights") is not None else None),
+        teacher_checkpoint=(str(_resolve_config_path(training["teacher_checkpoint"], base_dir))
+                            if training.get("teacher_checkpoint") else None),
+        distill_weight=float(training.get("distill_weight", 0.0)),
+        distill_temperature=float(training.get("distill_temperature", 1.0)),
+        paired_batch_mode=bool(training.get("paired_batch_mode", False)),
+        logit_margin=float(training.get("logit_margin", 0.0)),
+        direct_margin=float(training.get("direct_margin", 0.0)),
+        triplet_balance_weight=float(training.get("triplet_balance_weight", 0.0)),
         early_stop_patience=int(training.get("early_stop_patience", 2)),
         log_every=int(training.get("log_every", 5)),
         eval_after_epoch=bool(training.get("eval_after_epoch", False)),
@@ -100,6 +111,7 @@ def build_train_config(cfg: dict, out_dir_override: str | None,
         # T2.16 真实训练开关
         max_train_seconds=float(training.get("max_train_seconds", 0.0)),
         preload_dataset=bool(training.get("preload_dataset", False)),
+        dataset_cache_size=int(training.get("dataset_cache_size", 4096)),
         checkpoint_name=str(training.get("checkpoint_name", "lora_baseline.safetensors")),
         save_every=int(training.get("save_every", 50)),
         partial_name=str(training.get("partial_name", "lora_partial.safetensors")),
@@ -109,6 +121,9 @@ def build_train_config(cfg: dict, out_dir_override: str | None,
     cfg_obj.skip_train_batches = int(training.get("skip_train_batches", 0))
     cfg_obj.resume_global_step = int(training.get("resume_global_step", 0))
     cfg_obj.max_train_steps = int(training.get("max_train_steps", 0))
+    init_from = str(training.get("init_from", "")) or ""
+    cfg_obj.init_from = str(_resolve_config_path(init_from, base_dir)) if init_from else None
+    cfg_obj.warmup_head_steps = int(training.get("warmup_head_steps", 0))
     return cfg_obj
 
 
@@ -192,6 +207,18 @@ def parse_args() -> argparse.Namespace:
         help="Stop after N successful optimizer steps in this run. 0 means no limit.",
     )
     p.add_argument(
+        "--init-from",
+        type=Path,
+        default=None,
+        help="Load LoRA tensors only; use a new classification head and optimizer.",
+    )
+    p.add_argument(
+        "--warmup-head-steps",
+        type=int,
+        default=None,
+        help="Freeze LoRA and train only the new classification head for N steps.",
+    )
+    p.add_argument(
         "-u", "--unbuffered",
         action="store_true",
         help="Force line-buffered stdout (always recommended for long runs)",
@@ -231,6 +258,10 @@ def main() -> int:
         cfg.resume_global_step = int(args.resume_global_step)
     if args.max_train_steps:
         cfg.max_train_steps = int(args.max_train_steps)
+    if args.init_from:
+        cfg.init_from = str(args.init_from)
+    if args.warmup_head_steps is not None:
+        cfg.warmup_head_steps = int(args.warmup_head_steps)
     if args.eval_after_epoch:
         cfg.eval_after_epoch = True
 
@@ -253,6 +284,10 @@ def main() -> int:
         print(f"[train] RESUME: checkpoint={cfg.resume_from}", flush=True)
         print(f"[train] RESUME: skip_train_batches={cfg.skip_train_batches}  "
               f"resume_global_step={cfg.resume_global_step}", flush=True)
+    if getattr(cfg, "init_from", None):
+        print(f"[train] INIT_FROM_LORA_ONLY: {cfg.init_from}", flush=True)
+    if getattr(cfg, "warmup_head_steps", 0):
+        print(f"[train] HEAD_WARMUP_STEPS: {cfg.warmup_head_steps}", flush=True)
     if getattr(cfg, "max_train_steps", 0):
         print(f"[train] STEP LIMIT: {cfg.max_train_steps}", flush=True)
     print(f"[train] log_every={cfg.log_every}  save_every={cfg.save_every}  "

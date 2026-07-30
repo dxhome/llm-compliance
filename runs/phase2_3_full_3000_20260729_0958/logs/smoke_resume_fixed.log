@@ -1,0 +1,40 @@
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\smoke.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_resume\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\train.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\resume_smoke.jsonl
+[train] epochs=1  max_train_records=120  batch_size=1  lr=2e-05
+[train] RESUME: checkpoint=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\checkpoints\checkpoint_step_100.safetensors
+[train] RESUME: skip_train_batches=100  resume_global_step=100
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] HEAD_WARMUP_STEPS: 20
+[train] STEP LIMIT: 20
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 3.0s
+[train][+   3.0s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train] loaded training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\checkpoints\checkpoint_step_100.state.pt
+[train] resumed from C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\checkpoints\checkpoint_step_100.safetensors (lora tensors=328, head tensors=2)
+[train][+   3.3s] === phase 3/6 数据集加载 ===
+[train] dataset: train=120 val=18
+[train] batch_size=1  steps_per_epoch=120
+[train][+   3.3s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] head warm-up already completed before resume at global step 100; LoRA remains unfrozen
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=2e-05  head=0.0001
+[train] optimizer state resumed (step_global=100)
+[train] RNG state resumed
+[train][+   3.3s] === phase 5/6 训练循环  (1 epoch × 120 sample × bs=1) ===
+[train] skipping first 100 batches to approximate resume position
+[train] epoch 1/1 step 105/120 (global 105/120) loss=0.0503  last_loss=0.0037  step_dt=nans  epoch_elapsed=241.4s  ETA=nans  total_elapsed=244.6s
+[train] epoch 1/1 step 110/120 (global 110/120) loss=0.0441  last_loss=0.0227  step_dt=22.42s  epoch_elapsed=443.2s  ETA=224s  total_elapsed=446.4s
+[train] epoch 1/1 step 115/120 (global 115/120) loss=0.0308  last_loss=0.0033  step_dt=28.13s  epoch_elapsed=635.2s  ETA=141s  total_elapsed=638.5s
+[train] epoch 1/1 step 120/120 (global 120/120) loss=0.0236  last_loss=0.0022  step_dt=31.42s  epoch_elapsed=838.3s  ETA=0s  total_elapsed=841.6s
+[train] STEP LIMIT REACHED (20) - stopping at epoch 1 step 120
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_resume\checkpoints\lora_phase2_3_full_3000_smoke.safetensors (332 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_resume\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_resume\checkpoints\lora_phase2_3_full_3000_smoke.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_resume\checkpoints\latest.state.pt

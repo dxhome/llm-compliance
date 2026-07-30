@@ -1,0 +1,37 @@
+[eval] mode:       COMPARE-SMOKE-VS-FULL (T2.18)
+[eval] smoke:      C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[eval] full:       C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\checkpoints\lora_phase2_3_full_3000_smoke.safetensors
+[eval] val:        C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\resume_smoke.jsonl
+[eval] out_dir:    C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare
+[eval] val size: 18
+
+[eval] === chunk 1 smoke-vs-full compare (18 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare\chunks\smoke_vs_full_group_001 ===
+[eval] chunk 1: building SMOKE model
+[eval] chunk 1: smoke LoRA=8,323,072 Head=2,883
+[eval-smoke-g001] progress: 5/18 samples  step_dt=nans  eval_elapsed=51.8s  ETA=nans
+[eval-smoke-g001] progress: 10/18 samples  step_dt=10.30s  eval_elapsed=103.3s  ETA=82s
+[eval-smoke-g001] progress: 15/18 samples  step_dt=10.02s  eval_elapsed=151.9s  ETA=30s
+[eval-smoke-g001] progress: 18/18 samples  step_dt=10.04s  eval_elapsed=182.3s  ETA=0s
+[eval] chunk 1: building FULL model
+[eval] chunk 1: full LoRA=8,323,072 Head=2,883
+[eval-full-g001] progress: 5/18 samples  step_dt=nans  eval_elapsed=54.6s  ETA=nans
+[eval-full-g001] progress: 10/18 samples  step_dt=12.22s  eval_elapsed=115.6s  ETA=98s
+[eval-full-g001] progress: 15/18 samples  step_dt=10.62s  eval_elapsed=160.7s  ETA=32s
+[eval-full-g001] progress: 18/18 samples  step_dt=10.03s  eval_elapsed=185.0s  ETA=0s
+[eval] chunk 1: smoke macro F1=0.2692, full macro F1=0.1667, delta=-0.1025
+[eval] chunk 1: wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare\chunks\smoke_vs_full_group_001\comparison_full_vs_smoke.json
+[eval] === chunked smoke-vs-full aggregate ===
+
+[eval] === Delta (full - smoke) ===
+[eval] F1 delta:     -0.1025  (smoke 0.2692 → full 0.1667)
+[eval] Acc delta:    -0.0556
+[eval] recall delta  [    clean]: +0.8333
+[eval] recall delta  [   direct]: -1.0000
+[eval] recall delta  [ indirect]: +0.0000
+
+[eval] PASS = full strictly better than smoke on all metrics: NO
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare\full_model_report.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare\full_model_report.md
+
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare\comparison_full_vs_smoke.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_120\compare\comparison_full_vs_smoke.md

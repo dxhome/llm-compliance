@@ -15,3 +15,276 @@
 - [2026-07-27 14:21] 完成 T2.26 训练配置与执行决策冻结：生成模板配置、本 run 训练配置、resume smoke 配置和中文决策说明。
 - [2026-07-27 14:21] 冻结首轮训练为单组强配置：2000 steps、LoRA r=32/alpha=64/dropout=0.10、lr=1e-4、每 5 step log、每 50 step checkpoint、10% quick compare、50%/100% full compare、`best_by_min_class_f1` 选优。
 - [2026-07-27 14:21] `scripts/check_phase2_readiness.py` 对 `configs/train.yaml` 与 `configs/resume_smoke.yaml` 预检均通过；下一步进入 T2.36 resume smoke。
+- [2026-07-27 14:54] 完成 T2.36 第 4 步：补齐 trainer 的 step checkpoint / latest checkpoint 保存能力，并新增 `scripts/run_phase2_3_resume_smoke.py` 自动执行两段式恢复验证。
+- [2026-07-27 14:54] Resume smoke 第一段跑到 10 step，生成 `checkpoint_step_10.safetensors`、`latest.safetensors` 和 final smoke checkpoint；第二段从 `latest.safetensors` 恢复并继续到逻辑 step 15。
+- [2026-07-27 14:54] 第 4 步验收通过，总耗时约 422.5 秒；报告写入 `phase2_3_resume_smoke_report.md` 与 `artifacts/resume_smoke/phase2_3_resume_smoke_report.json`。
+- [2026-07-27 15:41] 按用户反馈复查第 4 步验收：原报告主要验证 step/checkpoint/log 连续性，未充分证明 optimizer 与 loss 连续性。
+- [2026-07-27 15:41] 补强 trainer：checkpoint sidecar 现在保存 optimizer state、逻辑 step、随机状态等恢复元数据；恢复时会加载 optimizer state，并在日志中输出 `optimizer state resumed`。
+- [2026-07-27 15:41] 新增固定 probe loss 检查：`checkpoint_step_10` 与 `latest@step10` 在同一 probe set 上 loss 均为 2.0938645；恢复训练到 step15 后 final checkpoint probe loss 为 2.0497384，未升高且下降；严格版 resume smoke 通过。
+- [2026-07-27 15:42] 继续收紧基于 loss 收敛目标的恢复机制：训练 DataLoader 改为独立固定 seed generator，恢复时加载 RNG state，训练窗口 loss 仅作为观察值，硬验收改为固定 probe loss；最新报告显示 `checkpoint_step_10` 与 `latest@step10` loss 均为 2.1418034，恢复后 final loss 为 2.1037518，严格验收通过。
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 1-200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0001_0200.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 201-400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0201_0400.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 401-600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0401_0600.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 601-800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0601_0800.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 801-1000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0801_1000.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_indirect.log
+- [2026-07-27 17:04:36] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:04:36] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:04:36] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 1001-1200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1001_1200.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 1201-1400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1201_1400.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 1401-1600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1401_1600.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 1601-1800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1601_1800.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 1800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_indirect.log
+- [2026-07-27 17:04:36] T2.27 segmented training dry-run step 1801-2000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1801_2000.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_clean.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_direct.log
+- [2026-07-27 17:04:36] T2.27 quick compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_indirect.log
+- [2026-07-27 17:04:36] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:04:36] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:04:36] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 1-200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0001_0200.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 201-400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0201_0400.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 401-600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0401_0600.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 601-800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0601_0800.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 801-1000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0801_1000.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_indirect.log
+- [2026-07-27 17:08:37] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:08:37] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:08:37] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 1001-1200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1001_1200.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 1201-1400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1201_1400.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 1401-1600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1401_1600.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 1601-1800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1601_1800.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 1800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_indirect.log
+- [2026-07-27 17:08:37] T2.27 segmented training dry-run step 1801-2000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1801_2000.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_clean.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_direct.log
+- [2026-07-27 17:08:37] T2.27 quick compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_indirect.log
+- [2026-07-27 17:08:37] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:08:37] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:08:37] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 1-200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0001_0200.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 201-400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0201_0400.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 401-600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0401_0600.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 601-800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0601_0800.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 801-1000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0801_1000.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_indirect.log
+- [2026-07-27 17:11:13] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:11:13] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:11:13] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 1001-1200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1001_1200.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 1201-1400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1201_1400.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 1401-1600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1401_1600.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 1601-1800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1601_1800.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 1800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_indirect.log
+- [2026-07-27 17:11:13] T2.27 segmented training dry-run step 1801-2000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1801_2000.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_clean.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_direct.log
+- [2026-07-27 17:11:13] T2.27 quick compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_indirect.log
+- [2026-07-27 17:11:13] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:11:13] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:11:13] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:13:54] Formal training pre-start readiness completed. Added segmented workflow dry-run, Phase 2.3 compare summarizer, JSONL separator sanitization, scorecard/best checkpoint policy, and failure policy. Waiting for user confirmation before --execute.
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 1-200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0001_0200.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0200_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 201-400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0201_0400.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0400_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 401-600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0401_0600.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0600_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 601-800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0601_0800.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0800_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 801-1000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0801_1000.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1000_indirect.log
+- [2026-07-27 17:43:23] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:43:23] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:43:23] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 1001-1200, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1001_1200.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1200 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1200 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1200 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1200_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 1201-1400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1201_1400.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 1401-1600, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1401_1600.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1600 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1600 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1600 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1600_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 1601-1800, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1601_1800.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1800 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1800 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 1800 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1800_indirect.log
+- [2026-07-27 17:43:23] T2.27 segmented training dry-run step 1801-2000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1801_2000.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_clean.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_direct.log
+- [2026-07-27 17:43:23] T2.27 quick compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_2000_indirect.log
+- [2026-07-27 17:43:23] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:43:23] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:43:23] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:51:38] T2.27 segmented training dry-run step 1-450, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0001_0450.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 450 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0450_clean.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 450 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0450_direct.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 450 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0450_indirect.log
+- [2026-07-27 17:51:38] T2.27 segmented training dry-run step 451-950, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0451_0950.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 950 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0950_clean.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 950 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0950_direct.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 950 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0950_indirect.log
+- [2026-07-27 17:51:38] T2.27 segmented training dry-run step 951-1000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_0951_1000.log
+- [2026-07-27 17:51:38] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:51:38] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:51:38] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:51:38] T2.27 segmented training dry-run step 1001-1400, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1001_1400.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 1400 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_clean.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 1400 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_direct.log
+- [2026-07-27 17:51:38] T2.27 quick compare dry-run step 1400 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1400_indirect.log
+- [2026-07-27 17:51:38] T2.27 segmented training dry-run step 1401-2000, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_step_1401_2000.log
+- [2026-07-27 17:51:38] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:51:38] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:51:38] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:52:08] Updated Phase 2.3 quick compare schedule from 10 runs to 3 runs at steps 450, 950, and 1400; workflow dry-run regenerated with 5 training segments and package/offline smoke retained.
+- [2026-07-27 17:57:42] T2.27 quick compare dry-run step 500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_clean.log
+- [2026-07-27 17:57:42] T2.27 quick compare dry-run step 500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_direct.log
+- [2026-07-27 17:57:42] T2.27 quick compare dry-run step 500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_indirect.log
+- [2026-07-27 17:57:42] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:57:42] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:57:42] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:57:42] T2.27 quick compare dry-run step 1500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_clean.log
+- [2026-07-27 17:57:42] T2.27 quick compare dry-run step 1500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_direct.log
+- [2026-07-27 17:57:42] T2.27 quick compare dry-run step 1500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_indirect.log
+- [2026-07-27 17:57:42] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:57:42] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:57:42] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:59:21] T2.27 quick compare dry-run step 500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_clean.log
+- [2026-07-27 17:59:21] T2.27 quick compare dry-run step 500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_direct.log
+- [2026-07-27 17:59:21] T2.27 quick compare dry-run step 500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_indirect.log
+- [2026-07-27 17:59:21] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 17:59:21] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 17:59:21] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 17:59:21] T2.27 quick compare dry-run step 1500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_clean.log
+- [2026-07-27 17:59:21] T2.27 quick compare dry-run step 1500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_direct.log
+- [2026-07-27 17:59:21] T2.27 quick compare dry-run step 1500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_indirect.log
+- [2026-07-27 17:59:21] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 17:59:21] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 17:59:21] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 17:59:36] Updated Phase 2.3 compare schedule to quick steps 500/1500 and full steps 1000/2000. Workflow now uses one continuous 2000-step training process and monitors checkpoints for compare; it no longer stops and resumes training for compare points.
+- [2026-07-27 18:24:46] T2.32 continuous training started PID=42076, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_0001_2000.log
+- [2026-07-27 18:35:46] T2.32 continuous training finished returncode=1, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_0001_2000.log
+- [2026-07-27 18:37:09] T2.27 quick compare dry-run step 500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_clean.log
+- [2026-07-27 18:37:09] T2.27 quick compare dry-run step 500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_direct.log
+- [2026-07-27 18:37:09] T2.27 quick compare dry-run step 500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_indirect.log
+- [2026-07-27 18:37:09] T2.27 full compare dry-run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-27 18:37:09] T2.27 full compare dry-run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-27 18:37:09] T2.27 full compare dry-run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-27 18:37:09] T2.27 quick compare dry-run step 1500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_clean.log
+- [2026-07-27 18:37:09] T2.27 quick compare dry-run step 1500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_direct.log
+- [2026-07-27 18:37:09] T2.27 quick compare dry-run step 1500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_indirect.log
+- [2026-07-27 18:37:09] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-27 18:37:09] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-27 18:37:09] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-27 18:37:28] T2.32 continuous training started PID=29704, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_0001_2000.log
+- [2026-07-27 22:49:09] T2.27 quick compare run step 500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_clean.log
+- [2026-07-27 23:29:11] T2.27 quick compare run step 500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_direct.log
+- [2026-07-28 00:05:23] T2.27 quick compare run step 500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_0500_indirect.log
+- [2026-07-28 05:31:01] T2.27 full compare run step 1000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_clean.log
+- [2026-07-28 08:10:25] T2.27 full compare run step 1000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_direct.log
+- [2026-07-28 10:39:21] T2.27 full compare run step 1000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_1000_indirect.log
+- [2026-07-28 11:06:03] T2.27 quick compare dry-run step 1500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_clean.log
+- [2026-07-28 11:06:03] T2.27 quick compare dry-run step 1500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_direct.log
+- [2026-07-28 11:06:03] T2.27 quick compare dry-run step 1500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_indirect.log
+- [2026-07-28 11:06:03] T2.27 full compare dry-run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-28 11:06:03] T2.27 full compare dry-run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-28 11:06:03] T2.27 full compare dry-run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log
+- [2026-07-28 11:07:54] T2.32 continuous training started PID=27796, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_resume_1451_2000.log
+- [2026-07-28 12:13:16] T2.27 quick compare run step 1500 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_clean.log
+- [2026-07-28 12:48:44] T2.27 quick compare run step 1500 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_direct.log
+- [2026-07-28 13:20:15] T2.27 quick compare run step 1500 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_quick_step_1500_indirect.log
+- [2026-07-28 16:37:16] T2.32 continuous training finished returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_train_resume_1451_2000.log
+- [2026-07-28 17:37:06] T2.27 full compare run step 2000 label=clean, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_clean.log
+- [2026-07-28 18:48:35] T2.27 full compare run step 2000 label=direct, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_direct.log
+- [2026-07-28 19:59:09] T2.27 full compare run step 2000 label=indirect, returncode=0, log=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\logs\phase2_3_compare_full_step_2000_indirect.log

@@ -1,0 +1,56 @@
+[workflow] command: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/eval.py --config C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\configs\train.yaml --compare-smoke-vs-full --smoke-checkpoint C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors --full-checkpoint C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_1500.safetensors --val C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\compare_quick_indirect.jsonl --out C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect --chunk-size 50 --chunk-output-dir C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\chunks
+[eval] mode:       COMPARE-SMOKE-VS-FULL (T2.18)
+[eval] smoke:      C:\work\llm-compliance\runs\phase2_2_balanced_600_20260718_1955\artifacts\checkpoints\lora_balanced_600.safetensors
+[eval] full:       C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_1500.safetensors
+[eval] val:        C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\compare_quick_indirect.jsonl
+[eval] out_dir:    C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+[eval] val size: 50
+
+[eval] === chunk 1 smoke-vs-full compare (50 records) -> C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\chunks\smoke_vs_full_group_001 ===
+[eval] chunk 1: building SMOKE model
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+[eval] chunk 1: smoke LoRA=8,323,072 Head=2,883
+[eval-smoke-g001] progress: 5/50 samples  step_dt=nans  eval_elapsed=111.7s  ETA=nans
+[eval-smoke-g001] progress: 10/50 samples  step_dt=19.01s  eval_elapsed=206.7s  ETA=760s
+[eval-smoke-g001] progress: 15/50 samples  step_dt=18.88s  eval_elapsed=300.5s  ETA=661s
+[eval-smoke-g001] progress: 20/50 samples  step_dt=19.10s  eval_elapsed=398.2s  ETA=573s
+[eval-smoke-g001] progress: 25/50 samples  step_dt=19.36s  eval_elapsed=499.0s  ETA=484s
+[eval-smoke-g001] progress: 30/50 samples  step_dt=19.42s  eval_elapsed=597.3s  ETA=388s
+[eval-smoke-g001] progress: 35/50 samples  step_dt=19.03s  eval_elapsed=682.7s  ETA=285s
+[eval-smoke-g001] progress: 40/50 samples  step_dt=18.68s  eval_elapsed=765.4s  ETA=187s
+[eval-smoke-g001] progress: 45/50 samples  step_dt=18.61s  eval_elapsed=856.0s  ETA=93s
+[eval-smoke-g001] progress: 50/50 samples  step_dt=18.63s  eval_elapsed=950.1s  ETA=0s
+[eval] chunk 1: building FULL model
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+[eval] chunk 1: full LoRA=8,323,072 Head=2,883
+[eval-full-g001] progress: 5/50 samples  step_dt=nans  eval_elapsed=99.8s  ETA=nans
+[eval-full-g001] progress: 10/50 samples  step_dt=18.35s  eval_elapsed=191.5s  ETA=734s
+[eval-full-g001] progress: 15/50 samples  step_dt=18.73s  eval_elapsed=287.0s  ETA=655s
+[eval-full-g001] progress: 20/50 samples  step_dt=19.79s  eval_elapsed=396.5s  ETA=594s
+[eval-full-g001] progress: 25/50 samples  step_dt=19.15s  eval_elapsed=482.9s  ETA=479s
+[eval-full-g001] progress: 30/50 samples  step_dt=19.00s  eval_elapsed=574.9s  ETA=380s
+[eval-full-g001] progress: 35/50 samples  step_dt=18.56s  eval_elapsed=656.5s  ETA=278s
+[eval-full-g001] progress: 40/50 samples  step_dt=18.20s  eval_elapsed=736.9s  ETA=182s
+[eval-full-g001] progress: 45/50 samples  step_dt=18.15s  eval_elapsed=825.8s  ETA=91s
+[eval-full-g001] progress: 50/50 samples  step_dt=18.16s  eval_elapsed=917.2s  ETA=0s
+[eval] chunk 1: smoke macro F1=0.0000, full macro F1=0.0000, delta=+0.0000
+[eval] chunk 1: wrote C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\chunks\smoke_vs_full_group_001\comparison_full_vs_smoke.json
+[eval] === chunked smoke-vs-full aggregate ===
+
+[eval] === Delta (full - smoke) ===
+[eval] F1 delta:     +0.0000  (smoke 0.0000 → full 0.0000)
+[eval] Acc delta:    +0.0000
+[eval] recall delta  [    clean]: +0.0000
+[eval] recall delta  [   direct]: +0.0000
+[eval] recall delta  [ indirect]: +0.0000
+
+[eval] PASS = full strictly better than smoke on all metrics: NO
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\full_model_report.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\full_model_report.md
+
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\comparison_full_vs_smoke.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\quick\step_1500\indirect\comparison_full_vs_smoke.md

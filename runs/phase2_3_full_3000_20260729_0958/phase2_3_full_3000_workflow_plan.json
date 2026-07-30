@@ -1,0 +1,28 @@
+{
+  "run_dir": "C:\\work\\llm-compliance\\runs\\phase2_3_full_3000_20260729_0958",
+  "baseline_checkpoint": "C:\\work\\llm-compliance\\runs\\phase2_3_full_2000_20260727_1211\\artifacts\\checkpoints\\checkpoint_step_2000.safetensors",
+  "execute": false,
+  "schedules": [
+    {
+      "step": 300,
+      "scope": "quick"
+    },
+    {
+      "step": 750,
+      "scope": "quick"
+    },
+    {
+      "step": 1500,
+      "scope": "full"
+    },
+    {
+      "step": 2250,
+      "scope": "quick"
+    },
+    {
+      "step": 3000,
+      "scope": "full"
+    }
+  ],
+  "training_mode": "LoRA-only warm-start with new head and optimizer"
+}

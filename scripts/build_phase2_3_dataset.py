@@ -561,11 +561,28 @@ def _select_records(pools: dict[str, dict[str, list[Candidate]]], seed: int) -> 
     return selected, stats
 
 
+def _jsonl_safe(value: Any) -> Any:
+    """Normalize rare Unicode line separators before writing JSONL."""
+    if isinstance(value, str):
+        return (
+            value.replace("\u2028", "\n")
+            .replace("\u2029", "\n")
+            .replace("\x85", "\n")
+            .replace("\v", "\n")
+            .replace("\f", "\n")
+        )
+    if isinstance(value, list):
+        return [_jsonl_safe(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _jsonl_safe(item) for key, item in value.items()}
+    return value
+
+
 def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as f:
         for record in records:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.write(json.dumps(_jsonl_safe(record), ensure_ascii=False) + "\n")
 
 
 def _distribution(records: list[dict[str, Any]]) -> dict[str, Any]:

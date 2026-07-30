@@ -1,0 +1,70 @@
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\smoke_strategy_c.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_train_300.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_mixed_90.jsonl
+[train] epochs=1  max_train_records=300  batch_size=1  lr=1e-05
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] HEAD_WARMUP_STEPS: 100
+[train] STEP LIMIT: 200
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 5.1s
+[train][+   5.1s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train] direct replay distillation enabled: weight=0.3 temperature=2
+[train][+   6.7s] === phase 3/6 数据集加载 ===
+[train] dataset: train=300 val=90
+[train] batch_size=1  steps_per_epoch=300
+[train][+   6.7s] === phase 4/6 优化器 + class weights ===
+[train] class weights: [1.0, 1.25, 1.25]
+[train] head warm-up enabled for 100 steps; LoRA frozen
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=1e-05  head=3e-05
+[train][+   6.8s] === phase 5/6 训练循环  (1 epoch × 300 sample × bs=1) ===
+[train] epoch 1/1 step 1/300 (global 1/300) loss=0.8129  last_loss=0.8129  step_dt=nans  epoch_elapsed=55.3s  ETA=nans  total_elapsed=62.1s
+[train] epoch 1/1 step 5/300 (global 5/300) loss=1.7705  last_loss=3.4299  step_dt=51.72s  epoch_elapsed=262.2s  ETA=15257s  total_elapsed=269.0s
+[train] epoch 1/1 step 10/300 (global 10/300) loss=1.7077  last_loss=1.3828  step_dt=53.46s  epoch_elapsed=536.5s  ETA=15504s  total_elapsed=543.2s
+[train] epoch 1/1 step 15/300 (global 15/300) loss=1.8724  last_loss=1.3847  step_dt=55.80s  epoch_elapsed=836.6s  ETA=15904s  total_elapsed=843.3s
+[train] epoch 1/1 step 20/300 (global 20/300) loss=1.6703  last_loss=0.8381  step_dt=56.96s  epoch_elapsed=1137.6s  ETA=15949s  total_elapsed=1144.3s
+[train] epoch 1/1 step 25/300 (global 25/300) loss=1.7000  last_loss=1.3001  step_dt=55.76s  epoch_elapsed=1393.5s  ETA=15333s  total_elapsed=1400.3s
+[train] epoch 1/1 step 30/300 (global 30/300) loss=1.7607  last_loss=1.8950  step_dt=54.52s  epoch_elapsed=1636.4s  ETA=14720s  total_elapsed=1643.1s
+[train] epoch 1/1 step 35/300 (global 35/300) loss=1.7812  last_loss=3.3470  step_dt=54.81s  epoch_elapsed=1918.9s  ETA=14525s  total_elapsed=1925.7s
+[train] epoch 1/1 step 40/300 (global 40/300) loss=1.7641  last_loss=1.7618  step_dt=53.55s  epoch_elapsed=2143.8s  ETA=13923s  total_elapsed=2150.6s
+[train] epoch 1/1 step 45/300 (global 45/300) loss=1.6645  last_loss=0.2075  step_dt=53.18s  epoch_elapsed=2395.1s  ETA=13560s  total_elapsed=2401.8s
+[train] epoch 1/1 step 50/300 (global 50/300) loss=1.6385  last_loss=2.1158  step_dt=52.23s  epoch_elapsed=2614.6s  ETA=13058s  total_elapsed=2621.4s
+[train]   -> periodic save: lora_partial.safetensors (step 50)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\lora_partial.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\lora_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\checkpoint_step_50.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\checkpoint_step_50.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\latest.state.pt
+[train] epoch 1/1 step 55/300 (global 55/300) loss=1.5906  last_loss=0.1386  step_dt=52.07s  epoch_elapsed=2867.0s  ETA=12756s  total_elapsed=2873.7s
+[train] epoch 1/1 step 60/300 (global 60/300) loss=1.5725  last_loss=0.4913  step_dt=51.85s  epoch_elapsed=3114.3s  ETA=12443s  total_elapsed=3121.0s
+[train] epoch 1/1 step 65/300 (global 65/300) loss=1.5566  last_loss=0.4051  step_dt=51.60s  epoch_elapsed=3357.9s  ETA=12127s  total_elapsed=3364.6s
+[train] epoch 1/1 step 70/300 (global 70/300) loss=1.5491  last_loss=0.2677  step_dt=51.23s  epoch_elapsed=3590.2s  ETA=11783s  total_elapsed=3597.0s
+[train] epoch 1/1 step 75/300 (global 75/300) loss=1.5728  last_loss=2.4835  step_dt=51.28s  epoch_elapsed=3850.0s  ETA=11538s  total_elapsed=3856.7s
+[train] epoch 1/1 step 80/300 (global 80/300) loss=1.5301  last_loss=1.3966  step_dt=51.10s  epoch_elapsed=4092.3s  ETA=11242s  total_elapsed=4099.0s
+[train] epoch 1/1 step 85/300 (global 85/300) loss=1.5268  last_loss=1.1319  step_dt=51.44s  epoch_elapsed=4376.4s  ETA=11060s  total_elapsed=4383.2s
+[train] epoch 1/1 step 90/300 (global 90/300) loss=1.5202  last_loss=1.9195  step_dt=51.80s  epoch_elapsed=4665.8s  ETA=10879s  total_elapsed=4672.6s
+[train] epoch 1/1 step 95/300 (global 95/300) loss=1.5666  last_loss=0.7421  step_dt=51.80s  epoch_elapsed=4924.3s  ETA=10618s  total_elapsed=4931.0s
+[train] epoch 1/1 step 100/300 (global 100/300) loss=1.5732  last_loss=1.7565  step_dt=51.64s  epoch_elapsed=5167.9s  ETA=10328s  total_elapsed=5174.7s
+[train]   -> periodic save: lora_partial.safetensors (step 100)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\lora_partial.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\lora_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\checkpoint_step_100.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\checkpoint_step_100.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_multistrategy\c\checkpoints\latest.state.pt
+[train] head warm-up complete at global step 100; LoRA unfrozen
+[train] epoch 1/1 step 105/300 (global 105/300) loss=1.5714  last_loss=1.5879  step_dt=51.45s  epoch_elapsed=5406.0s  ETA=10032s  total_elapsed=5412.7s
+[train] epoch 1/1 step 110/300 (global 110/300) loss=1.5622  last_loss=0.3002  step_dt=53.74s  epoch_elapsed=5912.9s  ETA=10210s  total_elapsed=5919.7s
+[train] epoch 1/1 step 115/300 (global 115/300) loss=1.5780  last_loss=2.8828  step_dt=55.82s  epoch_elapsed=6418.5s  ETA=10326s  total_elapsed=6425.3s
+[train] epoch 1/1 step 120/300 (global 120/300) loss=1.5734  last_loss=1.2154  step_dt=58.07s  epoch_elapsed=6966.2s  ETA=10453s  total_elapsed=6973.0s
+[train] epoch 1/1 step 125/300 (global 125/300) loss=1.5637  last_loss=1.6155  step_dt=60.06s  epoch_elapsed=7502.4s  ETA=10510s  total_elapsed=7509.2s
+[train] epoch 1/1 step 130/300 (global 130/300) loss=1.5495  last_loss=0.3408  step_dt=62.17s  epoch_elapsed=8075.0s  ETA=10569s  total_elapsed=8081.8s
+[train] epoch 1/1 step 135/300 (global 135/300) loss=1.5134  last_loss=0.3018  step_dt=63.74s  epoch_elapsed=8595.9s  ETA=10516s  total_elapsed=8602.7s
+[train] epoch 1/1 step 140/300 (global 140/300) loss=1.5074  last_loss=2.2962  step_dt=64.95s  epoch_elapsed=9083.3s  ETA=10392s  total_elapsed=9090.1s
+[train] epoch 1/1 step 145/300 (global 145/300) loss=1.4803  last_loss=0.9792  step_dt=65.45s  epoch_elapsed=9479.9s  ETA=10145s  total_elapsed=9486.7s

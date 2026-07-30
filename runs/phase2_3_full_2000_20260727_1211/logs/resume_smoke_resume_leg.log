@@ -1,0 +1,40 @@
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\configs\resume_smoke.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\resume_smoke.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\resume_smoke.jsonl
+[train] epochs=1  max_train_records=18  batch_size=1  lr=0.0001
+[train] RESUME: checkpoint=C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\latest.safetensors
+[train] RESUME: skip_train_batches=10  resume_global_step=10
+[train] STEP LIMIT: 5
+[train] log_every=5  save_every=10  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+[train]   backbone loaded in 3.8s
+[train][+   3.8s] === phase 2/6 LoRA + head 注入 ===
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] loaded training state C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\latest.state.pt
+[train] resumed from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\latest.safetensors (lora tensors=328, head tensors=2)
+[train][+   4.1s] === phase 3/6 数据集加载 ===
+[train] dataset: train=18 val=18
+[train] batch_size=1  steps_per_epoch=18
+[train][+   4.1s] === phase 4/6 优化器 + class weights ===
+[train] class weights: [1.0, 1.0, 1.0]
+[train] total trainable params: 8,325,955
+[train] optimizer state resumed (step_global=10)
+[train] RNG state resumed
+[train][+   4.1s] === phase 5/6 训练循环  (1 epoch × 18 sample × bs=1) ===
+[train] skipping first 10 batches to approximate resume position
+[train] epoch 1/1 step 15/18 (global 15/18) loss=2.1579  last_loss=2.1598  step_dt=nans  epoch_elapsed=130.2s  ETA=nans  total_elapsed=134.3s
+[train] STEP LIMIT REACHED (5) - stopping at epoch 1 step 15
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\lora_phase2_3_resume_smoke.safetensors (332 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\lora_phase2_3_resume_smoke.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\latest.state.pt
+
+================================================================================
+COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -u scripts/train.py --config C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\configs\resume_smoke.yaml --resume-from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\latest.safetensors --resume-global-step 10 --skip-train-batches 10 --max-train-steps 5 --checkpoint-name lora_phase2_3_resume_smoke.safetensors --save-every 10 --partial-name lora_phase2_3_resume_smoke_latest.safetensors
+================================================================================

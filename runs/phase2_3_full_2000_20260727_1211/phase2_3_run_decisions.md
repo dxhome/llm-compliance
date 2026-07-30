@@ -7,7 +7,7 @@
 - LoRA 使用 `r=32, alpha=64, dropout=0.10`，target modules 保持 `q_proj,k_proj,v_proj,o_proj`。
 - 学习率使用 `1.0e-4`，比 Phase 2.2 的 `2.0e-4` 更保守，用于降低 3000 条增强数据和更高 LoRA rank 下的 loss 抖动风险。
 - 训练日志保持每 5 step 打印一次；checkpoint 目标策略为每 50 step 保存一次 step checkpoint，并维护 `latest.safetensors`。
-- 每完成 10% steps 跑一次 quick compare；50% / 100% / best candidate 跑 full compare。
+- quick compare 从 10 次压缩为 2 次，在 500/1500 step 执行；50% / 100% / best candidate 跑 full compare。
 - best checkpoint 选择标准为 `min(clean_f1, direct_f1, indirect_f1)` 最大，避免只优化 macro F1 或 clean 类。
 - 正式长训练前必须先完成 resume smoke，目标总耗时不超过 1 小时。
 
@@ -43,8 +43,8 @@
 ## Compare 策略
 
 - quick compare 使用 clean / direct / indirect 各 50 条，共 150 条。
-- quick compare 触发点：10%、20%、30%、40%、50%、60%、70%、80%、90%、100%。
-- 以 2000 steps 计算，quick compare step 为 200、400、600、800、1000、1200、1400、1600、1800、2000。
+- quick compare 触发点：500、1500 step。
+- full compare 触发点：1000、2000 step。
 - full compare 使用 clean / direct / indirect 各 200 条，共 600 条。
 - full compare 触发点：1000 steps、2000 steps、best candidate。
 - compare 日志每 5 条样本打印一次进度。

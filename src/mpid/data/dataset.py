@@ -110,7 +110,7 @@ class MPIDJsonlDataset(Dataset):
         r = self.records[idx]
         text = r["text"]
         image = r.get("image")
-        prompt = build_prompt(text)
+        prompt = build_prompt(text, record=r)
         # Pre-process: tokenize text + load image.
         # We use the processor directly to keep the code parallel to
         # ``VLMAdapter.preprocess`` but bypass the device move (the

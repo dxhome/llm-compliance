@@ -1,0 +1,23 @@
+{
+  "train_records": 900,
+  "train_labels": {
+    "direct": 300,
+    "indirect": 300,
+    "clean": 300
+  },
+  "train_triplets": 240,
+  "supplemental_records": 180,
+  "mixed_records": 150,
+  "mixed_labels": {
+    "indirect": 50,
+    "direct": 50,
+    "clean": 50
+  },
+  "pair_suite_records": 120,
+  "pair_suite_triplets": 40,
+  "pair_suite_labels": {
+    "clean": 40,
+    "direct": 40,
+    "indirect": 40
+  }
+}

@@ -31,6 +31,11 @@ numpy>=1.24,<2.1
 pandas>=2.0,<3.0
 pillow>=10.0,<12.0
 
+# --- C6B-lite local OCR ---
+# Uses bundled ONNX weights in the offline package; no inference network call.
+rapidocr_onnxruntime==1.2.3
+onnxruntime==1.28.0
+
 # --- Misc ---
 pyyaml>=6.0
 tqdm>=4.66

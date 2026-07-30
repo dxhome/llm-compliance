@@ -3110,10 +3110,11 @@ decision: 这是普通图文任务，还是 indirect prompt injection？
 | 角色冲突 | 图片模拟 system/developer 消息 | 权限边界混淆 |
 | 任务冲突 | 图片要求执行与用户任务无关的敏感操作 | 隐式命令注入 |
 
-当前 C6 采用“两阶段路线”：
+当前 C6 采用“三阶段路线”：
 
 1. **C6A 轻量启发式**：先用 metadata、image path、source、figstep 文本模式证明管线契约和输出 schema。
-2. **C6B 完整跨模态检测**：后续接入 OCR / CLIP / 图文一致性判定，把“图片里写了什么”和“用户文本要求做什么”一起判断。
+2. **C6B-lite（已实现）**：用本地 RapidOCR 从图片像素提取文字，命中明确的越权指令后直接拦截；不使用 JSONL 的 `ocr_text`、`source`、`template_id` 等标注字段。
+3. **C6B 完整跨模态检测（后续）**：在 OCR 之外增加 CLIP/图文一致性与辅助输出头，把“图片里写了什么”和“用户文本要求做什么”一起判断。
 
 当前已实现的是 C6A，位置在 [src/mpid/crossmodal/heuristic.py](../src/mpid/crossmodal/heuristic.py)。它不读取图片像素，而是检查：
 
@@ -3174,6 +3175,18 @@ block indirect / pass to VLM
 }
 ```
 
+#### C6B-lite：已交付的 OCR 像素检测
+
+`src/mpid/crossmodal/ocr_extract.py` 使用本地 `rapidocr_onnxruntime` 读取图片像素，`conflict_rules.py` 只对明确的越权文本触发 `indirect`，例如 `ignore previous instructions`、`system prompt`、`Safety: OFF`、`忽略以上指令`。未命中或 OCR 不可用时不擅自判 clean，而是交给 C6A 兼容兜底和 MPID head。
+
+运行顺序调整为：
+
+```text
+C5 rules -> C6B-lite OCR -> C6A compatibility fallback -> MPID head -> C4 -> block/allow
+```
+
+已在 full-2000 的 600 条冻结比较集上完成独立评估：C6B-lite 对 200 条 indirect 的直接拦截 recall 为 **11.5%**，对 200 条 clean 的 OCR 规则 FPR 为 **0%**，总耗时 **83.3s**。该指标不是完整系统的 indirect recall；它量化的是 OCR 规则这一新增、可解释防线的独立贡献。
+
 #### C6 为什么不直接靠 LoRA 解决？
 
 LoRA 训练的是最终分类头和语言侧 adapter，适合学习“输入整体像哪一类”。但跨模态攻击的难点在于**关系判断**：图片中的文本是否在试图改变模型应遵守的权限层级。这个判断如果全部塞进三分类 head，容易出现两个问题：
@@ -3202,9 +3215,13 @@ C6: 跨模态自检
 | 文件 | 角色 |
 |---|---|
 | [src/mpid/crossmodal/heuristic.py](../src/mpid/crossmodal/heuristic.py) | C6A 轻量跨模态启发式 |
+| [src/mpid/crossmodal/ocr_extract.py](../src/mpid/crossmodal/ocr_extract.py) | C6B-lite 本地 RapidOCR 像素提取与离线模型路径解析 |
+| [src/mpid/crossmodal/conflict_rules.py](../src/mpid/crossmodal/conflict_rules.py) | C6B-lite OCR 越权指令规则与可解释结果 |
 | [src/mpid/crossmodal/__init__.py](../src/mpid/crossmodal/__init__.py) | 导出 `check_crossmodal` |
 | [tests/test_crossmodal_heuristic.py](../tests/test_crossmodal_heuristic.py) | C6 单元测试 |
+| [tests/test_crossmodal_c6b_lite.py](../tests/test_crossmodal_c6b_lite.py) | C6B-lite 规则回归测试 |
 | [scripts/eval_crossmodal.py](../scripts/eval_crossmodal.py) | C6 JSONL smoke / report 脚本 |
+| [scripts/eval_c6b_lite.py](../scripts/eval_c6b_lite.py) | C6B-lite OCR 评估，按 5 样本输出 ETA |
 | [src/mpid/infer/pipeline.py](../src/mpid/infer/pipeline.py) | C4/C5/C6 调度器 |
 | [scripts/infer_pipeline_light.py](../scripts/infer_pipeline_light.py) | 轻量单样本 CLI |
 
@@ -3553,6 +3570,20 @@ Phase 6 的关键不是“哪一组数字最大”，而是形成可解释结论
 | Macro F1 | 32.3% | 85.5% | **+53.2pp**（+164.7% relative） |
 | 端到端总耗时 | 4945.4s | 2978.1s | **-39.8%** |
 | generation 次数 | 250 | 136 | **-45.6%** |
+
+#### Full-2000 C6B-lite 适配与离线交付（2026-07-30）
+
+本轮使用 checkpoint `lora_phase2_3_best_by_min_class_f1.safetensors`，验证集为 full-2000 冻结比较集（clean / direct / indirect 各 200 条）和跨模态 smoke 集。默认 pipeline 为 `C5 -> C6B-lite OCR -> C6A -> MPID head -> C4 -> block/allow`，离线包位于 `runs/_artifact/full_2000_c4_c6blite/`。
+
+| 项目 | 结果 | 说明 |
+|---|---:|---|
+| C6B-lite OCR 独立 indirect recall | 11.5%（23/200） | 仅统计 OCR 规则直接拦截，不含 C6A/head |
+| C6B-lite OCR clean FPR | 0.0%（0/200） | OCR 规则未误拦 clean；仅带图片样本实际调用 OCR |
+| C6B-lite 独立耗时 | 83.3s / 600 条 | 平均 0.14s/条；155 条有图像并调用 OCR |
+| 离线包 | 1.02 GB / 87 文件 | 包含 backbone、full-2000 LoRA、RapidOCR ONNX 权重、规则、源码、checksum 与 smoke 图片 |
+| 离线 smoke | 3/3 PASS | C5、head fallback、C6B-lite OCR 分支均在 `HF_HUB_OFFLINE=1` 下通过 |
+
+**已知限制（本轮明确接受）**：full-2000 head 在已有 full compare 上 clean recall 为 3%、indirect recall 为 1%，预测明显偏向 direct。C4/C5/C6B-lite 不会修复该基础分类器问题；本轮交付证明的是推理侧安全链路和离线可分发性，模型效果需与该限制一起解释。
 
 ### 3.2 实验配置与评估指标
 

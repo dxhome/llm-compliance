@@ -1,0 +1,77 @@
+Traceback (most recent call last):
+  File "C:\work\llm-compliance\scripts\probe_checkpoint_loss.py", line 21, in <module>
+    from mpid.vlm.adapter import VLMAdapter  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'mpid.vlm'
+
+================================================================================
+COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -u scripts/probe_checkpoint_loss.py --config C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\configs\resume_smoke.yaml --jsonl C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\resume_smoke.jsonl --max-records 18 --checkpoint C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\checkpoint_step_10.safetensors --json-out C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\probe_loss\probe_step10.json
+================================================================================
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+{
+  "checkpoint": "C:\\work\\llm-compliance\\runs\\phase2_3_full_2000_20260727_1211\\artifacts\\resume_smoke\\checkpoint_step_10.safetensors",
+  "jsonl": "C:\\work\\llm-compliance\\runs\\phase2_3_full_2000_20260727_1211\\data\\resume_smoke.jsonl",
+  "records": 18,
+  "avg_loss": 2.093864523081316,
+  "losses": [
+    3.223912239074707,
+    3.739647150039673,
+    4.360403537750244,
+    3.607700824737549,
+    1.5719561576843262,
+    3.0260050296783447,
+    0.8565790057182312,
+    1.1199358701705933,
+    0.033538568764925,
+    0.06158703193068504,
+    0.07149277627468109,
+    0.05237336829304695,
+    2.557328224182129,
+    2.416375160217285,
+    3.076810598373413,
+    3.1385409832000732,
+    1.984478235244751,
+    2.7908966541290283
+  ]
+}
+
+================================================================================
+COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -u scripts/probe_checkpoint_loss.py --config C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\configs\resume_smoke.yaml --jsonl C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\resume_smoke.jsonl --max-records 18 --checkpoint C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\checkpoint_step_10.safetensors --json-out C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\probe_loss\probe_step10.json
+================================================================================
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+{
+  "checkpoint": "C:\\work\\llm-compliance\\runs\\phase2_3_full_2000_20260727_1211\\artifacts\\resume_smoke\\checkpoint_step_10.safetensors",
+  "jsonl": "C:\\work\\llm-compliance\\runs\\phase2_3_full_2000_20260727_1211\\data\\resume_smoke.jsonl",
+  "records": 18,
+  "avg_loss": 2.141803388380342,
+  "losses": [
+    3.3727967739105225,
+    3.948817491531372,
+    4.503108501434326,
+    3.839357852935791,
+    1.498723030090332,
+    3.2685115337371826,
+    0.829179584980011,
+    1.077368974685669,
+    0.031077366322278976,
+    0.05315160006284714,
+    0.06402401626110077,
+    0.04622018709778786,
+    2.5896010398864746,
+    2.2967214584350586,
+    3.1081674098968506,
+    3.266847848892212,
+    1.8946634531021118,
+    2.8641228675842285
+  ]
+}
+
+================================================================================
+COMMAND: C:\work\llm-compliance\.venv\Scripts\python.exe -u scripts/probe_checkpoint_loss.py --config C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\configs\resume_smoke.yaml --jsonl C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\resume_smoke.jsonl --max-records 18 --checkpoint C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\checkpoint_step_10.safetensors --json-out C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\resume_smoke\probe_loss\probe_step10.json
+================================================================================

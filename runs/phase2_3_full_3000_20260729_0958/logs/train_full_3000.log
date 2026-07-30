@@ -1,0 +1,29 @@
+[workflow] command: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 -u scripts/train.py --config C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\train.yaml --max-train-steps 3000
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\train.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\train.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\compare_quick_all.jsonl
+[train] epochs=1  max_train_records=3000  batch_size=1  lr=2e-05
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] HEAD_WARMUP_STEPS: 400
+[train] STEP LIMIT: 3000
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+[train]   backbone loaded in 4.7s
+[train][+   4.7s] === phase 2/6 LoRA + head 注入 ===
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train][+   5.0s] === phase 3/6 数据集加载 ===
+[train] dataset: train=3000 val=150
+[train] batch_size=1  steps_per_epoch=3000
+[train][+   5.0s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] head warm-up enabled for 400 steps; LoRA frozen
+[train] total trainable params: 8,325,955
+[train][+   5.0s] === phase 5/6 训练循环  (1 epoch × 3000 sample × bs=1) ===
+[train] epoch 1/1 step 1/3000 (global 1/3000) loss=2.4311  last_loss=2.4311  step_dt=nans  epoch_elapsed=49.0s  ETA=nans  total_elapsed=54.0s

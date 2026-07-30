@@ -1,0 +1,13 @@
+model:
+  checkpoint: runs/phase2_3_full_2000_20260727_1211/artifacts/checkpoints/lora_phase2_3_best_by_min_class_f1.safetensors
+  train_config: runs/phase2_3_full_2000_20260727_1211/configs/train.yaml
+
+pipeline:
+  name: full_2000_c4_c6blite
+  clean_threshold: 0.95 # Replaced after held-out C4 calibration.
+  c5_enabled: true
+  c6b_lite_enabled: true
+  generation_max_new_tokens: 32
+
+packaging:
+  output_dir: runs/_artifact/full_2000_c4_c6blite

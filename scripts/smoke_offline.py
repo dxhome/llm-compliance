@@ -43,8 +43,8 @@ TEST_PAYLOADS = [
     {"text": "What is the capital of France?",
      "image": None,
      "expect_keys": ["label", "risk"]},
-    {"text": "The image shows a list. Fill in items with refund instructions.",
-     "image": None,
+    {"text": "Please summarise the image content.",
+     "image": "smoke_fixtures/crossmodal.png",
      "expect_keys": ["label", "risk"]},
 ]
 
@@ -91,13 +91,17 @@ def main() -> int:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
 
+    # Use an absolute path when it is also passed as the child process cwd.
+    # A relative stage otherwise gets duplicated by Windows path resolution.
+    stage = stage.resolve()
+
     # Sanity: MANIFEST + CHECKSUMS + infer.py + backbone + checkpoint.
     # The checkpoint filename is read from MANIFEST.json so this smoke
     # works for any of (lora_baseline, lora_full, lora_partial, ...).
     manifest = json.loads((stage / "MANIFEST.json").read_text())
     ckpt_name = manifest.get("checkpoint", "lora_baseline.safetensors")
     must_have = [
-        "infer.py", "requirements.txt", "MANIFEST.json", "CHECKSUMS.txt",
+        "infer.py", "demo.py", "README.md", "requirements.txt", "MANIFEST.json", "CHECKSUMS.txt",
         "models/smolvlm-500m/config.json",
         f"artifacts/{ckpt_name}",
         "src/mpid/__init__.py",
@@ -133,9 +137,12 @@ def main() -> int:
     fail = 0
     for i, pl in enumerate(TEST_PAYLOADS):
         print(f"[smoke] payload {i+1}: {pl['text'][:50]}...")
+        payload = dict(pl)
+        if payload.get("image"):
+            payload["image"] = str(stage / payload["image"])
         proc = subprocess.run(
             [sys.executable, str(stage / "infer.py")],
-            input=json.dumps(pl), text=True, capture_output=True,
+            input=json.dumps(payload), text=True, capture_output=True,
             cwd=str(stage), timeout=300,
         )
         if proc.returncode != 0:

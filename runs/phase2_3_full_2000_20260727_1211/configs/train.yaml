@@ -30,7 +30,7 @@ training:
   checkpoint_name: lora_phase2_3_high_f1.safetensors
   eval_after_epoch: false
   seed: 42
-  preload_dataset: true
+  preload_dataset: false
   max_train_seconds: 0.0
   resume_from: ""
   skip_train_batches: 0
@@ -58,7 +58,8 @@ compare:
       direct: ../data/compare_quick_direct.jsonl
       indirect: ../data/compare_quick_indirect.jsonl
       all: ../data/compare_quick_all.jsonl
-    schedule_percent: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    schedule_steps: [500, 1500]
+    schedule_note: 2 quick compares at steps 500 and 1500, intentionally staggered away from full compare checkpoints.
     log_every_samples: 5
   full:
     records_per_label: 200

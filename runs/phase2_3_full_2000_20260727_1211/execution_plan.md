@@ -3,7 +3,7 @@
 - 目标：执行增强版 Phase 2.3 微调，构建 clean / direct / indirect 目标类 F1 均大于 0.70 的 high-F1 模型底座。
 - 基线 run：`runs/phase2_2_balanced_600_20260718_1955`
 - 当前已完成步骤：T2.22 数据审计、T2.23 数据集契约、T2.24 训练集抽样策略、T2.25 quick/full compare 验证集构建。
-- 当前下一步：T2.36 断点续训 smoke。原第 3 步和第 4 步已合并为 T2.26，并已完成。
+- 当前下一步：等待用户确认后启动 T2.32 正式 2000-step 训练。T2.27 / T2.30-T2.31 / T2.33-T2.38 / T2.42 启动前准备已完成，workflow dry-run preflight 已通过。
 - 断点续训 smoke 顺序：保持在 T2.26 之后执行，因为 smoke 要验证的正是冻结后的 checkpoint、log、resume 和 compare 调度配置。
 - 修订后整体估时：约 39-73h，主要耗时仍在 CPU 正式训练和 compare。
 - 文档语言约定：本 run 后续人工可读 Markdown 文档统一使用中文；JSON 字段名保持英文以兼容脚本。
@@ -16,8 +16,8 @@
 | 数据集契约 | T2.23 | 已完成；使用最新完整 raw/basic 数据池 |
 | 训练/验证集构建 | T2.24-T2.25 | 已完成；训练集 3000 条，quick compare 150 条，full compare 600 条 |
 | 训练配置与执行决策冻结 | T2.26，合并原 T2.40 | 已完成；配置和决策已冻结，readiness 预检通过 |
-| Checkpoint / resume 能力补齐与 smoke 验收 | T2.36，第 4 步 | 待执行；目标不超过 1h |
-| 正式训练与训练期 compare | T2.27、T2.32-T2.35、T2.37 | 待执行；约 31-54h，主要为运行耗时 |
+| Checkpoint / resume 能力补齐与 smoke 验收 | T2.36，第 4 步 | 已完成；10 step 后恢复 5 step，通过；硬验收改为固定 probe loss 连续性 |
+| 正式训练与训练期 compare | T2.32 | 待用户确认启动；约 31-54h，主要为运行耗时 |
 | 打包与最终报告 | T2.39 | 待执行；报告约 1-3h，package/offline smoke 约 1h |
 
 ## 已冻结数据资产
@@ -34,7 +34,7 @@
 - 训练步数、随机种子、首轮 sweep 组合数量。
 - LoRA rank/alpha/dropout、学习率、等效 batch size、class weight 策略。
 - 是否启用两阶段分类；是否启用扩展可训练模块。
-- 每 5 step 训练日志、每 50 step checkpoint、每 10% steps quick compare。
+- 每 5 step 训练日志、每 50 step checkpoint；quick compare 在 500 / 1500 step；full compare 在 1000 / 2000 step。
 - 50% / 100% / best candidate full compare 规则。
 - 中断恢复策略：最新 checkpoint 发现、step 续接、日志追加、compare 调度不重复。
 - best checkpoint 选择标准：优先使用 `min(clean_f1, direct_f1, indirect_f1)` 最大。
@@ -45,7 +45,7 @@
 - 训练步数为 2000 optimizer steps；如 underfit 且 loss 仍下降，再从 checkpoint 续训到 3000 steps。
 - LoRA 使用 `r=32, alpha=64, dropout=0.10`，target 为 `q_proj,k_proj,v_proj,o_proj`。
 - 学习率为 `1.0e-4`，batch size 为 1，class weight 开启。
-- quick compare 每类 50 条，每 10% steps 执行一次。
+- quick compare 每类 50 条，在 500 / 1500 step 执行。
 - full compare 每类 200 条，在 50% / 100% / best candidate 执行。
 - 暂不启用两阶段分类和扩展可训练模块；如三分类继续偏 clean，再进入下一轮设计。
 - `configs/train.yaml` 与 `configs/resume_smoke.yaml` 的 readiness 预检均已通过。
@@ -64,6 +64,30 @@
 - 每 50 step 产出可追踪的 step checkpoint，并维护一个明确的 `latest.safetensors`。
 - 恢复后 step、日志、checkpoint、compare 调度都连续，不回退、不覆盖、不重复、不漏跑。
 - 第 4 步通过前，不启动正式 2000-step 长训练。
+
+### 已完成结果
+
+- 第一段训练跑到 10 step，成功生成 `checkpoint_step_10.safetensors`、`latest.safetensors` 和 optimizer/RNG `.state.pt` sidecar。
+- 第二段从 `latest.safetensors` 恢复，设置 `resume_global_step=10`，加载 optimizer state 与 RNG state，并继续到逻辑 step 15。
+- 两段日志分离，恢复日志中可看到 checkpoint 发现、LoRA/head 加载、optimizer/RNG state 加载、step 续接和日志追加证据。
+- 固定 probe loss 检查通过：`checkpoint_step_10` 与 `latest@step10` 的固定集合 loss 均为 2.1418034，恢复后 final checkpoint 固定集合 loss 为 2.1037518，没有高于断点。训练窗口 loss 来自不同 batch，只作为观察值，不作为恢复成功硬验收。
+- 报告：`phase2_3_resume_smoke_report.md`
+- 结构化报告：`artifacts/resume_smoke/phase2_3_resume_smoke_report.json`
+- 总耗时低于 1 小时目标。
+
+## 正式训练前 readiness
+
+- 启动脚本：`scripts/run_phase2_3_training_workflow.py`
+- 安全策略：默认 dry-run；只有显式传 `--execute` 才会启动训练。
+- dry-run 结果：preflight 缺失项为空，计划生成 1 个连续训练进程、6 个 quick compare、6 个 quick summary、6 个 full compare、6 个 full summary、1 个 package、1 个 offline smoke。
+- 训练方式：正式训练只启动一次 `scripts/train.py`，连续跑到 2000 step；不为了 compare 停止训练再 resume。
+- checkpoint 观察点：500/1000/1500/2000。
+- quick compare：500/1500 两个边界，clean/direct/indirect 各 50 条。
+- full compare：1000 和 2000 step clean/direct/indirect 各 200 条；best candidate 如不在 1000/2000，会追加 full compare。
+- compare 汇总：`scripts/summarize_phase2_3_compare.py` 会输出中文 `phase2_3_compare_summary.md/json`，包含目标类 P/R/F1、baseline 指标、预测分布、切片指标和误判样本。
+- best checkpoint：由 `artifacts/compare/phase2_3_checkpoint_scorecard.json` 记录，并复制为 `artifacts/checkpoints/lora_phase2_3_best_by_min_class_f1.safetensors`。
+- package 门禁：只有 best checkpoint 的 clean/direct/indirect full-set 目标类 F1 全部大于 0.70 时，才继续 package 和 offline smoke。
+- readiness 文档：`phase2_3_pretrain_readiness.md`
 
 ### 需要补齐的能力
 

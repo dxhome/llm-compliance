@@ -1,0 +1,40 @@
+# Phase 2.3 Full 3000 preflight smoke.  It never writes to the formal run checkpoints.
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32
+  device: cpu
+  quantization: null
+  gradient_checkpointing: true
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.10
+  target: q_proj,k_proj,v_proj,o_proj
+
+training:
+  epochs: 1
+  max_train_records: 120
+  max_val_records: 18
+  max_train_steps: 120
+  batch_size: 1
+  lr: 2.0e-5
+  head_lr: 1.0e-4
+  weight_decay: 0.0
+  class_weighted: false
+  log_every: 5
+  save_every: 50
+  partial_name: lora_phase2_3_full_3000_smoke_latest.safetensors
+  checkpoint_name: lora_phase2_3_full_3000_smoke.safetensors
+  eval_after_epoch: false
+  seed: 43
+  preload_dataset: false
+  dataset_cache_size: 0
+  max_train_seconds: 0.0
+  init_from: ../../phase2_3_full_2000_20260727_1211/artifacts/checkpoints/checkpoint_step_2000.safetensors
+  warmup_head_steps: 20
+
+io:
+  train_jsonl: ../data/smoke_train_120.jsonl
+  val_jsonl: ../data/resume_smoke.jsonl
+  out_dir: ../artifacts/smoke_balanced_120/checkpoints

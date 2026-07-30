@@ -51,6 +51,7 @@ makes **no network calls**.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -58,9 +59,10 @@ from pathlib import Path
 # the source tree under ``src/`` so we add that to sys.path.
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE / "src"))
+os.environ.setdefault("MPID_OCR_MODELS_DIR", str(_HERE / "models" / "ocr"))
 
 from mpid.adapters.vlm import VLMAdapter
-from mpid.crossmodal import check_crossmodal
+from mpid.crossmodal import check_crossmodal, check_ocr_conflict, extract_ocr_text
 from mpid.heads.classification import NUM_CLASSES, ClassificationHead
 from mpid.data.prompt import build_prompt
 from mpid.early_exit import EarlyExitConfig, should_early_exit
@@ -75,6 +77,7 @@ CHECKPOINT = _HERE / "artifacts" / META["checkpoint"]
 LORA_R = int(META["lora_r"])
 LORA_ALPHA = int(META["lora_alpha"])
 LORA_TARGET = META["lora_target"]
+CLEAN_THRESHOLD = float(META.get("clean_threshold", 0.95))
 
 
 # --- 2. Stub config (matches the values that produced the checkpoint) ----
@@ -124,6 +127,17 @@ def predict(text: str, image=None) -> dict:
     }
 
 
+def _model_image(value):
+    if value is None:
+        return None
+    if isinstance(value, (str, Path)):
+        path = Path(value)
+        if path.exists():
+            from PIL import Image
+            return Image.open(path).convert("RGB")
+    return value
+
+
 def optimized_predict(text: str, image=None) -> dict:
     import torch
 
@@ -138,6 +152,17 @@ def optimized_predict(text: str, image=None) -> dict:
             "explanation": c5.to_dict(),
         }
 
+    ocr = extract_ocr_text(image)
+    c6b = check_ocr_conflict(ocr)
+    if c6b.suspicious:
+        return {
+            "label": c6b.label,
+            "risk": 1.0,
+            "action": "block",
+            "stage": "c6b_lite_ocr",
+            "explanation": c6b.to_dict(),
+        }
+
     c6 = check_crossmodal(record)
     if c6.suspicious:
         return {
@@ -148,11 +173,11 @@ def optimized_predict(text: str, image=None) -> dict:
             "explanation": c6.to_dict(),
         }
 
-    head = predict(text, image)
+    head = predict(text, _model_image(image))
     probs_t = torch.tensor(head["probs"], dtype=torch.float32)
     early = should_early_exit(
         probs_t,
-        EarlyExitConfig(enabled=True, clean_threshold=0.95),
+        EarlyExitConfig(enabled=True, clean_threshold=CLEAN_THRESHOLD),
     )
     if early is not None:
         return {
@@ -198,7 +223,77 @@ Pillow>=9.0
 PyYAML>=6.0
 numpy>=1.24
 scikit-learn>=1.3
+rapidocr_onnxruntime==1.2.3
+onnxruntime==1.28.0
+opencv-python==5.0.0.93
+pyclipper==1.4.0
+Shapely==2.1.2
 """
+
+
+PACKAGE_README = """# MPID Offline Package
+
+This package runs the default protected pipeline:
+
+`C5 rules -> C6B-lite local OCR -> C6A compatibility fallback -> MPID head -> C4 -> block/allow`
+
+## Run one request
+
+```powershell
+@'{"text":"Please summarize the image.","image":"C:\\path\\to\\image.png"}'@ | python infer.py
+```
+
+`image` is optional. When an image is supplied, C6B-lite reads its pixels with
+the bundled RapidOCR ONNX weights. Dataset metadata and OCR annotation fields
+are never used at runtime.
+
+## Interactive demo
+
+Run `python demo.py` for a terminal demo using the same protected pipeline.
+
+## Offline prerequisites
+
+Use the package on the same OS/Python architecture as the packaged runtime.
+Install `requirements.txt` from a locally mirrored wheel repository before
+disconnecting the target machine. Model and OCR inference perform no network
+access; the package contains all required model weights under `models/`.
+
+## Validation
+
+Run `python infer.py` with the three inputs in `smoke_fixtures/` or execute the
+repository's `scripts/smoke_offline.py --pkg <this package>` before delivery.
+
+## Model limitation
+
+Read `MANIFEST.json` for the exact checkpoint and release notes. Detection
+quality depends on the bundled checkpoint; C4/C5/C6 layers do not repair a
+collapsed base classifier.
+"""
+
+
+PACKAGE_DEMO = '''#!/usr/bin/env python3
+"""Interactive terminal demo for the packaged protected pipeline."""
+from __future__ import annotations
+
+import json
+
+from infer import optimized_predict
+
+
+def main() -> None:
+    print("MPID offline demo. Press Enter with empty text to exit.")
+    while True:
+        text = input("Text: ").strip()
+        if not text:
+            return
+        image = input("Image path (optional): ").strip() or None
+        result = optimized_predict(text, image)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+'''
 
 
 def sha256_file(p: Path) -> str:
@@ -229,6 +324,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lora-alpha", type=int, default=32)
     p.add_argument("--lora-target", type=str,
                    default="q_proj,k_proj,v_proj,o_proj")
+    p.add_argument("--clean-threshold", type=float, default=0.95,
+                   help="C4 threshold embedded in package inference")
+    p.add_argument("--ocr-models-dir", type=Path, default=None,
+                   help="RapidOCR ONNX model directory to bundle")
+    p.add_argument("--smoke-image", type=Path, default=None,
+                   help="Optional image copied as smoke_fixtures/crossmodal.png")
+    p.add_argument("--model-note", type=str, default="",
+                   help="Known model limitation recorded in MANIFEST.json")
     return p.parse_args()
 
 
@@ -249,6 +352,13 @@ def build(args: argparse.Namespace) -> dict:
     dst_ckpt = out / "artifacts" / args.ckpt.name
     shutil.copy2(args.ckpt, dst_ckpt)
 
+    # 2b. Bundle OCR weights separately from the Python package so inference
+    # can point to a known local path after the package is moved offline.
+    if args.ocr_models_dir:
+        if not args.ocr_models_dir.exists():
+            raise FileNotFoundError(f"OCR models not found: {args.ocr_models_dir}")
+        shutil.copytree(args.ocr_models_dir, out / "models" / "ocr")
+
     # 3. Copy the mpid source tree (read-only at runtime; we only
     #    need the layout to make ``import mpid`` work).
     src_dst = out / "src" / "mpid"
@@ -259,15 +369,32 @@ def build(args: argparse.Namespace) -> dict:
     # 4. Write the infer entry point.
     (out / "infer.py").write_text(PACKAGE_INFER)
     (out / "infer.py").chmod(0o755)
+    (out / "demo.py").write_text(PACKAGE_DEMO)
+    (out / "demo.py").chmod(0o755)
 
     # 5. Write the requirements and manifest.
     (out / "requirements.txt").write_text(PACKAGE_REQUIREMENTS)
+    (out / "README.md").write_text(PACKAGE_README, encoding="utf-8")
+    if args.smoke_image:
+        if not args.smoke_image.exists():
+            raise FileNotFoundError(f"Smoke image not found: {args.smoke_image}")
+        fixture_dir = out / "smoke_fixtures"
+        fixture_dir.mkdir()
+        shutil.copy2(args.smoke_image, fixture_dir / "crossmodal.png")
     manifest = {
         "backbone":       args.backbone_dir.name,
         "checkpoint":     args.ckpt.name,
         "lora_r":         args.lora_r,
         "lora_alpha":     args.lora_alpha,
         "lora_target":    args.lora_target,
+        "clean_threshold": args.clean_threshold,
+        "c6b_lite": {
+            "enabled": bool(args.ocr_models_dir),
+            "backend": "rapidocr_onnxruntime" if args.ocr_models_dir else None,
+            "models_dir": "models/ocr" if args.ocr_models_dir else None,
+            "runtime_evidence": "image_pixels_only",
+        },
+        "model_note": args.model_note,
         "python_min":     "3.10",
         "schema_version": "mpid-offline-v1",
     }
@@ -302,6 +429,9 @@ def main() -> int:
         return 1
     if not args.ckpt.exists():
         print(f"[package] checkpoint not found: {args.ckpt}", file=sys.stderr)
+        return 1
+    if args.ocr_models_dir and not args.ocr_models_dir.exists():
+        print(f"[package] OCR models not found: {args.ocr_models_dir}", file=sys.stderr)
         return 1
     r = build(args)
     print(f"[package] wrote {r['out_dir']} ({r['total_size_mb']} MB, "

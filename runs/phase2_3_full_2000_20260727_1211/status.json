@@ -1,9 +1,9 @@
 {
   "run_name": "phase2_3_full_2000_20260727_1211",
   "phase": "phase2.3",
-  "step_id": "T2.26",
-  "step_name": "Phase 2.3 training config and run decision freeze",
-  "step_status": "completed",
-  "message": "Training config and run decisions were frozen. Readiness checks passed for train and resume-smoke configs. Next step is T2.36 resume smoke.",
+  "step_id": "T2.32",
+  "step_name": "Phase 2.3 full training, compare, package, offline smoke",
+  "step_status": "running",
+  "message": "Formal Phase 2.3 2000-step training is running as one continuous process. Preload was disabled after an initial memory failure before optimizer steps. Quick compare runs at 500 and 1500; full compare runs at 1000 and 2000; package/offline smoke remain gated by full-set F1 > 0.70.",
   "created_at": "2026-07-27T12:11:00+08:00"
 }

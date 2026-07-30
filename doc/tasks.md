@@ -330,32 +330,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 
 ### T2.26-T2.29 训练设计改造
 
-- [x] **T2.26** 设计并冻结 Phase 2.3 完整训练配置：将原训练配置模板与 run 决策冻结合并处理，输出 `runs/_templates/configs/phase2_3_high_f1.yaml`、run-local 配置副本和 `phase2_3_run_decisions.md`；必须一次性确认 run id、随机种子、训练步数、首轮 sweep 组合数量、是否启用两阶段分类、是否启用扩展可训练模块、训练集 manifest、quick/full compare set 路径、checkpoint/log/断点续训策略、best checkpoint 选择标准；未完成本项前不启动 resume smoke 或正式训练。已冻结首轮单组配置：2000 steps、LoRA r=32/alpha=64/dropout=0.10、lr=1e-4、每 5 step log、每 50 step checkpoint、10% quick compare、50%/100% full compare、best_by_min_class_f1 选优；readiness 预检通过 `[P:high][D:T2.25][T:1.5-3h]`
-- [ ] **T2.27** 增加训练期 checkpoint 评估：根据配置中的 `train_steps`，每完成 10% steps 在 quick set 上跑目标类 F1，50% / 100% / best candidate 在 full set 上跑完整 compare，保存 `best_by_min_class_f1` checkpoint，而不是只保存最后一步 `[P:high][D:T2.26][T:1-3h 开发；每次 quick compare 约 1.5-2h CPU；每次 full compare 约 3-4h CPU]`
+- [x] **T2.26** 设计并冻结 Phase 2.3 完整训练配置：将原训练配置模板与 run 决策冻结合并处理，输出 `runs/_templates/configs/phase2_3_high_f1.yaml`、run-local 配置副本和 `phase2_3_run_decisions.md`；必须一次性确认 run id、随机种子、训练步数、首轮 sweep 组合数量、是否启用两阶段分类、是否启用扩展可训练模块、训练集 manifest、quick/full compare set 路径、checkpoint/log/断点续训策略、best checkpoint 选择标准；未完成本项前不启动 resume smoke 或正式训练。已冻结首轮单组配置：2000 steps、LoRA r=32/alpha=64/dropout=0.10、lr=1e-4、每 5 step log、每 50 step checkpoint、quick compare 2 次（500/1500 step）、50%/100% full compare、best_by_min_class_f1 选优；readiness 预检通过 `[P:high][D:T2.25][T:1.5-3h]`
+- [x] **T2.27** 增加训练期 checkpoint 评估：根据配置中的 `train_steps`，在 500/1500 step 跑 quick compare，并在 1000/2000/best candidate 用 full set 跑完整 compare，保存 `best_by_min_class_f1` checkpoint，而不是只保存最后一步。已新增 `scripts/run_phase2_3_training_workflow.py`，正式执行为单个连续训练进程；workflow 只监控 checkpoint 文件并触发 compare，不通过停止训练再 resume 来实现训练期 compare；dry-run preflight 通过 `[P:high][D:T2.26][T:1-3h 开发；每次 quick compare 约 1.5-2h CPU；每次 full compare 约 3-4h CPU]`
 - [ ] **T2.28** 评估是否扩展可训练模块：除语言 attention 的 `q_proj,k_proj,v_proj,o_proj` 外，调研 vision projector / multimodal connector / 更高 rank LoRA 是否能改善 indirect；必须先用小规模 smoke/sanity run 记录显存/CPU 时间、loss 稳定性和 clean FPR 风险，不默认启用 `[P:medium][D:T2.26][T:1-2h]`
 - [ ] **T2.29** 评估两阶段分类方案：先做 clean vs attack，再做 direct vs indirect；如三分类 argmax 继续偏 clean，则将两阶段方案作为 Phase 2.3 的备选训练目标；若启用，compare 报告必须同时输出三分类口径和两阶段口径 `[P:medium][D:T2.27][T:0.5-1h]`
 
 ### T2.30-T2.32 验证与报告改造
 
-- [ ] **T2.30** 校验三组独立验证集：确认 quick/full 两套 clean-only / direct-only / indirect-only 均符合 T2.23 数据集契约，按 source/template/lang/has_image/ocr_present/cross_modal_attack_type/hard_negative_type 输出切片分布，并在训练前冻结 sha256 `[P:high][D:T2.25][T:0.5-1h]`
-- [ ] **T2.31** 扩展 compare 报告：同时输出新模型绝对效果、baseline 对比、目标类 P/R/F1、混淆矩阵、预测分布、按 source/template/lang/has_image/ocr_present/cross_modal_attack_type/hard_negative_type 切片指标和误判样本清单；报告必须标注使用 quick set 还是 full set `[P:high][D:T2.30][T:1-3h]`
+- [x] **T2.30** 校验三组独立验证集：确认 quick/full 两套 clean-only / direct-only / indirect-only 均符合 T2.23 数据集契约，按 source/template/lang/has_image/ocr_present/cross_modal_attack_type/hard_negative_type 输出切片分布，并在训练前冻结 sha256。已重新生成并校验所有 Phase 2.3 JSONL，清理特殊 Unicode 行分隔符，更新 `phase2_3_dataset_hashes.json` `[P:high][D:T2.25][T:0.5-1h]`
+- [x] **T2.31** 扩展 compare 报告：同时输出新模型绝对效果、baseline 对比、目标类 P/R/F1、混淆矩阵、预测分布、按 source/template/lang/has_image/ocr_present/cross_modal_attack_type/hard_negative_type 切片指标和误判样本清单；报告必须标注使用 quick set 还是 full set。已新增 `scripts/summarize_phase2_3_compare.py`，并接入 Phase 2.3 workflow `[P:high][D:T2.30][T:1-3h]`
 - [ ] **T2.32** 跑 Phase 2.3 端到端训练与最终验收：resume smoke → 正式训练 → 训练期 compare → best checkpoint 选择 → 三组 full compare → package → offline smoke；最终报告必须说明三个目标类 F1 是否均 > 0.70，以及未达标类别的下一步原因定位 `[P:high][D:T2.31,T2.36,T2.37][T:resume smoke ≤1h；训练约 16-30h CPU；compare 合计约 15-24h CPU；package/smoke 约 1h]`
 
 ### T2.33-T2.39 增强训练执行控制
 
-- [ ] **T2.33** 明确训练期 compare 节奏：每完成 10% training steps 触发一次 quick compare；如果 `train_steps` 不是 10 的倍数，使用向上取整 step 边界，最终 100% 必跑 `[P:high][D:T2.26,T2.30][T:0.5-1h]`
-- [ ] **T2.34** 明确训练期 compare 样本规模：quick compare 固定使用 clean / direct / indirect 各 50 条样本（共 150 条）；关键 checkpoint（50% / 100% / best candidate）追加 clean / direct / indirect 各 200 条 full compare（共 600 条） `[P:high][D:T2.30][T:0.5h]`
-- [ ] **T2.35** 保留训练日志和 checkpoint 频率：每 5 step 打一次训练 log，每 50 step 保存一次 checkpoint；compare 报告必须标注当前 step、样本规模、目标类 P/R/F1、loss 摘要和预测分布 `[P:high][D:T2.26,T2.31][T:0.5-1h]`
-- [ ] **T2.36** 完成第 4 步：补齐 checkpoint / resume 能力并通过 resume smoke 验收。先改造或封装训练 launcher，使正式长训练前具备以下能力：每 50 step 保存 `checkpoint_step_<step>.safetensors`，同步维护 `latest.safetensors`，恢复时自动按 `latest.safetensors` → 最新 `checkpoint_step_*.safetensors` → 兼容旧 `partial_name` 的顺序发现 checkpoint，恢复 LoRA/head 权重、逻辑 step、`resume_global_step`、日志追加模式和 compare 调度状态；再用 `configs/resume_smoke.yaml` 与 `data/resume_smoke.jsonl` 做短步数验证，第一段跑到 10 step 并生成 checkpoint，第二段从 checkpoint 恢复再跑 5 step，确认 step 不回退、日志不覆盖、checkpoint 可发现、compare 调度不重复或漏跑；输出 `phase2_3_resume_smoke_report.md/json`，目标总耗时 ≤ 1h。未通过本项前不启动正式长训练 `[P:high][D:T2.26][T:≤1h]`
-- [ ] **T2.37** 明确 best checkpoint 选择标准：训练期不只保留最后一步，必须输出 `best_by_min_class_f1`，优先选择 clean / direct / indirect 三类目标 F1 的最小值最高的 checkpoint；若 min F1 并列，再按 macro F1、indirect F1、clean FPR 依次打破平局 `[P:high][D:T2.27,T2.31][T:0.5-1h]`
-- [ ] **T2.38** 补充阶段时间评估：数据审计 0.2-0.5h；数据契约冻结 1-2h；数据构造 3-8h；验证集冻结 1-3h；训练配置 1-2h；resume smoke ≤1h；训练主流程 16-30h；训练期 compare 15-24h；最终验收 2-4h；整体约 40-75h，不含人工复核返工 `[P:high][D:T2.22-T2.37][T:0.5h]`
+- [x] **T2.33** 明确训练期 compare 节奏：quick compare 从原 10 次压缩为 2 次，分别在 500/1500 step 执行；full compare 保留 1000/2000 step；quick 与 full 错开，避免同一 checkpoint 重复跑 compare。正式训练不切分为多段，checkpoint 观察点为 500/1000/1500/2000 `[P:high][D:T2.26,T2.30][T:0.5-1h]`
+- [x] **T2.34** 明确训练期 compare 样本规模：quick compare 固定使用 clean / direct / indirect 各 50 条样本（共 150 条）；关键 checkpoint（50% / 100% / best candidate）追加 clean / direct / indirect 各 200 条 full compare（共 600 条） `[P:high][D:T2.30][T:0.5h]`
+- [x] **T2.35** 保留训练日志和 checkpoint 频率：每 5 step 打一次训练 log，每 50 step 保存一次 checkpoint；compare 报告必须标注当前 step、样本规模、目标类 P/R/F1、loss 摘要和预测分布。已在训练配置与 Phase 2.3 workflow 中固化 `[P:high][D:T2.26,T2.31][T:0.5-1h]`
+- [x] **T2.36** 完成第 4 步：补齐 checkpoint / resume 能力并通过 resume smoke 验收。先改造或封装训练 launcher，使正式长训练前具备以下能力：每 50 step 保存 `checkpoint_step_<step>.safetensors`，同步维护 `latest.safetensors`，恢复时自动按 `latest.safetensors` → 最新 `checkpoint_step_*.safetensors` → 兼容旧 `partial_name` 的顺序发现 checkpoint，恢复 LoRA/head 权重、optimizer state、RNG state、确定性数据顺序、逻辑 step、`resume_global_step`、日志追加模式和 compare 调度状态；再用 `configs/resume_smoke.yaml` 与 `data/resume_smoke.jsonl` 做短步数验证，第一段跑到 10 step 并生成 checkpoint，第二段从 checkpoint 恢复再跑 5 step，确认 step 不回退、日志不覆盖、checkpoint 可发现、compare 调度不重复或漏跑；输出 `phase2_3_resume_smoke_report.md/json`，目标总耗时 ≤ 1h。已通过基于固定 probe loss 的严格验收：第一段 10 step 生成 `checkpoint_step_10.safetensors`、`latest.safetensors` 和 `.state.pt` optimizer/RNG sidecar；第二段从 `latest.safetensors` 恢复并加载 optimizer/RNG state，达到逻辑 step 15；固定 probe set 上 `checkpoint_step_10` 与 `latest@step10` loss 均为 2.1418034，恢复后 final checkpoint loss 降至 2.1037518。训练窗口 loss 来自不同 batch，仅作为观察值，不作为恢复成功的硬验收 `[P:high][D:T2.26][T:≤1h]`
+- [x] **T2.37** 明确 best checkpoint 选择标准：训练期不只保留最后一步，必须输出 `best_by_min_class_f1`，优先选择 clean / direct / indirect 三类目标 F1 的最小值最高的 checkpoint；若 min F1 并列，再按 macro F1、indirect F1、clean FPR 依次打破平局。已在 workflow scorecard 中实现 `[P:high][D:T2.27,T2.31][T:0.5-1h]`
+- [x] **T2.38** 补充阶段时间评估：数据审计 0.2-0.5h；数据契约冻结 1-2h；数据构造 3-8h；验证集冻结 1-3h；训练配置 1-2h；resume smoke ≤1h；训练主流程 16-30h；训练期 compare 15-24h；最终验收 2-4h；整体约 40-75h，不含人工复核返工。已在 `phase2_3_pretrain_readiness.md` 中更新剩余耗时估算 `[P:high][D:T2.22-T2.37][T:0.5h]`
 - [ ] **T2.39** 输出增强微调执行报告：报告需要覆盖训练耗时、compare 耗时、sweep 组合与选择理由、各 checkpoint 指标走势、最终 best checkpoint 指标、C6B 兼容数据字段覆盖情况、是否达到所有分类目标类 F1 > 0.70，以及未达标类别的下一步定位 `[P:high][D:T2.32,T2.37][T:1-3h]`
 
 ### T2.40-T2.42 执行前决策冻结
 
 - [x] **T2.40** 并入 T2.26，不再作为独立执行项：Phase 2.3 run 配置冻结、训练参数选择和执行决策统一在 T2.26 中完成；`phase2_3_run_decisions.md` 仍作为 T2.26 的输出之一 `[P:high][D:T2.26]`
 - [x] **T2.41** 冻结数据源纳入规则：确认哪些 downloaded basic 数据直接进入训练，哪些只进入 validation/compare，哪些保留 manual review；明确 license/terms 状态、重复样本处理和 label 冲突处理策略 `[P:high][D:T2.23][T:1-2h]`
-- [ ] **T2.42** 冻结成功/失败处理策略：若任一分类 full-set F1 ≤ 0.70，必须先输出失败分析和下一轮数据/超参改动建议；若 clean FPR 明显上升，必须优先回滚到更保守 checkpoint 或增加 hard negative，不允许只追求 indirect F1 `[P:high][D:T2.31,T2.37][T:0.5-1h]`
+- [x] **T2.42** 冻结成功/失败处理策略：若任一分类 full-set F1 ≤ 0.70，必须先输出失败分析和下一轮数据/超参改动建议；若 clean FPR 明显上升，必须优先回滚到更保守 checkpoint 或增加 hard negative，不允许只追求 indirect F1。已写入 `phase2_3_pretrain_readiness.md` `[P:high][D:T2.31,T2.37][T:0.5-1h]`
 
 **Phase 2.3 验收**：
 - 训练前已冻结数据集契约和 manifest，且训练 / 验证 / compare 全部引用同一份契约
@@ -365,7 +365,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 - indirect-only 目标类 F1 > 0.70
 - 三组验证集均输出绝对效果报告和 baseline 对比报告
 - indirect 验证集中不能出现目标类 recall = 0 的失败模式
-- 训练期 compare 样本规模明确：快速集 3×100，完整集 3×200
+- 训练期 compare 样本规模明确：快速集 3×50，完整集 3×200
 - 中断后可从最新 checkpoint 继续训练
 - 训练过程保持每 5 step log、每 50 step checkpoint
 - 正式长训练前 resume smoke 验证通过：中断恢复后 step/log/checkpoint/compare 调度均连续，且耗时 ≤ 1h

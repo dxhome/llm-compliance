@@ -1,0 +1,31 @@
+[train] config: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\configs\smoke_boundary_d.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\d\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_boundary_train_900.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_boundary_mixed_150.jsonl
+[train] epochs=1  max_train_records=900  batch_size=3  lr=1e-05
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] HEAD_WARMUP_STEPS: 25
+[train] STEP LIMIT: 1
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 5.6s
+[train][+   5.6s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train][+   6.2s] === phase 3/6 数据集加载 ===
+[train] dataset: train=900 val=150
+[train] batch_size=3  steps_per_epoch=300
+[train] paired batch mode: complete clean/direct/indirect triplets first
+[train][+   6.3s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] head warm-up enabled for 25 steps; LoRA frozen
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=1e-05  head=4e-05
+[train][+   6.3s] === phase 5/6 训练循环  (1 epoch × 900 sample × bs=3) ===
+[train] epoch 1/1 step 1/300 (global 1/300) loss=3.7936  last_loss=3.7936  step_dt=nans  epoch_elapsed=149.9s  ETA=nans  total_elapsed=156.1s
+[train] STEP LIMIT REACHED (1) - stopping at epoch 1 step 1
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\d\checkpoints\lora_baseline.safetensors (332 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\d\checkpoints\latest.safetensors (332 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\d\checkpoints\lora_baseline.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\d\checkpoints\latest.state.pt

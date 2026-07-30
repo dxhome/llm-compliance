@@ -1,0 +1,9 @@
+[workflow] command: C:\work\llm-compliance\.venv\Scripts\python.exe -X utf8 scripts/summarize_phase2_3_compare.py --compare-dir C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\compare\full\step_2000\clean --val-jsonl C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\data\compare_full_clean.jsonl --scope full --step 2000 --label clean
+{
+  "scope": "full",
+  "step": 2000,
+  "label": "clean",
+  "target_label": "clean",
+  "new_target_f1": 0.058252427184466014,
+  "baseline_target_f1": 0.9821882951653944
+}

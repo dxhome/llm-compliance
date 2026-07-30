@@ -57,6 +57,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import random
 import sys
@@ -442,6 +443,11 @@ def run_single_model(
         stratified_max_records=stratified_max_records,
         sample_seed=sample_seed,
     )
+    # The probe owns a full VLM only to expose its processor.  Release it
+    # before loading either comparison checkpoint so CPU evaluation stays
+    # single-model resident.
+    del probe
+    gc.collect()
     print(f"[eval] val size: {len(val_ds)}")
 
     if chunk_size > 0:
@@ -971,6 +977,10 @@ def run_smoke_vs_full(
         stratified_max_records=stratified_max_records,
         sample_seed=sample_seed,
     )
+    # Keep only the processor-backed dataset; retaining the probe would keep
+    # a second full VLM resident while each checkpoint is evaluated.
+    del probe
+    gc.collect()
     print(f"[eval] val size: {len(val_ds)}")
 
     if chunk_size > 0:

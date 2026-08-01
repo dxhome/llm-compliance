@@ -1,0 +1,37 @@
+[eval] config:     checkpoint=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\checkpoints\checkpoint_step_150.safetensors val=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_boundary_pair_suite_120.jsonl out=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single
+[eval] loading adapter on cpu ...
+[eval] LoRA params: 8,323,072  Head params: 2,883
+[eval] loaded checkpoint (332 tensors, has_lora_state=True)
+[eval] val size: 120
+[eval] === chunk 1 single-model eval (50 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_001 ===
+[eval-g001] progress: 15/50 samples  step_dt=nans  eval_elapsed=379.7s  ETA=nans
+[eval-g001] progress: 30/50 samples  step_dt=14.83s  eval_elapsed=750.6s  ETA=297s
+[eval-g001] progress: 45/50 samples  step_dt=18.36s  eval_elapsed=1114.0s  ETA=92s
+[eval-g001] progress: 50/50 samples  step_dt=19.34s  eval_elapsed=1249.8s  ETA=0s
+[eval] accuracy=0.6600  macro F1=0.5311  weighted F1=0.5253
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_001\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_001\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_001\report_baseline.md
+[eval] === chunk 1 single-model eval done ===
+[eval] === chunk 2 single-model eval (50 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_002 ===
+[eval-g002] progress: 15/50 samples  step_dt=nans  eval_elapsed=360.1s  ETA=nans
+[eval-g002] progress: 30/50 samples  step_dt=15.57s  eval_elapsed=749.3s  ETA=311s
+[eval-g002] progress: 45/50 samples  step_dt=18.85s  eval_elapsed=1114.1s  ETA=94s
+[eval-g002] progress: 50/50 samples  step_dt=19.67s  eval_elapsed=1245.1s  ETA=0s
+[eval] accuracy=0.6400  macro F1=0.5114  weighted F1=0.5216
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_002\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_002\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_002\report_baseline.md
+[eval] === chunk 2 single-model eval done ===
+[eval] === chunk 3 single-model eval (20 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_003 ===
+[eval-g003] progress: 15/20 samples  step_dt=nans  eval_elapsed=366.8s  ETA=nans
+[eval-g003] progress: 20/20 samples  step_dt=8.71s  eval_elapsed=497.4s  ETA=0s
+[eval] accuracy=0.6500  macro F1=0.5259  weighted F1=0.5122
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_003\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_003\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\chunks\single_model_group_003\report_baseline.md
+[eval] === chunk 3 single-model eval done ===
+[eval] accuracy=0.6500  macro F1=0.5211  weighted F1=0.5211
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_150_single\report_baseline.md

@@ -38,3 +38,14 @@
 - The package manifest records the accepted full-2000 clean/indirect-recall limitation.
 - Added package-local `demo.py`, a zero-extra-dependency interactive terminal demo using the same protected pipeline as `infer.py`.
 - Rebuilt final package after documentation/demo changes: 88 files. Final isolated smoke: 3/3 passed and 88 checksums verified.
+
+## 2026-07-30 comprehensive evaluation report
+
+- Added `artifacts/full_2000_c4_c6blite_comprehensive_report.md` and linked it from `doc/reference.md` test-results section.
+- Combined the three pre-existing 200-record full-2000 head reports: accuracy 34.3%, Macro F1 19.3%, clean recall 3.0%, direct recall 99.0%, indirect recall 1.0%.
+- Measured C5 over all 600 records: direct block rate 23.0% (46/200), clean false-block rate 1.5% (3/200).
+- Measured C6A over all 600 records: indirect recall 52.5% (105/200), clean FPR 0.0%.
+- Computed ordered pre-head stages: C5=58, C6B-lite=23, C6A fallback=82, head fallback=437.
+- Re-ran the final C6B-lite-enabled real pipeline compare on 15 stratified smoke samples: MPID LoRA Macro F1=16.7%, optimized Macro F1=44.6%; end-to-end time reduced from 284.2s to 226.4s (-20.3%).
+- Restructured the comprehensive report around the two primary benchmark definitions: `MPID LoRA` and `MPID LoRA + C4-C6优化`, with overall, per-label, timing, stage, and 600-record supporting diagnostics.
+- Reorganized `doc/reference.md` section 3: 3.1 is now a cross-model/round summary; balanced-600 and full-2000 are independent sections 3.3 and 3.4; section 3.5 documents cross-model comparability and interpretation limits.

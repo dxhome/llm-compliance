@@ -20,6 +20,8 @@
 >
 > **结论先行**：两个目标平台都**没有可用的 4-bit 量化路径**（mac 无 CUDA 编译版 bnb + 无 mlx wheel；x86 无 CUDA）。所有训练/推理将以 **fp16 (mac, MPS) / fp32 (x86, CPU)** 进行；4-bit 在生产部署时再补 CUDA 路径。
 
+> **Phase 2.3 追加记录（2026-08-01）**：Full-3000 的 A-H 策略已在冻结 Standard Benchmark v2/smoke（150 条）完成统一评测，F 为最平衡候选（Macro F1=40.72%、direct F1=33.73%），但未达到正式训练门槛。F2 的 120-step smoke 与同集复测已完成（Macro F1=40.13%、direct F1=33.73%），未改善 F；因此正式 3000-step 训练未启动，正式 checkpoint 数为 0。完整结论与可审计路径见 [reference.md 第 3 章](reference.md#3-测试结果汇总) 及 `runs/phase2_3_full_3000_20260729_0958/artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md`。本条为后续追加状态，不改写下方历史 Phase 验收记录。
+
 ***
 
 ## 当前运行目录约定

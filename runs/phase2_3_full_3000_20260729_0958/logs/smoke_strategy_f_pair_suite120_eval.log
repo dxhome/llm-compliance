@@ -1,0 +1,21 @@
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+[eval] config:     checkpoint=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\checkpoints\checkpoint_step_120.safetensors val=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_boundary_pair_suite_120.jsonl out=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\pair_suite_step_120
+[eval] loading adapter on cpu ...
+[eval] LoRA params: 8,323,072  Head params: 2,883
+[eval] loaded checkpoint (333 tensors, has_lora_state=True)
+[eval] val size: 120
+[eval] === chunk 1 single-model eval (50 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\pair_suite_step_120\chunks\single_model_group_001 ===
+[eval-g001] progress: 15/50 samples  step_dt=nans  eval_elapsed=160.7s  ETA=nans
+[eval-g001] progress: 30/50 samples  step_dt=6.19s  eval_elapsed=315.6s  ETA=124s
+[eval-g001] progress: 45/50 samples  step_dt=8.37s  eval_elapsed=495.7s  ETA=42s
+[eval-g001] progress: 50/50 samples  step_dt=8.86s  eval_elapsed=559.6s  ETA=0s
+[eval] accuracy=0.3000  macro F1=0.2413  weighted F1=0.2390
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\pair_suite_step_120\chunks\single_model_group_001\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\pair_suite_step_120\chunks\single_model_group_001\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\pair_suite_step_120\chunks\single_model_group_001\report_baseline.md
+[eval] === chunk 1 single-model eval done ===
+[eval] === chunk 2 single-model eval (50 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f_g\f\pair_suite_step_120\chunks\single_model_group_002 ===
+[eval-g002] progress: 15/50 samples  step_dt=nans  eval_elapsed=187.5s  ETA=nans

@@ -1,7 +1,12 @@
 # 任务分解 (Tasks)
 
 > 与 [opening-report-vlm.md](opening-report-vlm.md) 严格对应。任务按 Phase 排序，标 `[P]` 优先级、`[D]` 依赖、`[T]` 预估时长。
-> 文档版本：v2.7（校准 Phase 2.2 balanced 600，并合并增强微调任务到 Phase 2.3）
+> 文档版本：v2.8（补充 Full-3000 标准化策略筛选状态）
+>
+> **v2.8 变更**：
+> - 已完成 A-H 在同一冻结 `MPID Standard Benchmark v2/smoke`（150 条）上的横评；无方案满足三类 recall 非零、direct F1 >= 35%、Macro F1 >= 45% 的正式训练前置门槛。
+> - F 是最平衡基准（Macro F1=40.72%、direct F1=33.73%）；F2 的 `direct_margin=0.55` 单变量尝试完成后 Macro F1=40.13%、direct F1 不变，已判定停止该方向。
+> - 正式 3000-step 训练、正式 checkpoint、package 和 offline smoke 仍不得启动；下一候选方案必须先通过同一 V2/smoke 门槛。
 >
 > **v2.7 变更**：
 > - 校准 **Phase 2.2**：实际执行是 balanced 600 训练，使用 clean / direct / indirect 均衡的 600 条训练样本，不再描述为 2000+ 全量训练
@@ -312,6 +317,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\runs\<run_id>\scripts\
 ---
 
 ## Phase 2.3 — 高 F1 微调改进（对应 C2 · 质量提升）
+
+> **当前执行状态（2026-08-01）**：正式训练前的 A-H 与 F2 smoke 筛选已完成，均未通过门槛；本阶段停留在候选方案定位，不进入 T2.32 的正式训练链路。统一结果见 [reference.md 第 3 章](reference.md#3-测试结果汇总)，F2 审计见 `runs/phase2_3_full_3000_20260729_0958/artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md`。
 
 > **目标**：在 Phase 2.2 balanced 600 结果基础上，重新设计微调数据、训练方式和验证方式，产出一个真正可作为后续 C4/C5/C6 基线的高质量 checkpoint。硬性验收目标：clean / direct / indirect 三个独立验证集上的目标类 F1 均 **> 0.70**。
 >

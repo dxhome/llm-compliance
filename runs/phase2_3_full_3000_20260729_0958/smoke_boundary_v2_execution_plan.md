@@ -21,15 +21,15 @@
 - 新增三元组 batch sampler：每个 batch 固定为一个 clean/direct/indirect 三元组，batch size 为 3。
 - 主损失为三分类交叉熵加多类 logit margin；每个样本的正确类别 logit 必须超过最高错误类别固定边际。另加入三元组预测覆盖损失，惩罚三元组同时预测为同一类别的塌缩。
 - 策略 D 使用通用边界 margin；策略 E 在 D 基础上对 direct 样本增加更强的 direct margin，不使用只对 direct 样本做 KL 的 teacher 蒸馏。
-- head 仅 warm-up 25 步，之后立即联合训练 LoRA；主评测放在第 175 步，确保 LoRA 已联合训练 150 步。
+- head 仅 warm-up 25 步，之后立即联合训练 LoRA；主评测放在第 200 步，确保 LoRA 已联合训练 175 步，并与每 50 步 checkpoint 周期对齐。
 - 验收：配置加载、三元组 batch、边界损失、checkpoint 均通过单步 dry-run。
 
 ## V2-S3：D/E 筛选
 
-预计每套 10-13 小时，串行执行以避免 CPU 与内存竞争。该估计基于三元组 batch 的单步 dry-run 实测约 164 秒；第 175 步主评测约在 8-9 小时后触发。
+预计每套 10-13 小时，串行执行以避免 CPU 与内存竞争。该估计基于三元组 batch 的单步 dry-run 实测约 164 秒；第 200 步主评测约在 9-10 小时后触发。
 
 - 每套训练 250 步；每 5 步日志、每 50 步 smoke checkpoint。
-- 第 100 步运行轻量 pair-suite 健康检查；第 175 步运行 mixed 150 主评测；第 250 步仅对通过主门槛的策略运行 mixed 150 和 pair-suite 终评。第 100 步与 50-step checkpoint 周期对齐，保证评测可复现。
+- 第 100 步运行轻量 pair-suite 健康检查；第 200 步运行 mixed 150 主评测；第 250 步仅对通过主门槛的策略运行 mixed 150 和 pair-suite 终评。所有评测点均与 50-step checkpoint 周期对齐，保证评测可复现。
 - 任何一类 recall 为 0、单类预测占比超过 70%、出现 NaN/Inf 或训练停滞时立即淘汰。
 
 ## V2-S4：策略选择与后续

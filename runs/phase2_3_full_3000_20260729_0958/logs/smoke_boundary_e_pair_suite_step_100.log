@@ -1,0 +1,18 @@
+[eval] mode:       COMPARE-SMOKE-VS-FULL (T2.18)
+[eval] smoke:      C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[eval] full:       C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\checkpoints\checkpoint_step_100.safetensors
+[eval] val:        C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\smoke_boundary_pair_suite_120.jsonl
+[eval] out_dir:    C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_100
+[eval] val size: 120
+
+[eval] === chunk 1 smoke-vs-full compare (50 records) -> C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_boundary_v2\e\pair_suite_step_100\chunks\smoke_vs_full_group_001 ===
+[eval] chunk 1: building SMOKE model
+[eval] chunk 1: smoke LoRA=8,323,072 Head=2,883
+[eval-smoke-g001] progress: 15/50 samples  step_dt=nans  eval_elapsed=1502.0s  ETA=nans
+[eval-smoke-g001] progress: 30/50 samples  step_dt=73.03s  eval_elapsed=3327.6s  ETA=1461s
+[eval-smoke-g001] progress: 45/50 samples  step_dt=83.70s  eval_elapsed=4850.1s  ETA=419s
+[eval-smoke-g001] progress: 50/50 samples  step_dt=82.55s  eval_elapsed=5217.0s  ETA=0s
+[eval] chunk 1: building FULL model
+[eval] chunk 1: full LoRA=8,323,072 Head=2,883
+[eval-full-g001] progress: 15/50 samples  step_dt=nans  eval_elapsed=1644.6s  ETA=nans
+[eval-full-g001] progress: 30/50 samples  step_dt=53.55s  eval_elapsed=2983.4s  ETA=1071s

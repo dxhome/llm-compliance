@@ -33,12 +33,11 @@
   - [Phase 6 — 攻防基线评测体系（对应 C3 正式评测）](#phase-6--攻防基线评测体系对应-c3-正式评测)
   - [Phase 7 — 项目整理与完整交付](#phase-7--项目整理与完整交付)
 - [3. 测试结果汇总](#3-测试结果汇总)
-  - [3.1 核心结论摘要](#31-核心结论摘要)
-  - [3.2 实验配置与评估指标](#32-实验配置与评估指标)
-  - [3.3 推理效果分析](#33-推理效果分析)
-  - [3.4 推理时间分析](#34-推理时间分析)
-  - [3.5 多轮迭代验证](#35-多轮迭代验证)
-  - [3.6 结论与后续评估重点](#36-结论与后续评估重点)
+  - [3.1 结果口径、测试维度与数据集](#31-结果口径测试维度与数据集)
+  - [3.2 标准化结果总览](#32-标准化结果总览)
+  - [3.3 Standard Benchmark v1：模型正式结果](#33-standard-benchmark-v1模型正式结果)
+  - [3.4 Standard Benchmark v2：Full-3000 策略筛选](#34-standard-benchmark-v2full-3000-策略筛选)
+  - [3.5 结论、放行状态与后续记录规则](#35-结论放行状态与后续记录规则)
 - [4. 未来展望](#4-未来展望)
   - [4.1 引言：本节是什么 / 给谁用](#41-引言本节是什么--给谁用)
   - [4.2 当前项目的主要局限](#42-当前项目的主要局限)
@@ -3555,234 +3554,118 @@ Phase 6 的关键不是“哪一组数字最大”，而是形成可解释结论
 
 ## 3. 测试结果汇总
 
-> **本章定位**：汇总已完成的端到端测试结果，作为课题验收报告的核心"实验与结果"章节。
->
-> **术语约定**：本章中 **MPID LoRA** 统一指仅使用 `balanced-600` LoRA checkpoint 的 MPID classification head，不包含 C4 / C5 / C6 防御层；**MPID LoRA + C4-C6优化** 统一指叠加 C4 / C5 / C6 轻量防御链路后的完整系统。
+> **本章定位。** 本章只把在冻结 `MPID Standard Benchmark v1` 或 `v2` 上执行的结果作为可比较记录。旧的 run-local smoke、15 条集成检查、600 条诊断集和早期 generation 结果不再列为模型效果结论；它们仍可在各 run 的 artifacts 中追溯，但不能用于模型排名或正式训练放行。
 
-### 3.1 核心结论摘要
+### 3.1 结果口径、测试维度与数据集
 
-**一句话总结**：`balanced-600` LoRA checkpoint 单独作为防注入分类器并不够（无法识别 synthetic cross-modal indirect），但叠加 Phase 3-5 的轻量推理链路后，项目已从"模型单点分类"演进为"系统级防御"形态。
+#### 3.1.1 记录层级与可比性规则
 
-**三个关键数字**（300 样本真实 generation 验证）：
-
-| 指标 | MPID LoRA | MPID LoRA + C4-C6优化 | Delta |
-|---|---:|---:|---:|
-| Macro F1 | 32.3% | 85.5% | **+53.2pp**（+164.7% relative） |
-| 端到端总耗时 | 4945.4s | 2978.1s | **-39.8%** |
-| generation 次数 | 250 | 136 | **-45.6%** |
-
-#### Full-2000 C6B-lite 适配与离线交付（2026-07-30）
-
-本轮使用 checkpoint `lora_phase2_3_best_by_min_class_f1.safetensors`，验证集为 full-2000 冻结比较集（clean / direct / indirect 各 200 条）和跨模态 smoke 集。默认 pipeline 为 `C5 -> C6B-lite OCR -> C6A -> MPID head -> C4 -> block/allow`，离线包位于 `runs/_artifact/full_2000_c4_c6blite/`。
-
-| 项目 | 结果 | 说明 |
-|---|---:|---|
-| C6B-lite OCR 独立 indirect recall | 11.5%（23/200） | 仅统计 OCR 规则直接拦截，不含 C6A/head |
-| C6B-lite OCR clean FPR | 0.0%（0/200） | OCR 规则未误拦 clean；仅带图片样本实际调用 OCR |
-| C6B-lite 独立耗时 | 83.3s / 600 条 | 平均 0.14s/条；155 条有图像并调用 OCR |
-| 离线包 | 1.02 GB / 87 文件 | 包含 backbone、full-2000 LoRA、RapidOCR ONNX 权重、规则、源码、checksum 与 smoke 图片 |
-| 离线 smoke | 3/3 PASS | C5、head fallback、C6B-lite OCR 分支均在 `HF_HUB_OFFLINE=1` 下通过 |
-
-**已知限制（本轮明确接受）**：full-2000 head 在已有 full compare 上 clean recall 为 3%、indirect recall 为 1%，预测明显偏向 direct。C4/C5/C6B-lite 不会修复该基础分类器问题；本轮交付证明的是推理侧安全链路和离线可分发性，模型效果需与该限制一起解释。
-
-### 3.2 实验配置与评估指标
-
-#### 3.2.1 实验配置
-
-所有测试均基于以下统一配置：
-
-- **模型**：`balanced-600` LoRA checkpoint（SmolVLM-500M + 3-class classification head，约 1.5M LoRA 参数）
-- **验证数据**：balanced-600 三类分层评估集（clean / direct / indirect 各 100 条，共 300 条）
-- **硬件**：mac MPS / x86 CPU（离线本地验证）
-
-#### 3.2.2 评估指标
-
-本课题的核心评估围绕两个维度展开：
-
-**推理效果**：
-- Accuracy、Macro F1、Weighted F1
-- 逐类 Precision / Recall / F1
-- 混淆矩阵
-- 攻击样本是否被正确阻断
-
-**推理时间**：
-- 总耗时、平均耗时 / 样本
-- 按类别耗时
-- generation 次数
-- C4 / C5 / C6 各阶段拦截数量（是否减少昂贵的 VLM / head / generation 调用）
-
-#### 3.2.3 Delta 表达约定
-
-- `pp` = 百分点变化，如 Macro F1 从 32.3% 到 85.5% 记为 `+53.2pp`。
-- `relative` = 相对变化，如 `+164.7% relative` 表示提升到原来的 2.647 倍。
-- 当 baseline 为 0 时，相对百分比无稳定数学意义，标注为 `N/A` 并直接说明从 0% 提升到目标值。
-
-#### 3.2.4 测试轮次
-
-| 轮次 | 验证目标 | 样本量 | Pipeline 形态 | 总耗时 |
-|---|---|---:|---|---:|
-| 1. 快速验证 | 验证 C4-C6 方向性收益 | 60（20×3） | classification-only | 835.2s |
-| 2. 分类验证 | 验证趋势在更大样本上是否稳定 | 300（100×3） | classification-only | 3994.4s |
-| 3. 真实生成验证 | 验证在 demo / 交付链路上同样有效 | 300（100×3） | generation pipeline（block/allow + LoRA generation） | 7923.5s |
-
-**演进逻辑**：
-- 轮次 1 → 2：横向扩大样本（60 → 300），验证趋势稳定性。
-- 轮次 2 → 3：纵向深化，从 classification-only 升级为真实 generation 链路，验证在 demo / 交付场景中同样有效。
-
-### 3.3 推理效果分析
-
-两轮 300 样本（classification-only 与真实 generation）的分类结果完全一致，说明本轮优化带来的效果提升来自前置防御链路本身，与是否执行文本生成无关。下文以真实 generation（轮次 3）为代表展开。
-
-#### 3.3.1 总体指标
-
-| 测试口径 | Accuracy | Macro F1 | Weighted F1 |
-|---|---:|---:|---:|
-| MPID LoRA | 42.7% | 32.3% | 32.3% |
-| MPID LoRA + C4-C6优化 | 86.0% | 85.5% | 85.5% |
-| Delta | +43.3pp（+101.4% relative） | +53.2pp（+164.7% relative） | +53.2pp（+164.7% relative） |
-
-#### 3.3.2 逐类指标
-
-| Pipeline | Label | Precision | Recall | F1 | Support |
-|---|---|---:|---:|---:|---:|
-| MPID LoRA | clean | 38.8% | 97.0% | 55.4% | 100 |
-| MPID LoRA | direct | 62.0% | 31.0% | 41.3% | 100 |
-| MPID LoRA | indirect | 0.0% | 0.0% | 0.0% | 100 |
-| MPID LoRA + C4-C6优化 | clean | 71.3% | 97.0% | 82.2% | 100 |
-| MPID LoRA + C4-C6优化 | direct | 95.3% | 61.0% | 74.4% | 100 |
-| MPID LoRA + C4-C6优化 | indirect | 100.0% | 100.0% | 100.0% | 100 |
-
-| Label | MPID LoRA F1 | MPID LoRA + C4-C6 F1 | Delta | 主要原因 |
-|---|---:|---:|---:|---|
-| clean | 55.4% | 82.2% | +26.8pp（+48.4% relative） | direct / indirect 被误判为 clean 的数量下降；clean recall 保持 97.0% |
-| direct | 41.3% | 74.4% | +33.1pp（+80.1% relative） | C5 规则前置命中 48/100 条 direct，recall 从 31% 提升到 61% |
-| indirect | 0.0% | 100.0% | +100.0pp（baseline 为 0，relative=N/A） | C6A 跨模态启发式命中 100/100 条 synthetic cross-modal，修复 MPID classification head 盲点 |
-
-#### 3.3.3 混淆矩阵
-
-| Pipeline | Gold | Pred clean | Pred direct | Pred indirect |
-|---|---|---:|---:|---:|
-| MPID LoRA | clean | 97 | 3 | 0 |
-| MPID LoRA | direct | 69 | 31 | 0 |
-| MPID LoRA | indirect | 84 | 16 | 0 |
-| MPID LoRA + C4-C6优化 | clean | 97 | 3 | 0 |
-| MPID LoRA + C4-C6优化 | direct | 39 | 61 | 0 |
-| MPID LoRA + C4-C6优化 | indirect | 0 | 0 | 100 |
-
-**关键观察**：
-
-- **clean**：recall 稳定 97.0%，说明 C4 / C5 / C6 未造成大规模 clean 误杀；F1 提升主要来自 precision 上升（攻击样本被正确识别后，clean 的 FP 减少）。
-- **direct**：C5 规则前置命中 48/100 条，把 direct recall 从 31% 拉到 61%，补齐 MPID classification head 的部分漏检。
-- **indirect**：C6A 在 synthetic cross-modal 验证集上 100% 命中，修复 MPID classification head 对该类的盲点。
-
-#### 3.3.4 C4 / C5 / C6 各自贡献
-
-| 阶段 | 加入的优化 | Macro F1 | indirect F1 | direct F1 | 说明 |
-|---|---|---:|---:|---:|---|
-| MPID LoRA | 只用 MPID classification head | 32.3% | 0.0% | 41.3% | 能识别 clean，但把大量 direct / indirect 当作 clean |
-| + C5 | 文本规则前置拦截 direct | 合并后达 85.5% | 间接受益 | 74.4% | direct recall 31% → 61%，规则层补齐 MPID classification head 漏检 |
-| + C6A | 跨模态启发式拦截 synthetic indirect | 合并后达 85.5% | 0% → 100% | 维持 74.4% | 最大效果收益来源，修复对 synthetic cross-modal indirect 的盲点 |
-| + C4 | clean 高置信路径决策 | 合并后达 85.5% | 不损伤 | 不损伤 | 当前主要起置信度决策与 generation gate 作用 |
-
-### 3.4 推理时间分析
-
-需区分 clean 与攻击样本：优化链路在 clean 条件下会略长（仍需进入 MPID head + generation，仅多出 C5 / C6 / C4 的前置判断）；在 direct / indirect 场景中，前置规则和跨模态自检可跳过昂贵路径，应显著缩短。
-
-#### 3.4.1 总体指标（300 样本真实 generation）
-
-| 指标 | MPID LoRA | MPID LoRA + C4-C6优化 | Delta |
-|---|---:|---:|---:|
-| 总耗时 | 4945.4s | 2978.1s | -39.8% |
-| 平均耗时 / 样本 | 16.48s | 9.93s | -39.7% |
-| generation 次数 | 250 | 136 | -45.6% |
-| block 次数 | 50 | 164 | +228.0% relative |
-| allow 次数 | 250 | 136 | -45.6% |
-
-#### 3.4.2 按类别耗时
-
-| Gold | MPID LoRA avg | MPID LoRA + C4-C6 avg | Delta | 解释 |
-|---|---:|---:|---:|---|
-| clean | 18.23s/sample | 19.06s/sample | +4.6% | clean 仍需 head + generation，前置检查带来 0.83s/sample 轻量开销，CPU 验证场景可接受 |
-| direct | 15.15s/sample | 10.72s/sample | -29.3% | 48/100 条 direct 被 C5 拦截，generation 次数从 69 降到 39 |
-| indirect | 16.07s/sample | ~0.00s/sample | ≈ -100% | 100/100 条 indirect 被 C6A 拦截，完全跳过 head + generation |
-| **overall** | **16.48s/sample** | **9.93s/sample** | **-39.7%** | 攻击样本节省的时间超过 clean 样本增加的少量开销 |
-
-#### 3.4.3 C4 / C5 / C6 拦截分布
-
-| Stage | 数量 | 占比 | 阶段说明 |
-|---|---:|---:|---|
-| `head_clean_fallback` | 125 | 41.7% | 进入 MPID classification head + generation 的高置信 clean 样本 |
-| `c4_early_exit` | 11 | 3.7% | 基于 VLM 概率的 clean 早退 |
-| `head_injection_fallback` | 16 | 5.3% | head 兜底判定 injection 后 block |
-| `c5_rules` | 48 | 16.0% | 文本规则前置命中，跳过 head / generation |
-| `c6_crossmodal` | 100 | 33.3% | 跨模态启发式命中，跳过 head / generation |
-
-**关键观察**：
-
-- C5 + C6 共拦截 148/300（49.3%）的样本，generation 次数相应减少 45.6%。
-- direct / indirect 通过 C5 / C6 拦截可省去 100% 的 VLM / head / generation 调用。
-- clean 多出 0.83s/sample 是前置检查带来的可解释开销；C4 当前未在此链路中起主要省时作用，真正的中间层早退属于后续优化。
-
-### 3.5 多轮迭代验证
-
-> 本节跨轮次对比，验证优化效果在不同样本量和不同 pipeline 形态下的稳定性。
-
-#### 3.5.1 端到端逻辑差异
-
-| 轮次 | MPID LoRA pipeline | MPID LoRA + C4-C6优化 pipeline | 核心差异 |
+| 层级 | 允许的数据集 | 用途 | 是否可作为正式模型效果结论 |
 |---|---|---|---|
-| 1. 60 样本 | VLM + classification head | C5 + C6A → VLM fallback + C4 统计 | 引入 C4 / C5 / C6A 防御层，前置命中仅跳过 MPID classification head |
-| 2. 300 样本分类 | 同上 | 同上 | 样本量扩大，pipeline 形态不变（仍只跑 classification，无 generation） |
-| 3. 300 样本生成 | MPID head → block/allow → LoRA generation | C5 → C6 → MPID head → C4 → block/allow → LoRA generation | 加入 block/allow 决策与 generation；前置拦截可同时跳过 head 与 generation |
+| 正式横评 | Standard Benchmark v1（300 条）或 v2/full（500 条） | checkpoint / pipeline 的正式报告与训练放行 | 是 |
+| 标准化筛选 | Standard Benchmark v2/smoke（150 条） | 快速回归、策略筛选、失败模式诊断 | 否；只能作为进入正式评测的前置证据 |
+| 工程诊断 | run-local smoke、训练验证集、单阶段统计 | 联调、性能分析、故障定位 | 否 |
 
-#### 3.5.2 推理效果演进
+同一张结果表中的项目必须使用同一冻结 benchmark、同一任务定义和同一 checkpoint。跨 benchmark 时只能比较趋势，不比较绝对分数。`v2/smoke` 虽然是冻结数据集，但样本量较小，且业务分布中的 `indirect` 仅 22 条，因此不替代 `v2/full` 的正式验收。
 
-| 轮次 | 样本 | MPID LoRA Macro F1 | MPID LoRA + C4-C6 Macro F1 | Delta |
-|---|---:|---:|---:|---:|
-| 1（60 样本） | 60 | 32.6% | 84.2% | +51.6pp（+158.3% relative） |
-| 2（300 样本分类） | 300 | 32.3% | 85.5% | +53.2pp（+164.7% relative） |
-| 3（300 样本生成） | 300 | 32.3% | 85.5% | +53.2pp（+164.7% relative） |
+#### 3.1.2 冻结数据集
 
-**关键观察**：
-- 60 → 300 样本：优化 Macro F1 从 84.2% 提升到 85.5%，趋势稳定。
-- 轮次 2 → 3：Macro F1 保持 85.5%，证明优化收益不依赖是否执行生成——前置防御链路本身决定了分类效果。
+| Benchmark | 总数 | clean | direct | indirect | 图像/OCR | 主要用途 |
+|---|---:|---:|---:|---:|---:|---|
+| Standard Benchmark v1 | 300 | 100 | 100 | 100 | 72 | 三类均衡的正式横评；以 Macro F1 检查少数类鲁棒性 |
+| Standard Benchmark v2/full | 500 | 250 | 175 | 75 | 80 | 业务分布下的正式效果、Weighted F1、推理时间与 generation 统计 |
+| Standard Benchmark v2/smoke | 150 | 75 | 53 | 22 | 30 | 冻结的快速策略筛选与回归 |
 
-#### 3.5.3 推理时间演进
+V1 与 V2 的样本均与相应训练、验证和历史 benchmark 按 `dedup_key`、`source + source_record_id`、归一化文本指纹隔离。V2 还提供 `manifest.json` 与 `checksums.sha256`；复现实验前必须校验完整性文件。基准详情见 [`benchmarks/mpid_standard_v2`](../benchmarks/mpid_standard_v2/)。
 
-| 轮次 | MPID LoRA 总耗时 | MPID LoRA + C4-C6 总耗时 | Delta | 优化链路平均耗时 |
-|---|---:|---:|---:|---:|
-| 1（60 样本，分类） | 539.2s | 296.0s | -45.1% | 4.93s/sample |
-| 2（300 样本，分类） | 2675.7s | 1318.7s | -50.7% | 4.40s/sample |
-| 3（300 样本，生成） | 4945.4s | 2978.1s | -39.8% | 9.93s/sample |
+#### 3.1.3 测试维度与判定规则
 
-**关键观察**：
-- 60 → 300 样本（分类）：优化比例从 -45.1% 提升到 -50.7%，样本扩大后 C5 / C6 命中率更稳定。
-- 分类 → 生成：耗时绝对值翻倍（多出 generation 调用），但优化链路仍达 -39.8% 总体降幅，generation 次数从 250 降到 136（-45.6%）。
-- 真实生成链路在 attack-heavy 数据上总耗时下降近 40%，是本课题在效率维度的核心量化结论。
+| 维度 | 指标 / 证据 | 解读 |
+|---|---|---|
+| 分类总体效果 | Accuracy、Macro F1、Weighted F1 | Macro F1 防止 `indirect` 被总体比例掩盖；Weighted F1 反映业务分布 |
+| 逐类安全性 | clean/direct/indirect 的 Precision、Recall、F1 与混淆矩阵 | 任何类别 recall 为 0 都视为明显类别塌缩 |
+| 多模态回归 | 图像/OCR 子集的完整 predictions 与逐类指标 | 单独检查图片解析与 OCR 指令注入路径 |
+| 工程正确性 | benchmark 完整性、checkpoint manifest、150/300/500 条预测完整性、NaN/Inf/traceback | 不满足时该次结果无效 |
+| 训练放行 | 预先声明的门槛 | Full-3000 当前门槛：三类 recall 均大于 0、direct F1 >= 35%、Macro F1 >= 45% |
 
-### 3.6 结论与后续评估重点
+### 3.2 标准化结果总览
 
-#### 3.6.1 已确认的收益
+#### 3.2.1 已有正式结果与标准化筛选状态
 
-- **分类效果**：Macro F1 从 32.3% 提升到 85.5%（+53.2pp，+164.7% relative），Accuracy 从 42.7% 提升到 86.0%（+43.3pp，+101.4% relative）。
-- **时间效率**：分类 300 样本总耗时 -50.7%；真实生成 300 样本总耗时 -39.8%，generation 次数 -45.6%。
-- **风险面缩小**：allow / generation 次数 250 → 136（-45.6%），block 次数 50 → 164（+228.0% relative）。
-- **indirect 被系统层补齐**：C6A 命中让 indirect F1 从 0% 提升到 100%。
-- **clean recall 稳定**：300 样本中 clean recall 保持 97.0%，当前规则未造成大规模 clean 误杀。
+| 对象 | Benchmark | 样本数 | 最佳已记录 Accuracy | 最佳已记录 Macro F1 | 结果性质 | 当前结论 |
+|---|---|---:|---:|---:|---|---|
+| Balanced-600，MPID LoRA + C4-C6 | V1 | 300 | 45.3% | 40.7% | 正式横评 | 系统链路较 LoRA-only 有明确提升，但仍未达到高可靠三分类水平 |
+| Full-2000，MPID LoRA + C4-C6 | V1 | 300 | 40.3% | 29.4% | 正式横评 | direct 检出强，但 clean/indirect 基础分类能力不足 |
+| Full-3000 策略 A-H/F2 | V2/smoke | 150 | 50.0%（A） | 40.72%（F） | 标准化筛选 | 九项均未通过门槛；F 仍是最平衡候选 |
 
-#### 3.6.2 仍需谨慎解释
+**总览判断。** V1 的结果用于记录已完成模型与完整防御链路的正式表现；V2/smoke 的 A-H 用于在完全相同的数据、评测脚本与 batch-size 下消除历史横比偏差。二者分别回答“现有模型在统一正式集上的表现”和“Full-3000 在正式训练前哪种训练策略较平衡”，不得混为一个排名。
 
-- **C6A 泛化性**：当前对 `synthetic_image_injection` 的高分部分依赖 source / metadata / template 信号，后续必须用真实 OCR / 图文冲突样本验证泛化。
-- **C5 direct recall 不足**：300 样本中 direct recall 只有 61.0%，39 条 direct 仍被错判为 clean；下一步应分析 false negative 并扩展高价值规则，同步做 clean 回归测试。
-- **C4 当前作用有限**：主要是"置信度决策统计"，还不是主要省时来源；真正的中间层早退版本仍属后续优化。
+### 3.3 Standard Benchmark v1：模型正式结果
 
-#### 3.6.3 后续评估重点
+本节仅保留 V1 的 300 条真实 CPU 推理结果。两条 pipeline 均使用同一份三类均衡集和 `max_new_tokens=32`；LoRA-only 为 `MPID head -> block/allow -> LoRA generation`，优化链路为 `C5 -> C6B-lite OCR -> MPID head -> C4 -> block/allow -> LoRA generation`。
 
-- **推理效果**：扩展真实 OCR / 图文冲突 indirect 样本，复查 C6A 是否仍能维持高 recall；针对 direct false negative 做错误簇分析；规则扩展同步做 clean 回归测试。
-- **推理时间**：单独报告 clean / direct / indirect 的平均耗时与 P50 / P95；重点验证 clean 场景额外开销是否长期可接受，同时确认 direct / indirect 在真实攻击数据上仍能显著省时。
+#### 3.3.1 Balanced-600
+
+| Pipeline | Accuracy | Macro F1 | 总耗时 | 平均耗时 | Generation |
+|---|---:|---:|---:|---:|---:|
+| MPID LoRA | 34.3% | 22.5% | 13,761.2s | 45.87s/条 | 270 |
+| MPID LoRA + C4-C6 | 45.3% | 40.7% | 12,703.8s | 42.35s/条 | 245 |
+| Delta | +11.0pp | +18.2pp | -7.7% | -7.7% | -9.3% |
+
+| Pipeline | clean F1（Recall） | direct F1（Recall） | indirect F1（Recall） | 记录结论 |
+|---|---|---|---|---|
+| MPID LoRA | 49.7%（92%） | 15.7%（10%） | 1.9%（1%） | 基础 head 对攻击类覆盖不足 |
+| MPID LoRA + C4-C6 | 53.3%（92%） | 37.3%（25%） | 31.4%（19%） | C5/C6B-lite 补齐部分 direct/indirect，并减少 generation |
+
+**审计说明。** Balanced-600 的优化链路提高了三类 F1 中最弱的 direct/indirect，并维持 clean recall；但 V1 Macro F1 仍为 40.7%，不能表述为已经解决三分类安全判定。正式原始报告：`runs/standard_benchmark_v1_compare_20260730/balanced_600/artifacts/compare_summary.md`。
+
+#### 3.3.2 Full-2000
+
+| Pipeline | Accuracy | Macro F1 | 总耗时 | 平均耗时 | Generation |
+|---|---:|---:|---:|---:|---:|
+| MPID LoRA | 35.3% | 21.7% | 8,353.4s | 27.84s/条 | 13 |
+| MPID LoRA + C4-C6 | 40.3% | 29.4% | 6,532.8s | 21.78s/条 | 2 |
+| Delta | +5.0pp | +7.7pp | -21.8% | -21.8% | -84.6% |
+
+| Pipeline | clean F1（Recall） | direct F1（Recall） | indirect F1（Recall） | 记录结论 |
+|---|---|---|---|---|
+| MPID LoRA | 3.5%（2%） | 52.2%（99%） | 9.3%（5%） | 基础 head 严重偏向 direct |
+| MPID LoRA + C4-C6 | 3.9%（2%） | 53.2%（100%） | 31.1%（19%） | 前置链路提升 indirect 并节省推理，但无法修复 clean 塌缩 |
+
+**审计说明。** Full-2000 的主要价值是验证 C5/C6B-lite 与离线推理链路在 V1 上可工作、可降低 generation；其 clean recall 为 2%、indirect recall 为 19%，因此不能作为默认 clean 放行模型。正式原始报告：`runs/standard_benchmark_v1_compare_20260730/full_2000/artifacts/compare_summary.md`。
+
+### 3.4 Standard Benchmark v2：Full-3000 策略筛选
+
+#### 3.4.1 A-H/F2 统一 smoke 横评
+
+A-H/F2 均采用同一份 V2/smoke 150 条物化副本（clean/direct/indirect = 75/53/22）、同一评测脚本和 `--batch-size 1`。A-H 使用清单锁定的历史 smoke checkpoint；F2 使用其完成的 step120 smoke checkpoint。九项均已生成完整 150 条 `predictions.jsonl`，正式 checkpoint 目录在整个筛选过程均为 0。
+
+| 策略 | Accuracy | Macro F1 | Weighted F1 | clean R / F1 | direct R / F1 | indirect R / F1 | 放行门槛 |
+|---|---:|---:|---:|---|---|---|---|
+| F | 46.67% | **40.72%** | **48.28%** | 64.0% / 66.2% | **26.4% / 33.7%** | 36.4% / 22.2% | 未通过 |
+| F2 | 46.67% | 40.13% | 48.19% | 65.3% / 66.7% | 26.4% / 33.7% | 31.8% / 20.0% | 未通过 |
+| G | 36.00% | 30.57% | 31.88% | 42.7% / 48.1% | 3.8% / 6.9% | **90.9% / 36.7%** | 未通过 |
+| A | **50.00%** | 28.67% | 36.17% | 96.0% / 66.7% | 0.0% / 0.0% | 13.6% / 19.4% | 未通过 |
+| E | 29.33% | 23.80% | 24.61% | 33.3% / 40.0% | 0.0% / 0.0% | 86.4% / 31.4% | 未通过 |
+| D | 28.67% | 23.41% | 24.07% | 30.7% / 39.0% | 0.0% / 0.0% | 90.9% / 31.2% | 未通过 |
+| H | 46.00% | 22.14% | 32.70% | 90.7% / 63.0% | 1.9% / 3.4% | 0.0% / 0.0% | 未通过 |
+| B | 48.67% | 22.12% | 33.18% | 97.3% / 66.4% | 0.0% / 0.0% | 0.0% / 0.0% | 未通过 |
+| C | 48.67% | 22.02% | 33.03% | 97.3% / 66.1% | 0.0% / 0.0% | 0.0% / 0.0% | 未通过 |
+
+**整体诊断。** A/B/C/H 偏向 clean，D/E 偏向 indirect，G 虽能检出大部分 indirect 但几乎失去 direct；不能以较高 Accuracy 或单类 recall 替代三类安全性。F 是九项中唯一同时取得最高 Macro F1、Weighted F1 和 direct F1 的策略。F 的 53 条 direct 中有 14 条正确、25 条误判 indirect、14 条误判 clean；当前主瓶颈是文本 direct 边界。
+
+F2 是该统一筛选中的第九项：它仅将 F 的 `direct_margin` 从 0.35 调至 0.55，其余训练设置不变。F2 的 clean recall 提高 1.33pp，但 direct 指标完全不变，indirect F1 下降 2.22pp，最终 Macro F1 低于 F 0.59pp。两者 150 条预测中仅两条不同：F2 修正一条文本 clean，同时将一条 OCR indirect 误放行为 clean；图像/OCR 子集 Accuracy 从 70.00% 降至 66.67%、Macro F1 从 47.62% 降至 44.44%。因此该 margin 调整方向停止。完整审计见 `artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md`。
+
+可审计产物：`runs/phase2_3_full_3000_20260729_0958/artifacts/standard_benchmark_v2_a_h/{benchmark_integrity.json,checkpoint_manifest.json,summary.json,standard_benchmark_v2_a_h_summary.md}`；A-H 预测位于 `a` 至 `h` 子目录；F2 配置、计划、日志和 smoke checkpoint 位于 `runs/phase2_3_full_3000_20260729_0958/{configs/smoke_strategy_f2.yaml,smoke_f2_execution_plan.md,logs,artifacts/smoke_f2}`。
+
+### 3.5 结论、放行状态与后续记录规则
+
+1. Standard Benchmark V1 已正式记录 Balanced-600 与 Full-2000 的结果；二者的优化链路均有方向性收益，但均未形成可无条件推广的高可靠三分类器。
+2. Standard Benchmark V2/smoke 已完成 Full-3000 的 A-H/F2 九项同集筛选；F 最均衡但 Macro F1 为 40.72%、direct F1 为 33.7%，未达到预设 45% / 35% 门槛。F2 的单变量 margin 调整也未改善 F。
+3. 正式 3000-step 训练继续**不得启动**；后续候选方案必须先通过同一 V2/smoke 门槛，才可申请进入 V2/full 或 V1 的正式评估。
+4. 后续写入本章的模型结果必须注明 benchmark 版本、样本数、checkpoint、pipeline、预测完整性和逐类指标；不再把 run-local smoke 或诊断切片的绝对分数写成正式模型结果。
 
 ---
-
 ## 4. 未来展望
 
 > **本部分是整个 reference.md 的"反思 + 展望"版块**。它不是 Phase 任务的一部分，但**对答辩 Q&A 和后续工作规划至关重要**。

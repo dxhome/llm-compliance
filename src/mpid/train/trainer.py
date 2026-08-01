@@ -124,6 +124,29 @@ class TrainConfig:
     logit_margin: float = 0.0
     direct_margin: float = 0.0
     triplet_balance_weight: float = 0.0
+    triplet_diagonal_weight: float = 0.0
+    triplet_diagonal_margin: float = 0.0
+    classification_mode: str = "flat"
+
+
+def classification_log_probs(logits: torch.Tensor, mode: str = "flat") -> torch.Tensor:
+    """Return class log-probabilities for the configured decision structure."""
+    if mode != "hierarchical":
+        return F.log_softmax(logits, dim=-1)
+
+    # First separate direct from non-direct, then resolve clean vs indirect.
+    # Keeping this factorisation in the same three-output head preserves the
+    # checkpoint format while avoiding direct competing with two classes at once.
+    direct = torch.sigmoid(logits[:, LABEL2IDX["direct"]])
+    clean_given_non_direct = torch.sigmoid(
+        logits[:, LABEL2IDX["clean"]] - logits[:, LABEL2IDX["indirect"]]
+    )
+    eps = torch.finfo(logits.dtype).eps
+    return torch.stack((
+        torch.log1p(-direct.clamp(max=1 - eps)) + torch.log(clean_given_non_direct.clamp_min(eps)),
+        torch.log(direct.clamp_min(eps)),
+        torch.log1p(-direct.clamp(max=1 - eps)) + torch.log1p(-clean_given_non_direct.clamp(max=1 - eps)),
+    ), dim=-1)
 
 
 class CounterfactualBatchSampler(Sampler[list[int]]):
@@ -252,7 +275,7 @@ def evaluate(
 ) -> dict:
     model.eval()
     head.eval()
-    all_pred, all_gold = [], []
+    all_pred, all_gold, all_log_probs = [], [], []
     seen = 0
     total = len(dataloader.dataset) if hasattr(dataloader, "dataset") else None
     t_eval0 = time.perf_counter()
@@ -272,10 +295,14 @@ def evaluate(
         b = torch.arange(last_hidden.size(0), device=last_hidden.device)
         pooled = last_hidden[b, last_idx]
         logits = head(pooled)
-        pred = logits.argmax(dim=-1).cpu().tolist()
+        log_probs = classification_log_probs(
+            logits, getattr(head, "classification_mode", "flat")
+        )
+        pred = log_probs.argmax(dim=-1).cpu().tolist()
         gold = batch["label"].cpu().tolist()
         all_pred.extend(pred)
         all_gold.extend(gold)
+        all_log_probs.extend(log_probs.cpu().tolist())
         seen += len(gold)
         if progress_every > 0 and seen % progress_every == 0:
             t_now = time.perf_counter()
@@ -338,7 +365,8 @@ def evaluate(
     return {"confusion_matrix": cm.tolist(),
             "report": report,
             "y_pred": all_pred,
-            "y_gold": all_gold}
+            "y_gold": all_gold,
+            "log_probs": all_log_probs}
 
 
 # ---------------------------------------------------------------------------
@@ -443,6 +471,7 @@ def train(cfg: TrainConfig) -> TrainResult:
         in_dim=adapter.hidden_size,
         num_classes=NUM_CLASSES,
     ).to(cfg.device)
+    head.classification_mode = cfg.classification_mode
     n_head_params = sum(p.numel() for p in head.parameters() if p.requires_grad)
     log(f"[train] LoRA params: {n_lora_params:,}  Head params: {n_head_params:,}")
 
@@ -634,7 +663,8 @@ def train(cfg: TrainConfig) -> TrainResult:
             b = torch.arange(last_hidden.size(0), device=last_hidden.device)
             pooled = last_hidden[b, last_idx]
             logits = head(pooled)
-            loss = F.cross_entropy(logits, batch["label"], weight=weights)
+            log_probs = classification_log_probs(logits, cfg.classification_mode)
+            loss = F.nll_loss(log_probs, batch["label"], weight=weights)
             direct_mask = batch["label"] == LABEL2IDX["direct"]
             if cfg.logit_margin > 0:
                 target_logits = logits.gather(1, batch["label"].unsqueeze(1)).squeeze(1)
@@ -659,6 +689,18 @@ def train(cfg: TrainConfig) -> TrainResult:
                 uniform = torch.full_like(mean_prob, 1.0 / NUM_CLASSES)
                 coverage_loss = F.kl_div(mean_prob.log(), uniform, reduction="sum")
                 loss = loss + float(cfg.triplet_balance_weight) * coverage_loss
+            if cfg.triplet_diagonal_weight > 0 and cfg.paired_batch_mode:
+                expected = torch.arange(NUM_CLASSES, device=cfg.device)
+                if logits.size(0) == NUM_CLASSES and torch.equal(batch["label"], expected):
+                    diagonal = logits.diagonal()
+                    per_class_other = logits.transpose(0, 1).masked_fill(
+                        torch.eye(NUM_CLASSES, dtype=torch.bool, device=cfg.device),
+                        float("-inf"),
+                    ).max(dim=1).values
+                    diagonal_loss = F.relu(
+                        float(cfg.triplet_diagonal_margin) - (diagonal - per_class_other)
+                    ).mean()
+                    loss = loss + float(cfg.triplet_diagonal_weight) * diagonal_loss
             if teacher_model is not None and direct_mask.any():
                 with torch.inference_mode():
                     teacher_outputs = teacher_model(
@@ -918,6 +960,9 @@ def save_checkpoint(path: Path, peft_model, head: ClassificationHead, cfg: Train
     # Config metadata (so the offline package can recreate the head).
     state["__head_in_dim__"] = torch.tensor(head.in_dim)
     state["__head_num_classes__"] = torch.tensor(head.num_classes)
+    state["__classification_mode__"] = torch.tensor(
+        1 if getattr(cfg, "classification_mode", "flat") == "hierarchical" else 0
+    )
     save_file(state, str(path), metadata={
         "format": "mpid-baseline-v1",
         "backbone": cfg.backbone_name,
@@ -1037,6 +1082,8 @@ def load_checkpoint(path: Path, head: ClassificationHead) -> dict:
     head_state = {k.removeprefix("head."): v
                   for k, v in state.items() if k.startswith("head.")}
     head.load_state_dict(head_state)
+    mode = state.get("__classification_mode__")
+    head.classification_mode = "hierarchical" if mode is not None and int(mode.item()) == 1 else "flat"
     return state
 
 

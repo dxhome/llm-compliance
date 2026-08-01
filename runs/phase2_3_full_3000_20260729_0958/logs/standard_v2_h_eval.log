@@ -1,0 +1,44 @@
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+[eval] config:     checkpoint=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_h\checkpoints\checkpoint_step_120.safetensors val=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\smoke_all_150_resolved_images.jsonl out=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\h
+[eval] loading adapter on cpu ...
+[eval] LoRA params: 8,323,072  Head params: 2,883
+[eval] loaded checkpoint (333 tensors, has_lora_state=True)
+[eval] val size: 150
+[eval] progress: 5/150 samples  step_dt=nans  eval_elapsed=73.5s  ETA=nans
+[eval] progress: 10/150 samples  step_dt=14.20s  eval_elapsed=144.5s  ETA=1989s
+[eval] progress: 15/150 samples  step_dt=16.88s  eval_elapsed=242.3s  ETA=2279s
+[eval] progress: 20/150 samples  step_dt=18.57s  eval_elapsed=352.1s  ETA=2414s
+[eval] progress: 25/150 samples  step_dt=19.30s  eval_elapsed=459.5s  ETA=2413s
+[eval] progress: 30/150 samples  step_dt=19.99s  eval_elapsed=573.3s  ETA=2399s
+[eval] progress: 35/150 samples  step_dt=20.28s  eval_elapsed=681.9s  ETA=2332s
+[eval] progress: 40/150 samples  step_dt=20.43s  eval_elapsed=788.6s  ETA=2247s
+[eval] progress: 45/150 samples  step_dt=20.41s  eval_elapsed=890.0s  ETA=2143s
+[eval] progress: 50/150 samples  step_dt=20.63s  eval_elapsed=1002.0s  ETA=2063s
+[eval] progress: 55/150 samples  step_dt=20.58s  eval_elapsed=1102.5s  ETA=1955s
+[eval] progress: 60/150 samples  step_dt=20.75s  eval_elapsed=1214.7s  ETA=1867s
+[eval] progress: 65/150 samples  step_dt=20.84s  eval_elapsed=1323.9s  ETA=1771s
+[eval] progress: 70/150 samples  step_dt=20.77s  eval_elapsed=1423.2s  ETA=1661s
+[eval] progress: 75/150 samples  step_dt=20.76s  eval_elapsed=1526.9s  ETA=1557s
+[eval] progress: 80/150 samples  step_dt=20.86s  eval_elapsed=1638.0s  ETA=1460s
+[eval] progress: 85/150 samples  step_dt=20.86s  eval_elapsed=1741.9s  ETA=1356s
+[eval] progress: 90/150 samples  step_dt=20.94s  eval_elapsed=1853.0s  ETA=1256s
+[eval] progress: 95/150 samples  step_dt=20.89s  eval_elapsed=1953.8s  ETA=1149s
+[eval] progress: 100/150 samples  step_dt=20.99s  eval_elapsed=2067.6s  ETA=1050s
+[eval] progress: 105/150 samples  step_dt=21.06s  eval_elapsed=2179.1s  ETA=948s
+[eval] progress: 110/150 samples  step_dt=21.10s  eval_elapsed=2288.9s  ETA=844s
+[eval] progress: 115/150 samples  step_dt=21.14s  eval_elapsed=2398.4s  ETA=740s
+[eval] progress: 120/150 samples  step_dt=21.14s  eval_elapsed=2504.6s  ETA=634s
+[eval] progress: 125/150 samples  step_dt=21.12s  eval_elapsed=2607.9s  ETA=528s
+[eval] progress: 130/150 samples  step_dt=21.10s  eval_elapsed=2710.4s  ETA=422s
+[eval] progress: 135/150 samples  step_dt=21.13s  eval_elapsed=2820.2s  ETA=317s
+[eval] progress: 140/150 samples  step_dt=21.15s  eval_elapsed=2929.0s  ETA=212s
+[eval] progress: 145/150 samples  step_dt=21.28s  eval_elapsed=3053.0s  ETA=106s
+[eval] progress: 150/150 samples  step_dt=21.26s  eval_elapsed=3156.7s  ETA=0s
+[eval] accuracy=0.4600  macro F1=0.2214  weighted F1=0.3270
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\h\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\h\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\h\report_baseline.md
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\h\predictions.jsonl

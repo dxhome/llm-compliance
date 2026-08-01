@@ -50,6 +50,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--clean-jsonl", type=Path, required=True)
     p.add_argument("--direct-jsonl", type=Path, required=True)
     p.add_argument("--indirect-jsonl", type=Path, required=True)
+    p.add_argument(
+        "--dataset-root",
+        type=Path,
+        default=None,
+        help="Root used to resolve relative image paths in evaluation JSONL files.",
+    )
     p.add_argument("--out-dir", type=Path, required=True)
     p.add_argument("--per-class", type=int, default=100)
     p.add_argument("--class-batch-size", type=int, default=50)
@@ -139,6 +145,20 @@ def sample_records(args: argparse.Namespace) -> list[dict[str, Any]]:
         ("indirect", args.indirect_jsonl),
     ]:
         rows = [dict(r, label=label) for r in read_jsonl(path)]
+        for rec in rows:
+            image = rec.get("image")
+            if not image or Path(str(image)).is_absolute():
+                continue
+            if args.dataset_root is None:
+                raise ValueError(
+                    f"Relative image path requires --dataset-root: {image} in {path}"
+                )
+            resolved = (args.dataset_root / str(image)).resolve()
+            if not resolved.is_file():
+                raise FileNotFoundError(
+                    f"Benchmark image does not exist: {image} -> {resolved}"
+                )
+            rec["image"] = str(resolved)
         rng.shuffle(rows)
         for i, rec in enumerate(rows[: args.per_class]):
             rec["_eval_label_set"] = label

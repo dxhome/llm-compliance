@@ -1,0 +1,87 @@
+{
+  "name": "MPID Standard Benchmark v2 smoke",
+  "seed": 20260801,
+  "purpose": "fast regression only",
+  "total": 150,
+  "by_label": {
+    "direct": 53,
+    "indirect": 22,
+    "clean": 75
+  },
+  "by_source": {
+    "deepset_prompt_injections": 16,
+    "benchmark_v2_ocr_injection": 15,
+    "cyberec_prompt_injection_dataset": 16,
+    "cais_mmlu": 8,
+    "benchmark_v2_benign_ocr": 15,
+    "hlyn_prompt_injection_judge_deberta": 15,
+    "jailbreakv_28k": 8,
+    "lakera_gandalf_ignore_instructions": 7,
+    "microsoft_llmail_inject_challenge": 14,
+    "safe_guard_prompt_injection": 14,
+    "haonan_li_cmmlu": 8,
+    "lakera_mosscap_prompt_injection": 7,
+    "nlphuji_flickr30k": 7
+  },
+  "by_lang": {
+    "en": 126,
+    "zh": 24
+  },
+  "with_image": 30,
+  "with_ocr": 30,
+  "excluded_runs": [
+    "phase2_2_balanced_600_20260718_1955",
+    "phase2_3_full_2000_20260727_1211",
+    "phase2_3_full_3000_20260729_0958"
+  ],
+  "excluded_benchmark": "mpid_standard_v1",
+  "excluded_record_counts": {
+    "phase2_2_balanced_600_20260718_1955": 3465,
+    "phase2_3_full_2000_20260727_1211": 4518,
+    "phase2_3_full_3000_20260729_0958": 6378
+  },
+  "exclusion_policy": [
+    "dedup_key",
+    "source + source_record_id",
+    "normalized text fingerprint",
+    "full/smoke mutual exclusion"
+  ],
+  "image_path_policy": "paths are relative to this split root",
+  "files": {
+    "images/clean/smoke_benign_001.png": "bf6580da2cfab8a60cda93466b8f30e41e7e21093e914236a8f9d6d02260933a",
+    "images/clean/smoke_benign_002.png": "43cde03a050a724eed865b1d390ebb5dff70b319b5e43d114d32fb87c65dfe51",
+    "images/clean/smoke_benign_003.png": "fd8b8051136062567d80c4bee49491314ab52c91290023242baad6c167860d16",
+    "images/clean/smoke_benign_004.png": "e01874e08fdfd913a628bf30f11d293276118ff99c4d072876980023dd3da538",
+    "images/clean/smoke_benign_005.png": "605551d3bbbfe19d1a53af4f353c65bcc03dd5ae2179f05a376d2f01cac8aa4a",
+    "images/clean/smoke_benign_006.png": "c82e7d0db73051c5b75ac1206b756fa6c8fa0ec0314b2e8188f272512e36e3dc",
+    "images/clean/smoke_benign_007.png": "7a955b4a665c4df6ccea65d640aa0822805bfdc3a09a9f2db68643db8016beaf",
+    "images/clean/smoke_benign_008.png": "04582b6d3cc164fb23fec1a71822e1a98628250d6e020e129ed2699c24ede143",
+    "images/clean/smoke_benign_009.png": "5e7bed751dda3822ebfb5b9e2ed1319d7b9a6c87b0b1a9a0f9b5427abe06363e",
+    "images/clean/smoke_benign_010.png": "b8e49766159905b131c7b02fb493c862e934e167e01bdece9294d526c991e2e4",
+    "images/clean/smoke_benign_011.png": "c2c20cacb6032100820ddcf4441835c47da092e906e1f574c70596720f9a1c87",
+    "images/clean/smoke_benign_012.png": "5bcd2937f9e465cbc16a377af2521945f89ef23461a5cff4293ec29a609654cd",
+    "images/clean/smoke_benign_013.png": "e1b9519397e20d79ff28a2231e9b040209ce3db6b9db1375aa1c19e7b849faff",
+    "images/clean/smoke_benign_014.png": "83968eeef5681b983aefe598ee1bf2d37ad303d8fae49404c6156efd71f19c86",
+    "images/clean/smoke_benign_015.png": "3a5cd1fed084e655bff62b6b68df640171cb8eab57ac1a5c27e743f49ff06bd7",
+    "images/indirect/smoke_ocr_injection_001.png": "f64429b55d6f2f4cadf3b864a1750baa5ce8dbddae7af0bf5791e07b16cb9b99",
+    "images/indirect/smoke_ocr_injection_002.png": "0ce6efa13f53348f64d0d4375e27687fa87c86bb574051a1fd99fd418592b01a",
+    "images/indirect/smoke_ocr_injection_003.png": "31ca934a281a360b20c51124438d79738f67dd18080805ce2af19650fa35de34",
+    "images/indirect/smoke_ocr_injection_004.png": "381083ca1c6a754381b5cb6a0b9a03d0592ea2bc0fefcec1337a8b7bdfb36ab1",
+    "images/indirect/smoke_ocr_injection_005.png": "e952fb36ecbb63fd6040fe921395af6671350ffa4a6f2a55e6d7c3e06961ce93",
+    "images/indirect/smoke_ocr_injection_006.png": "137d42e3ddffead68ec7227f8f08834b5e5e5fc2251e21e846fb369d153e02ff",
+    "images/indirect/smoke_ocr_injection_007.png": "b84801d9b63b5712f5ee23039a66bb255d9448a243f77e88e8e0c9068faae259",
+    "images/indirect/smoke_ocr_injection_008.png": "2b800f0bea7ffa4c67de91b9ae2de05b5d2b54c5822cf37d4120827fa96012a5",
+    "images/indirect/smoke_ocr_injection_009.png": "789a36d117adf2c985eb6dc4227cce676d2e6bb08e43032f15b4f2d84e717f48",
+    "images/indirect/smoke_ocr_injection_010.png": "e601d5ac3eab96e2194d1252dcfa84eedc788bd7d20da12e8bc71b430c56270c",
+    "images/indirect/smoke_ocr_injection_011.png": "9c1acde9b00f0d7af93ba8de96c85a1c3000f116e3206e3bf3567392664b6cec",
+    "images/indirect/smoke_ocr_injection_012.png": "d4ea297201823080945e0fe262d76d81abacd86e4eadda9105b626bc1cf57de9",
+    "images/indirect/smoke_ocr_injection_013.png": "0c4e643a2f6eef8a5f4b18883fb2ee5e3f2cce64b494730425bce95162257310",
+    "images/indirect/smoke_ocr_injection_014.png": "df1b08e4f0ec623c22d161b5d260b89f655cf03353843ee2ec6d3312d9af5d5e",
+    "images/indirect/smoke_ocr_injection_015.png": "c3959c5ab61dbcf35496788cdd8c1df368fed4d7a67f1be7ebba56a3c6007041",
+    "README.md": "9410f88cfb24d1208e72c71ed74e1bdac7f62fa6482b41b65796cfb1b63f503b",
+    "smoke_all_150.jsonl": "259e4f30bec661bc9827d0ee03765d38a3931330094355d30d1382f82935985b",
+    "smoke_clean_75.jsonl": "b8db4cf92162700602a9977a249a0e1a2d47d9a044167650d4f68b37c0d37e1e",
+    "smoke_direct_53.jsonl": "74a319d1da8524ee25f2e2fb03b28570d56f01dee457300d5080624fe965ee0a",
+    "smoke_indirect_22.jsonl": "59b7cd613ac0dbc320fea30f4e52d2a4e7399c43e27fb6f8a55ce05d4f51be48"
+  }
+}

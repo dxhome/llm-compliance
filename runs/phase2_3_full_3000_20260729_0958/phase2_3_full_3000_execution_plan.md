@@ -184,3 +184,11 @@
 ### 时间估算
 
 - 数据与策略实现：1.5-3 小时；三策略筛选：9-11.5 小时；最佳策略验证：6-7 小时；恢复与报告：1-1.5 小时；合计约 18-23 小时。
+# Strategy H smoke addendum (2026-07-31)
+
+- H is a smoke-only F-D hybrid: reduced F diagonal ranking plus conservative D
+  generic margin and triplet-balance loss.
+- It writes exclusively to `artifacts/smoke_h`; it must not start formal 3000-step
+  training or write into `artifacts/checkpoints`.
+- The pair-suite120 gate is all recalls >= 0.35, direct F1 >= 0.35, macro F1 >=
+  0.45. Any zero recall stops the candidate before mixed150.

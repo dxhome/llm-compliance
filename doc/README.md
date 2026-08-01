@@ -2,6 +2,13 @@
 
 本目录汇集本项目的全部正式文档。
 
+## 最新实验状态（2026-08-01）
+
+- Full-3000 的 A-H 策略已在同一份冻结 `MPID Standard Benchmark v2/smoke`（150 条）完成横评；F 的 Macro F1 为 40.72%、direct F1 为 33.73%，是当前最平衡的候选，但未达到 45% / 35% 放行门槛。
+- F2 仅将 F 的 `direct_margin` 从 0.35 调整为 0.55；完成 120-step smoke 和同集评测后，Macro F1 为 40.13%、direct F1 仍为 33.73%，未优于 F。
+- 因此正式 3000-step 训练继续禁止启动，且 `runs/phase2_3_full_3000_20260729_0958/artifacts/checkpoints/` 中没有正式 checkpoint。
+- 完整口径、A-H/F2 对比与审计路径见 [reference.md 第 3 章](reference.md#3-测试结果汇总) 和 [F2 审计报告](../runs/phase2_3_full_3000_20260729_0958/artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md)。
+
 ## 当前运行目录约定
 
 本项目的本地执行状态统一收敛到顶层 `runs/` 目录。旧的顶层本地目录 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 不应再新建或继续作为执行入口。
@@ -50,9 +57,9 @@
 | 文档 | 版本 | 最后更新 |
 |---|---|---|
 | opening-report-vlm.md | v0.3（独立自洽·轻量级 VLM 专用） | 2026-07-13 |
-| reference.md | v4.1（FAQ 速查·统一 runs 执行目录结构） | 2026-07-18 |
+| reference.md | v4.2（统一 Standard Benchmark 结果口径） | 2026-08-01 |
 | tasks.md | v2.0（对齐 vlm 开题报告 v0.3） | 2026-07-13 |
 | opening-report-formal.md | v1.2（级联方案·对照参考） | 2026-07-13 |
 | opening-report-reference.md | v0.2（参考存档） | 2026-07-13 |
 | VERIFICATION.md | v1.0 | 2026-07-13 |
-| README.md | v1.3 | 2026-07-18 |
+| README.md | v1.4 | 2026-08-01 |

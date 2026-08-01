@@ -162,6 +162,8 @@ def parse_args() -> argparse.Namespace:
                    help="Override val JSONL (else uses config io.val_jsonl)")
     p.add_argument("--out", type=Path, default=None,
                    help="Override output dir (else uses config io.out_dir)")
+    p.add_argument("--batch-size", type=int, default=None,
+                   help="Override evaluation batch size. Use 1 for variable-patch image sets.")
     p.add_argument("--max-records", type=int, default=None,
                    help="Cap the number of eval records (debugging)")
     p.add_argument("--stratified-max-records", type=int, default=None,
@@ -529,10 +531,35 @@ def _write_single_model_artifacts(ev, val_ds, cfg, out_dir, checkpoint, val_path
     md = _make_markdown_report(report, cm, len(val_ds))
     with open(out_dir / "report_baseline.md", "w", encoding="utf-8") as f:
         f.write(md)
+    records = _dataset_records_in_order(val_ds)
+    log_probs = ev.get("log_probs", [])
+    with open(out_dir / "predictions.jsonl", "w", encoding="utf-8") as f:
+        for index, (record, gold, pred) in enumerate(zip(records, ev["y_gold"], ev["y_pred"])):
+            row = {
+                "index": index,
+                "id": record.get("id"),
+                "gold": LABEL_ORDER[gold],
+                "prediction": LABEL_ORDER[pred],
+                "source": record.get("source"),
+                "lang": record.get("lang"),
+                "has_image": bool(record.get("image")),
+                "ocr_present": bool(record.get("ocr_present")),
+            }
+            if index < len(log_probs):
+                row["log_probs"] = dict(zip(LABEL_ORDER, log_probs[index]))
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"[eval] accuracy={acc:.4f}  macro F1={macro_f1:.4f}  weighted F1={weighted_f1:.4f}")
     print(f"[eval] wrote {out_dir/'report_baseline.json'}")
     print(f"[eval] wrote {out_dir/'confusion_matrix.json'}")
     print(f"[eval] wrote {out_dir/'report_baseline.md'}")
+    print(f"[eval] wrote {out_dir/'predictions.jsonl'}")
+
+
+def _dataset_records_in_order(dataset):
+    """Return original JSONL records in the same order used by a DataLoader."""
+    if isinstance(dataset, Subset):
+        return [dataset.dataset.records[index] for index in dataset.indices]
+    return dataset.records
 
 
 def _prediction_counts(result: dict) -> dict:
@@ -1621,6 +1648,10 @@ def _make_early_exit_markdown(s: dict) -> str:
 def main() -> int:
     args = parse_args()
     cfg = build_train_config_from_yaml(args.config)
+    if args.batch_size is not None:
+        if args.batch_size < 1:
+            raise ValueError("--batch-size must be >= 1")
+        cfg.batch_size = args.batch_size
     config_dir = args.config.resolve().parent
     val_path = args.val if args.val else Path(cfg.val_jsonl)
     if not val_path.is_absolute():

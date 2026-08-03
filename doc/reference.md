@@ -3596,7 +3596,7 @@ V1 与 V2 的样本均与相应训练、验证和历史 benchmark 按 `dedup_key
 |---|---|---:|---:|---:|---|---|
 | Balanced-600，MPID LoRA + C4-C6 | V1 | 300 | 45.3% | 40.7% | 正式横评 | 系统链路较 LoRA-only 有明确提升，但仍未达到高可靠三分类水平 |
 | Full-2000，MPID LoRA + C4-C6 | V1 | 300 | 40.3% | 29.4% | 正式横评 | direct 检出强，但 clean/indirect 基础分类能力不足 |
-| Full-3000 策略 A-H/F2 | V2/smoke | 150 | 50.0%（A） | 40.72%（F） | 标准化筛选 | 九项均未通过门槛；F 仍是最平衡候选 |
+| Full-3000 策略 A-H/F2/F3/F4 | V2/smoke | 150 | 50.0%（A） | 40.77%（F3） | 标准化筛选 | 十一项均未通过门槛；F/F3 最接近平衡，F 保留为受控正式训练候选 |
 
 **总览判断。** V1 的结果用于记录已完成模型与完整防御链路的正式表现；V2/smoke 的 A-H 用于在完全相同的数据、评测脚本与 batch-size 下消除历史横比偏差。二者分别回答“现有模型在统一正式集上的表现”和“Full-3000 在正式训练前哪种训练策略较平衡”，不得混为一个排名。
 
@@ -3636,14 +3636,16 @@ V1 与 V2 的样本均与相应训练、验证和历史 benchmark 按 `dedup_key
 
 ### 3.4 Standard Benchmark v2：Full-3000 策略筛选
 
-#### 3.4.1 A-H/F2 统一 smoke 横评
+#### 3.4.1 A-H/F2/F3/F4 统一 smoke 横评
 
-A-H/F2 均采用同一份 V2/smoke 150 条物化副本（clean/direct/indirect = 75/53/22）、同一评测脚本和 `--batch-size 1`。A-H 使用清单锁定的历史 smoke checkpoint；F2 使用其完成的 step120 smoke checkpoint。九项均已生成完整 150 条 `predictions.jsonl`，正式 checkpoint 目录在整个筛选过程均为 0。
+A-H/F2/F3/F4 均采用同一份 V2/smoke 150 条物化副本（clean/direct/indirect = 75/53/22）、同一评测脚本和 `--batch-size 1`。A-H 使用清单锁定的历史 smoke checkpoint；F2/F3/F4 使用各自完成的 step120 smoke checkpoint。十一项均已生成完整 150 条 `predictions.jsonl`，正式 checkpoint 目录在整个筛选过程均为 0。
 
 | 策略 | Accuracy | Macro F1 | Weighted F1 | clean R / F1 | direct R / F1 | indirect R / F1 | 放行门槛 |
 |---|---:|---:|---:|---|---|---|---|
 | F | 46.67% | **40.72%** | **48.28%** | 64.0% / 66.2% | **26.4% / 33.7%** | 36.4% / 22.2% | 未通过 |
 | F2 | 46.67% | 40.13% | 48.19% | 65.3% / 66.7% | 26.4% / 33.7% | 31.8% / 20.0% | 未通过 |
+| F3 | 46.67% | **40.77%** | **48.47%** | 64.0% / 66.7% | 26.4% / 33.7% | 36.4% / 21.9% | 未通过 |
+| F4 | 46.00% | 38.01% | 47.42% | 66.7% / 66.2% | 28.3% / **35.3%** | 18.2% / 12.5% | 未通过 |
 | G | 36.00% | 30.57% | 31.88% | 42.7% / 48.1% | 3.8% / 6.9% | **90.9% / 36.7%** | 未通过 |
 | A | **50.00%** | 28.67% | 36.17% | 96.0% / 66.7% | 0.0% / 0.0% | 13.6% / 19.4% | 未通过 |
 | E | 29.33% | 23.80% | 24.61% | 33.3% / 40.0% | 0.0% / 0.0% | 86.4% / 31.4% | 未通过 |
@@ -3652,17 +3654,17 @@ A-H/F2 均采用同一份 V2/smoke 150 条物化副本（clean/direct/indirect =
 | B | 48.67% | 22.12% | 33.18% | 97.3% / 66.4% | 0.0% / 0.0% | 0.0% / 0.0% | 未通过 |
 | C | 48.67% | 22.02% | 33.03% | 97.3% / 66.1% | 0.0% / 0.0% | 0.0% / 0.0% | 未通过 |
 
-**整体诊断。** A/B/C/H 偏向 clean，D/E 偏向 indirect，G 虽能检出大部分 indirect 但几乎失去 direct；不能以较高 Accuracy 或单类 recall 替代三类安全性。F 是九项中唯一同时取得最高 Macro F1、Weighted F1 和 direct F1 的策略。F 的 53 条 direct 中有 14 条正确、25 条误判 indirect、14 条误判 clean；当前主瓶颈是文本 direct 边界。
+**整体诊断。** A/B/C/H 偏向 clean，D/E 偏向 indirect，G 虽能检出大部分 indirect 但几乎失去 direct；不能以较高 Accuracy 或单类 recall 替代三类安全性。F3 的 Macro/Weighted F1 分别仅比 F 高 0.05pp/0.19pp，Direct 指标完全不变且 indirect F1 下降；因此没有构成实质性策略改善。F4 将 Direct F1 提高到 35.3%，但 indirect recall 从 F 的 36.4% 降至 18.2%，图像/OCR Accuracy 从 70.0% 降至 60.0%，属于明显的单类过拟合。F 保留为最稳定、最平衡的受控正式训练候选。F 的 53 条 direct 中有 14 条正确、25 条误判 indirect、14 条误判 clean；当前主瓶颈是文本 direct 边界。
 
-F2 是该统一筛选中的第九项：它仅将 F 的 `direct_margin` 从 0.35 调至 0.55，其余训练设置不变。F2 的 clean recall 提高 1.33pp，但 direct 指标完全不变，indirect F1 下降 2.22pp，最终 Macro F1 低于 F 0.59pp。两者 150 条预测中仅两条不同：F2 修正一条文本 clean，同时将一条 OCR indirect 误放行为 clean；图像/OCR 子集 Accuracy 从 70.00% 降至 66.67%、Macro F1 从 47.62% 降至 44.44%。因此该 margin 调整方向停止。完整审计见 `artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md`。
+F2 是该统一筛选中的第九项：它仅将 F 的 `direct_margin` 从 0.35 调至 0.55，其余训练设置不变。F2 的 clean recall 提高 1.33pp，但 direct 指标完全不变，indirect F1 下降 2.22pp，最终 Macro F1 低于 F 0.59pp。两者 150 条预测中仅两条不同：F2 修正一条文本 clean，同时将一条 OCR indirect 误放行为 clean；图像/OCR 子集 Accuracy 从 70.00% 降至 66.67%、Macro F1 从 47.62% 降至 44.44%。因此该 margin 调整方向停止。F3 的 Direct 加权只改变一条 Direct 误判的去向，没有改善 Direct recall/F1；F4 的 hard-Direct 课程虽然恢复一条 Direct，却损失四条此前正确的 Indirect。完整审计见 `artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md` 与 `artifacts/smoke_f3_f4_benchmark_v2_audit.md`。
 
-可审计产物：`runs/phase2_3_full_3000_20260729_0958/artifacts/standard_benchmark_v2_a_h/{benchmark_integrity.json,checkpoint_manifest.json,summary.json,standard_benchmark_v2_a_h_summary.md}`；A-H 预测位于 `a` 至 `h` 子目录；F2 配置、计划、日志和 smoke checkpoint 位于 `runs/phase2_3_full_3000_20260729_0958/{configs/smoke_strategy_f2.yaml,smoke_f2_execution_plan.md,logs,artifacts/smoke_f2}`。
+可审计产物：`runs/phase2_3_full_3000_20260729_0958/artifacts/standard_benchmark_v2_a_h/{benchmark_integrity.json,checkpoint_manifest.json,summary.json,standard_benchmark_v2_a_h_summary.md}`；A-H 预测位于 `a` 至 `h` 子目录；F2 配置、计划、日志和 smoke checkpoint 位于 `runs/phase2_3_full_3000_20260729_0958/{configs/smoke_strategy_f2.yaml,smoke_f2_execution_plan.md,logs,artifacts/smoke_f2}`；F3/F4 的计划、数据审计、checkpoint 与评测产物位于 `runs/phase2_3_full_3000_20260729_0958/{smoke_f3_f4_execution_plan.md,configs/smoke_strategy_f3.yaml,configs/smoke_strategy_f4.yaml,artifacts/smoke_f3,artifacts/smoke_f4,artifacts/smoke_f3_f4_benchmark_v2_audit.md}`。
 
 ### 3.5 结论、放行状态与后续记录规则
 
 1. Standard Benchmark V1 已正式记录 Balanced-600 与 Full-2000 的结果；二者的优化链路均有方向性收益，但均未形成可无条件推广的高可靠三分类器。
-2. Standard Benchmark V2/smoke 已完成 Full-3000 的 A-H/F2 九项同集筛选；F 最均衡但 Macro F1 为 40.72%、direct F1 为 33.7%，未达到预设 45% / 35% 门槛。F2 的单变量 margin 调整也未改善 F。
-3. 正式 3000-step 训练继续**不得启动**；后续候选方案必须先通过同一 V2/smoke 门槛，才可申请进入 V2/full 或 V1 的正式评估。
+2. Standard Benchmark V2/smoke 已完成 Full-3000 的 A-H/F2/F3/F4 十一项同集筛选；F3 的 40.77% Macro F1 仅比 F 高 0.05pp，没有改善 Direct；F4 虽有 35.3% Direct F1，却造成 Indirect 明显退化。F 作为最稳定的基线候选，Macro F1 为 40.72%、direct F1 为 33.7%，仍未达到预设 45% / 35% 门槛。
+3. 在预设放行门槛下，正式 3000-step 训练仍**不得自动启动**。如需以 F 推进，只能作为用户明确批准的受控正式实验，并必须执行单独的预检、阶段门禁和最终独立评测；不得将其表述为已通过 smoke 放行。
 4. 后续写入本章的模型结果必须注明 benchmark 版本、样本数、checkpoint、pipeline、预测完整性和逐类指标；不再把 run-local smoke 或诊断切片的绝对分数写成正式模型结果。
 
 ---

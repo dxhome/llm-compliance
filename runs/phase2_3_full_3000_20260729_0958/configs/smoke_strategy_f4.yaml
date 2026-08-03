@@ -1,0 +1,32 @@
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32
+  device: cpu
+  gradient_checkpointing: true
+lora: {r: 32, alpha: 64, dropout: 0.10, target: "q_proj,k_proj,v_proj,o_proj"}
+training:
+  epochs: 1
+  max_train_records: 360
+  max_train_steps: 120
+  batch_size: 3
+  lr: 5.0e-6
+  head_lr: 2.0e-5
+  weight_decay: 0.0
+  class_weighted: false
+  paired_batch_mode: true
+  classification_mode: flat
+  logit_margin: 0.25
+  direct_margin: 0.35
+  triplet_balance_weight: 0.0
+  triplet_diagonal_weight: 0.80
+  triplet_diagonal_margin: 0.40
+  log_every: 5
+  save_every: 40
+  seed: 411
+  dataset_cache_size: 0
+  init_from: ../../phase2_3_full_2000_20260727_1211/artifacts/checkpoints/checkpoint_step_2000.safetensors
+  warmup_head_steps: 0
+io:
+  train_jsonl: ../data/smoke_f4_hard_direct_train_360.jsonl
+  val_jsonl: ../data/smoke_boundary_mixed_150.jsonl
+  out_dir: ../artifacts/smoke_f4/checkpoints

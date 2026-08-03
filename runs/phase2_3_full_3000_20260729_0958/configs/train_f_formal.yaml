@@ -1,0 +1,43 @@
+defaults:
+  backbone_name: smolvlm-500m
+  dtype: float32
+  device: cpu
+  gradient_checkpointing: true
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.10
+  target: "q_proj,k_proj,v_proj,o_proj"
+
+training:
+  # Three 1,000-batch epochs cover the 3,000-step formal schedule.
+  epochs: 3
+  max_train_records: 3000
+  max_val_records: 150
+  max_train_steps: 3000
+  batch_size: 3
+  lr: 5.0e-6
+  head_lr: 2.0e-5
+  weight_decay: 0.0
+  class_weighted: false
+  paired_batch_mode: true
+  classification_mode: flat
+  logit_margin: 0.25
+  direct_margin: 0.35
+  triplet_balance_weight: 0.0
+  triplet_diagonal_weight: 0.80
+  triplet_diagonal_margin: 0.40
+  log_every: 5
+  save_every: 50
+  checkpoint_name: lora_phase2_3_f_formal.safetensors
+  partial_name: lora_phase2_3_f_formal_partial.safetensors
+  seed: 411
+  dataset_cache_size: 0
+  init_from: ../../phase2_3_full_2000_20260727_1211/artifacts/checkpoints/checkpoint_step_2000.safetensors
+  warmup_head_steps: 0
+
+io:
+  train_jsonl: ../data/train.jsonl
+  val_jsonl: ../artifacts/formal_f_benchmark_v2/inputs/smoke_all_150_resolved_images.jsonl
+  out_dir: ../artifacts/checkpoints

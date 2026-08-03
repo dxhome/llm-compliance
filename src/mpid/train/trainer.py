@@ -158,7 +158,13 @@ class CounterfactualBatchSampler(Sampler[list[int]]):
     triplets have been seen once.
     """
 
-    def __init__(self, records: list[dict], batch_size: int, seed: int) -> None:
+    def __init__(
+        self,
+        records: list[dict],
+        batch_size: int,
+        seed: int,
+        skip_batches: int = 0,
+    ) -> None:
         if batch_size != NUM_CLASSES:
             raise ValueError(f"paired_batch_mode requires batch_size={NUM_CLASSES}")
         groups: dict[object, dict[str, int]] = {}
@@ -179,17 +185,23 @@ class CounterfactualBatchSampler(Sampler[list[int]]):
         self.seed = seed
         self.epoch = 0
         self.batch_size = batch_size
+        self.skip_batches = max(0, int(skip_batches))
 
     def __iter__(self):
         rng = random.Random(self.seed + self.epoch)
+        skip_batches = self.skip_batches if self.epoch == 0 else 0
         self.epoch += 1
         triplets = list(self.triplets)
         rng.shuffle(triplets)
-        yield from triplets
         remaining = list(self.remaining)
         rng.shuffle(remaining)
-        for start in range(0, len(remaining) - self.batch_size + 1, self.batch_size):
-            yield remaining[start:start + self.batch_size]
+        batches = list(triplets)
+        batches.extend(
+            remaining[start:start + self.batch_size]
+            for start in range(0, len(remaining) - self.batch_size + 1, self.batch_size)
+        )
+        # Skip indices before DataLoader materializes images or calls collate.
+        yield from batches[skip_batches:]
 
     def __len__(self) -> int:
         return len(self.triplets) + len(self.remaining) // self.batch_size
@@ -562,9 +574,13 @@ def train(cfg: TrainConfig) -> TrainResult:
     train_generator = torch.Generator()
     train_generator.manual_seed(int(cfg.seed))
     if cfg.paired_batch_mode:
+        resume_skip = int(getattr(cfg, "skip_train_batches", 0))
         train_dl = DataLoader(
             train_ds,
-            batch_sampler=CounterfactualBatchSampler(train_ds.records, cfg.batch_size, cfg.seed),
+            batch_sampler=CounterfactualBatchSampler(
+                train_ds.records, cfg.batch_size, cfg.seed,
+                skip_batches=resume_skip,
+            ),
             collate_fn=collate,
             num_workers=0,
         )
@@ -639,8 +655,10 @@ def train(cfg: TrainConfig) -> TrainResult:
         peft_model.train(); head.train()
         t_epoch = time.perf_counter()
         loss_sum, loss_count = 0.0, 0
-        for step, batch in enumerate(train_dl):
-            if epoch == 0 and skip_train_batches > 0 and step < skip_train_batches:
+        step_offset = skip_train_batches if epoch == 0 and cfg.paired_batch_mode else 0
+        for step, batch in enumerate(train_dl, start=step_offset):
+            if (not cfg.paired_batch_mode and epoch == 0 and skip_train_batches > 0
+                    and step < skip_train_batches):
                 if step == 0:
                     log(f"[train] skipping first {skip_train_batches} batches "
                         f"to approximate resume position")

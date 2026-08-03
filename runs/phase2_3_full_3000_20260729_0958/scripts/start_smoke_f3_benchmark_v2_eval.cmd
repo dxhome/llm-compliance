@@ -1,0 +1,3 @@
+@echo off
+cd /d C:\work\llm-compliance
+start "F3 benchmark v2 eval" /b "C:\work\llm-compliance\.venv\Scripts\python.exe" -X utf8 -u scripts\eval.py --config runs\phase2_3_full_3000_20260729_0958\configs\smoke_strategy_f3.yaml --checkpoint runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f3\checkpoints\checkpoint_step_120.safetensors --val runs\phase2_3_full_3000_20260729_0958\artifacts\standard_benchmark_v2_a_h\smoke_all_150_resolved_images.jsonl --out C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\smoke_f3\benchmark_v2_step_120 --batch-size 1 > runs\phase2_3_full_3000_20260729_0958\logs\smoke_strategy_f3_benchmark_v2_step_120.log 2> runs\phase2_3_full_3000_20260729_0958\logs\smoke_strategy_f3_benchmark_v2_step_120.err.log

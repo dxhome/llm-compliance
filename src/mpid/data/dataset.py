@@ -144,9 +144,9 @@ def collate(batch: list[dict]) -> dict:
     """Pad a list of dataset items to the same length and stack them.
 
     For Phase 2 the variable-length axis is ``input_ids`` /
-    ``attention_mask`` / ``pixel_attention_mask`` (T, 512, 512).
-    ``pixel_values`` is per-record constant-shape (17, 3, 512, 512)
-    so it stacks directly.
+    ``attention_mask`` / ``pixel_attention_mask`` (T, 512, 512) and
+    the image-patch axis of ``pixel_values``.  Text-only records use the
+    placeholder image while real images can produce a different patch count.
     """
     pad_id = 0
     max_T = max(b["input_ids"].size(0) for b in batch)
@@ -158,11 +158,28 @@ def collate(batch: list[dict]) -> dict:
         input_ids[i, :T] = b["input_ids"]
         attn[i, :T] = b["attention_mask"]
 
-    pv = torch.stack([b["pixel_values"] for b in batch], dim=0)
+    max_patches = max(b["pixel_values"].size(0) for b in batch)
+    pixel_tail_shape = batch[0]["pixel_values"].shape[1:]
+    if any(b["pixel_values"].shape[1:] != pixel_tail_shape for b in batch):
+        raise ValueError("pixel_values channel or spatial shapes must match")
+    pv = batch[0]["pixel_values"].new_zeros(
+        (len(batch), max_patches, *pixel_tail_shape)
+    )
+    for i, b in enumerate(batch):
+        patches = b["pixel_values"].size(0)
+        pv[i, :patches] = b["pixel_values"]
     pix_attn = None
     if batch[0]["pixel_attention_mask"] is not None:
         max_pT = max(b["pixel_attention_mask"].size(0) for b in batch)
-        pix_attn = torch.zeros((len(batch), max_pT, 512, 512), dtype=torch.long)
+        pixel_mask_tail_shape = batch[0]["pixel_attention_mask"].shape[1:]
+        if any(
+            b["pixel_attention_mask"].shape[1:] != pixel_mask_tail_shape
+            for b in batch
+        ):
+            raise ValueError("pixel_attention_mask spatial shapes must match")
+        pix_attn = batch[0]["pixel_attention_mask"].new_zeros(
+            (len(batch), max_pT, *pixel_mask_tail_shape)
+        )
         for i, b in enumerate(batch):
             T = b["pixel_attention_mask"].size(0)
             pix_attn[i, :T] = b["pixel_attention_mask"]

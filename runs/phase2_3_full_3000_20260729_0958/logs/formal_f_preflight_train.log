@@ -1,0 +1,38 @@
+[train] config: runs\phase2_3_full_3000_20260729_0958\configs\train_f_formal.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\train.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\inputs\smoke_all_150_resolved_images.jsonl
+[train] epochs=3  max_train_records=3000  batch_size=3  lr=5e-06
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] STEP LIMIT: 10
+[train] log_every=5  save_every=10  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 3.5s
+[train][+   3.5s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train][+   3.8s] === phase 3/6 数据集加载 ===
+[train] dataset: train=3000 val=150
+[train] batch_size=3  steps_per_epoch=1000
+[train] paired batch mode: complete clean/direct/indirect triplets first
+[train][+   3.8s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=5e-06  head=2e-05
+[train][+   3.8s] === phase 5/6 训练循环  (3 epoch × 3000 sample × bs=3) ===
+[train] epoch 1/3 step 1/1000 (global 1/3000) loss=3.3014  last_loss=3.3014  step_dt=nans  epoch_elapsed=127.9s  ETA=nans  total_elapsed=131.7s
+[train] epoch 1/3 step 5/1000 (global 5/3000) loss=2.8230  last_loss=2.1103  step_dt=144.48s  epoch_elapsed=705.8s  ETA=432725s  total_elapsed=709.6s
+[train] epoch 1/3 step 10/1000 (global 10/3000) loss=2.8667  last_loss=2.0425  step_dt=151.73s  epoch_elapsed=1493.4s  ETA=453661s  total_elapsed=1497.2s
+[train]   -> periodic save: lora_phase2_3_f_preflight_partial.safetensors (step 10)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\lora_phase2_3_f_preflight_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\lora_phase2_3_f_preflight_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\checkpoint_step_10.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\checkpoint_step_10.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\latest.state.pt
+[train] STEP LIMIT REACHED (10) - stopping at epoch 1 step 10
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\lora_phase2_3_f_preflight.safetensors (333 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\lora_phase2_3_f_preflight.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_preflight\checkpoints\latest.state.pt

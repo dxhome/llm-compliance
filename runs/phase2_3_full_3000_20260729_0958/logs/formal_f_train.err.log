@@ -1,0 +1,32 @@
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+Traceback (most recent call last):
+  File "C:\work\llm-compliance\scripts\train.py", line 304, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\work\llm-compliance\scripts\train.py", line 299, in main
+    train(cfg)
+    ~~~~~^^^^^
+  File "C:\work\llm-compliance\src\mpid\train\trainer.py", line 642, in train
+    for step, batch in enumerate(train_dl):
+                       ~~~~~~~~~^^^^^^^^^^
+  File "C:\work\llm-compliance\.venv\Lib\site-packages\torch\utils\data\dataloader.py", line 725, in __next__
+    data = self._next_data()
+  File "C:\work\llm-compliance\.venv\Lib\site-packages\torch\utils\data\dataloader.py", line 785, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "C:\work\llm-compliance\.venv\Lib\site-packages\torch\utils\data\_utils\fetch.py", line 57, in fetch
+    return self.collate_fn(data)
+           ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\work\llm-compliance\src\mpid\data\dataset.py", line 161, in collate
+    pv = torch.stack([b["pixel_values"] for b in batch], dim=0)
+RuntimeError: stack expects each tensor to be equal size, but got [17, 3, 512, 512] at entry 0 and [13, 3, 512, 512] at entry 2
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+C:\work\llm-compliance\.venv\Lib\site-packages\transformers\models\auto\modeling_auto.py:2284: FutureWarning: The class `AutoModelForVision2Seq` is deprecated and will be removed in v5.0. Please use `AutoModelForImageTextToText` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.

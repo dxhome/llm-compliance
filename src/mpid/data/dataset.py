@@ -44,10 +44,14 @@ class MPIDJsonlDataset(Dataset):
         *,
         max_records: Optional[int] = None,
         cache_size: int = 4096,
+        inject_ocr_context_if_missing_role: bool = False,
+        inject_image_role_if_missing_role: bool = False,
     ) -> None:
         self.jsonl_path = Path(jsonl_path)
         self.processor = processor
         self.device = device
+        self.inject_ocr_context_if_missing_role = inject_ocr_context_if_missing_role
+        self.inject_image_role_if_missing_role = inject_image_role_if_missing_role
         # Load the JSONL into memory as a list of dicts. The total size
         # of 25 k records × ~2 KB each ≈ 50 MB — fine for RAM.
         self.records: list[dict] = []
@@ -110,7 +114,33 @@ class MPIDJsonlDataset(Dataset):
         r = self.records[idx]
         text = r["text"]
         image = r.get("image")
-        prompt = build_prompt(text, record=r)
+        prompt_record = r
+        # Frozen V2 records include OCR text but omit the structured-prompt
+        # routing fields used in formal training.  This opt-in evaluation path
+        # keeps the user request separate and treats OCR as untrusted content.
+        if (
+            self.inject_ocr_context_if_missing_role
+            and not r.get("content_role")
+            and r.get("ocr_present")
+            and r.get("ocr_text")
+        ):
+            prompt_record = dict(r)
+            prompt_record["prompt_version"] = "trusted_boundary_v2"
+            prompt_record["content_role"] = "untrusted_image_ocr"
+            prompt_record["user_text"] = text
+            text = str(r["ocr_text"])
+        elif (
+            self.inject_image_role_if_missing_role
+            and not r.get("content_role")
+            and r.get("ocr_present")
+        ):
+            # Match the formal training representation: retain the original
+            # image-inspection request and image payload, but activate the
+            # structured untrusted-image role.  OCR text is not injected.
+            prompt_record = dict(r)
+            prompt_record["prompt_version"] = "trusted_boundary_v2"
+            prompt_record["content_role"] = "untrusted_image_ocr"
+        prompt = build_prompt(text, record=prompt_record)
         # Pre-process: tokenize text + load image.
         # We use the processor directly to keep the code parallel to
         # ``VLMAdapter.preprocess`` but bypass the device move (the

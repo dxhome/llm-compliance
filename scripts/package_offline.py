@@ -63,7 +63,7 @@ os.environ.setdefault("MPID_OCR_MODELS_DIR", str(_HERE / "models" / "ocr"))
 
 from mpid.adapters.vlm import VLMAdapter
 from mpid.crossmodal import check_crossmodal, check_ocr_conflict, extract_ocr_text
-from mpid.heads.classification import NUM_CLASSES, ClassificationHead
+from mpid.heads.classification import IDX2LABEL, NUM_CLASSES, ClassificationHead
 from mpid.data.prompt import build_prompt
 from mpid.early_exit import EarlyExitConfig, should_early_exit
 from mpid.rules import scan_text
@@ -78,6 +78,9 @@ LORA_R = int(META["lora_r"])
 LORA_ALPHA = int(META["lora_alpha"])
 LORA_TARGET = META["lora_target"]
 CLEAN_THRESHOLD = float(META.get("clean_threshold", 0.95))
+R0_INDIRECT_OFFSET = float(META.get("r0_indirect_logit_offset", 0.0))
+IMAGE_OCR_DIRECT_PENALTY = float(META.get("image_ocr_direct_logit_penalty", 0.0))
+ENABLE_MCR = bool(META.get("mcr", {}).get("enabled", False))
 
 
 # --- 2. Stub config (matches the values that produced the checkpoint) ----
@@ -107,10 +110,17 @@ apply_lora_state(peft_model, state)
 peft_model.eval(); head.eval()
 
 
-def predict(text: str, image=None) -> dict:
+def predict(text: str, image=None, *, mcr_active: bool = False) -> dict:
     import torch
+    import torch.nn.functional as F
     from PIL import Image
-    prompt = build_prompt(text)
+    prompt_record = None
+    if mcr_active:
+        prompt_record = {
+            "prompt_version": "trusted_boundary_v2",
+            "content_role": "untrusted_image_ocr",
+        }
+    prompt = build_prompt(text, record=prompt_record)
     img = image if image is not None else Image.new("RGB", (512, 512), (235, 235, 235))
     enc = adapter.preprocess(prompt, img)
     with torch.inference_mode():
@@ -119,11 +129,20 @@ def predict(text: str, image=None) -> dict:
     last_idx = enc["attention_mask"].sum(dim=1) - 1
     b = torch.arange(last_h.size(0), device=last_h.device)
     pooled = last_h[b, last_idx]
-    res = head.predict(pooled)
+    # F-3000-MCR-SBC: the frozen +0.55 indirect offset is global. The
+    # -0.20 direct adjustment applies only when local OCR confirms that the
+    # image carries text and MCR therefore activated the untrusted-image role.
+    logits = head(pooled)
+    logits[:, 2] += R0_INDIRECT_OFFSET
+    if mcr_active:
+        logits[:, 1] += IMAGE_OCR_DIRECT_PENALTY
+    probs = F.softmax(logits, dim=-1)
+    label_idx = probs.argmax(dim=-1)
     return {
-        "label": res["label"][0],
-        "risk":  float(res["risk"][0].item()),
-        "probs": res["probs"][0].detach().cpu().tolist(),
+        "label": IDX2LABEL[int(label_idx[0].item())],
+        "risk": float(probs.max(dim=-1).values[0].item()),
+        "probs": probs[0].detach().cpu().tolist(),
+        "mcr_active": mcr_active,
     }
 
 
@@ -173,7 +192,10 @@ def optimized_predict(text: str, image=None) -> dict:
             "explanation": c6.to_dict(),
         }
 
-    head = predict(text, _model_image(image))
+    # Runtime MCR is triggered solely by text extracted from image pixels.
+    # It never consumes dataset OCR annotations, source fields, or labels.
+    mcr_active = ENABLE_MCR and ocr.available and bool(ocr.text.strip())
+    head = predict(text, _model_image(image), mcr_active=mcr_active)
     probs_t = torch.tensor(head["probs"], dtype=torch.float32)
     early = should_early_exit(
         probs_t,
@@ -204,11 +226,16 @@ def optimized_predict(text: str, image=None) -> dict:
     }
 
 
+def _run_payload(payload: dict) -> dict:
+    return optimized_predict(payload.get("text", ""), payload.get("image"))
+
+
 if __name__ == "__main__":
-    payload = json.loads(sys.stdin.read())
-    print(json.dumps(optimized_predict(payload.get("text", ""),
-                                      payload.get("image")),
-                     ensure_ascii=False))
+    # Accept one JSON object for interactive use and NDJSON for batch
+    # evaluation. The model is loaded once in both modes.
+    for line in sys.stdin:
+        if line.strip():
+            print(json.dumps(_run_payload(json.loads(line)), ensure_ascii=False), flush=True)
 '''
 
 
@@ -235,7 +262,7 @@ PACKAGE_README = """# MPID Offline Package
 
 This package runs the default protected pipeline:
 
-`C5 rules -> C6B-lite local OCR -> C6A compatibility fallback -> MPID head -> C4 -> block/allow`
+`C5 rules -> C6B-lite local OCR -> C6A compatibility fallback -> MCR -> F-3000 LoRA -> R0/SBC -> C4 -> block/allow`
 
 ## Run one request
 
@@ -243,13 +270,22 @@ This package runs the default protected pipeline:
 @'{"text":"Please summarize the image.","image":"C:\\path\\to\\image.png"}'@ | python infer.py
 ```
 
-`image` is optional. When an image is supplied, C6B-lite reads its pixels with
-the bundled RapidOCR ONNX weights. Dataset metadata and OCR annotation fields
-are never used at runtime.
+`image` is optional. When local OCR detects visible text in an image, MCR marks
+that image as untrusted content for the classifier. R0/SBC use the fixed policy
+recorded in `MANIFEST.json`; dataset metadata, OCR annotations, and labels are
+never used at runtime.
 
 ## Interactive demo
 
 Run `python demo.py` for a terminal demo using the same protected pipeline.
+
+## Verify the movable package
+
+Run the bundled smoke without requiring the source repository:
+
+```powershell
+python smoke_offline.py --pkg . --stage-root ./offline_smoke_stage
+```
 
 ## Offline prerequisites
 
@@ -326,6 +362,14 @@ def parse_args() -> argparse.Namespace:
                    default="q_proj,k_proj,v_proj,o_proj")
     p.add_argument("--clean-threshold", type=float, default=0.95,
                    help="C4 threshold embedded in package inference")
+    p.add_argument("--policy-name", type=str, default="F-3000-MCR-SBC",
+                   help="Human-readable frozen inference policy name")
+    p.add_argument("--r0-indirect-logit-offset", type=float, default=0.55,
+                   help="Locked global indirect logit offset; do not tune in packaging")
+    p.add_argument("--image-ocr-direct-logit-penalty", type=float, default=-0.20,
+                   help="Locked direct logit adjustment when MCR activates")
+    p.add_argument("--disable-mcr", action="store_true",
+                   help="Disable runtime MCR (only for compatibility packages)")
     p.add_argument("--ocr-models-dir", type=Path, default=None,
                    help="RapidOCR ONNX model directory to bundle")
     p.add_argument("--smoke-image", type=Path, default=None,
@@ -367,13 +411,22 @@ def build(args: argparse.Namespace) -> dict:
     (out / "src" / "__init__.py").write_text("")
 
     # 4. Write the infer entry point.
-    (out / "infer.py").write_text(PACKAGE_INFER)
+    # The embedded entry points contain user-facing non-ASCII text; use an
+    # explicit portable encoding instead of the Windows locale default.
+    (out / "infer.py").write_text(PACKAGE_INFER, encoding="utf-8")
     (out / "infer.py").chmod(0o755)
-    (out / "demo.py").write_text(PACKAGE_DEMO)
+    (out / "demo.py").write_text(PACKAGE_DEMO, encoding="utf-8")
     (out / "demo.py").chmod(0o755)
+    # Keep the deployment smoke with the package so operators do not need a
+    # checkout of this repository merely to verify the movable artifact.
+    (out / "smoke_offline.py").write_text(
+        (REPO_ROOT / "scripts" / "smoke_offline.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (out / "smoke_offline.py").chmod(0o755)
 
     # 5. Write the requirements and manifest.
-    (out / "requirements.txt").write_text(PACKAGE_REQUIREMENTS)
+    (out / "requirements.txt").write_text(PACKAGE_REQUIREMENTS, encoding="utf-8")
     (out / "README.md").write_text(PACKAGE_README, encoding="utf-8")
     if args.smoke_image:
         if not args.smoke_image.exists():
@@ -388,6 +441,16 @@ def build(args: argparse.Namespace) -> dict:
         "lora_alpha":     args.lora_alpha,
         "lora_target":    args.lora_target,
         "clean_threshold": args.clean_threshold,
+        "policy_name": args.policy_name,
+        "r0_indirect_logit_offset": args.r0_indirect_logit_offset,
+        "image_ocr_direct_logit_penalty": args.image_ocr_direct_logit_penalty,
+        "mcr": {
+            "enabled": not args.disable_mcr,
+            "activation": "local_ocr_nonempty",
+            "prompt_version": "trusted_boundary_v2",
+            "content_role": "untrusted_image_ocr",
+            "runtime_evidence": "image_pixels_only",
+        },
         "c6b_lite": {
             "enabled": bool(args.ocr_models_dir),
             "backend": "rapidocr_onnxruntime" if args.ocr_models_dir else None,
@@ -396,16 +459,16 @@ def build(args: argparse.Namespace) -> dict:
         },
         "model_note": args.model_note,
         "python_min":     "3.10",
-        "schema_version": "mpid-offline-v1",
+        "schema_version": "mpid-offline-v2",
     }
-    (out / "MANIFEST.json").write_text(json.dumps(manifest, indent=2))
+    (out / "MANIFEST.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
     # 6. Checksums for every file (incl. backbone shards).
     files = sorted([p for p in out.rglob("*") if p.is_file()])
     lines = []
     for f in files:
         lines.append(f"{sha256_file(f)}  {f.relative_to(out)}")
-    (out / "CHECKSUMS.txt").write_text("\n".join(lines) + "\n")
+    (out / "CHECKSUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     # 7. Report.
     total_bytes = sum(p.stat().st_size for p in files)
@@ -418,7 +481,7 @@ def build(args: argparse.Namespace) -> dict:
     }
     report_path = args.report or (out.parent / "package_offline.json")
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, indent=2))
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
 
 

@@ -101,7 +101,7 @@ def main() -> int:
     manifest = json.loads((stage / "MANIFEST.json").read_text())
     ckpt_name = manifest.get("checkpoint", "lora_baseline.safetensors")
     must_have = [
-        "infer.py", "demo.py", "README.md", "requirements.txt", "MANIFEST.json", "CHECKSUMS.txt",
+        "infer.py", "demo.py", "smoke_offline.py", "README.md", "requirements.txt", "MANIFEST.json", "CHECKSUMS.txt",
         "models/smolvlm-500m/config.json",
         f"artifacts/{ckpt_name}",
         "src/mpid/__init__.py",

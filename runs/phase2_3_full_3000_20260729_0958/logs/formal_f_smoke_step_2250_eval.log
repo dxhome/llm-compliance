@@ -1,0 +1,40 @@
+[eval] config:     checkpoint=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_2250.safetensors val=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\inputs\smoke_all_150_resolved_images.jsonl out=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\smoke_step_2250
+[eval] loading adapter on cpu ...
+[eval] LoRA params: 8,323,072  Head params: 2,883
+[eval] loaded checkpoint (333 tensors, has_lora_state=True)
+[eval] val size: 150
+[eval] progress: 5/150 samples  step_dt=nans  eval_elapsed=44.5s  ETA=nans
+[eval] progress: 10/150 samples  step_dt=7.76s  eval_elapsed=83.3s  ETA=1087s
+[eval] progress: 15/150 samples  step_dt=7.87s  eval_elapsed=123.2s  ETA=1062s
+[eval] progress: 20/150 samples  step_dt=8.16s  eval_elapsed=166.9s  ETA=1061s
+[eval] progress: 25/150 samples  step_dt=8.21s  eval_elapsed=208.8s  ETA=1027s
+[eval] progress: 30/150 samples  step_dt=8.29s  eval_elapsed=251.8s  ETA=995s
+[eval] progress: 35/150 samples  step_dt=8.23s  eval_elapsed=291.4s  ETA=946s
+[eval] progress: 40/150 samples  step_dt=8.23s  eval_elapsed=332.6s  ETA=905s
+[eval] progress: 45/150 samples  step_dt=8.18s  eval_elapsed=371.8s  ETA=859s
+[eval] progress: 50/150 samples  step_dt=8.24s  eval_elapsed=415.2s  ETA=824s
+[eval] progress: 55/150 samples  step_dt=8.21s  eval_elapsed=454.8s  ETA=779s
+[eval] progress: 60/150 samples  step_dt=8.22s  eval_elapsed=496.5s  ETA=740s
+[eval] progress: 65/150 samples  step_dt=8.26s  eval_elapsed=540.1s  ETA=702s
+[eval] progress: 70/150 samples  step_dt=8.40s  eval_elapsed=590.3s  ETA=672s
+[eval] progress: 75/150 samples  step_dt=8.58s  eval_elapsed=645.1s  ETA=643s
+[eval] progress: 80/150 samples  step_dt=8.61s  eval_elapsed=690.4s  ETA=603s
+[eval] progress: 85/150 samples  step_dt=8.59s  eval_elapsed=731.9s  ETA=558s
+[eval] progress: 90/150 samples  step_dt=8.58s  eval_elapsed=774.1s  ETA=515s
+[eval] progress: 95/150 samples  step_dt=8.56s  eval_elapsed=815.3s  ETA=471s
+[eval] progress: 100/150 samples  step_dt=8.58s  eval_elapsed=859.2s  ETA=429s
+[eval] progress: 105/150 samples  step_dt=8.56s  eval_elapsed=900.9s  ETA=385s
+[eval] progress: 110/150 samples  step_dt=8.55s  eval_elapsed=942.5s  ETA=342s
+[eval] progress: 115/150 samples  step_dt=8.53s  eval_elapsed=982.3s  ETA=298s
+[eval] progress: 120/150 samples  step_dt=8.50s  eval_elapsed=1021.8s  ETA=255s
+[eval] progress: 125/150 samples  step_dt=8.49s  eval_elapsed=1063.5s  ETA=212s
+[eval] progress: 130/150 samples  step_dt=8.49s  eval_elapsed=1105.4s  ETA=170s
+[eval] progress: 135/150 samples  step_dt=8.50s  eval_elapsed=1149.6s  ETA=128s
+[eval] progress: 140/150 samples  step_dt=8.49s  eval_elapsed=1191.1s  ETA=85s
+[eval] progress: 145/150 samples  step_dt=8.50s  eval_elapsed=1234.8s  ETA=43s
+[eval] progress: 150/150 samples  step_dt=8.48s  eval_elapsed=1274.5s  ETA=0s
+[eval] accuracy=0.5467  macro F1=0.3819  weighted F1=0.5021
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\smoke_step_2250\report_baseline.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\smoke_step_2250\confusion_matrix.json
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\smoke_step_2250\report_baseline.md
+[eval] wrote C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\smoke_step_2250\predictions.jsonl

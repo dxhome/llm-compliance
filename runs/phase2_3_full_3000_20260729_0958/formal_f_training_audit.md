@@ -12,6 +12,21 @@
 - 按正式计划启动 T1：step 1-300，50 step 保存一次，仅写入 `artifacts/checkpoints/`。
 - 达到 step 300 后，先验证 checkpoint/state，再串行运行 V2 smoke-150 评测；在得到三类指标前不进入 T2。
 
+## 2026-08-08 T5 完成与 V2/full500 结论
+
+- T5 已从 `checkpoint_step_2250` 正常续训至 `checkpoint_step_3000`；最终 checkpoint 与 state 文件完整，训练退出码为 `0`，未见 NaN、Inf 或 traceback。训练末尾滚动 loss 为 `0.9396`，数值有限。
+- 冻结 V2/full500 原始评测已串行完成：500/500 predictions 完整，评测退出码为 `0`。原始 Accuracy/Macro F1/Weighted F1 为 `56.60%/38.89%/50.91%`；Clean/Direct/Indirect F1 为 `67.19%/49.48%/0.00%`，Indirect Recall 为 `0.00%`，原始输出仍发生 Indirect 类塌缩。
+- 按既定策略，仅对已落盘的原始 `log_probs` 应用已锁定的 `indirect_logit_offset=+0.55`；未重新搜索偏置，校准产物写入 `artifacts/formal_f_benchmark_v2/r0_indirect_offset_3000/`。校准 Accuracy/Macro F1/Weighted F1 为 `55.00%/41.23%/51.49%`；Clean/Direct/Indirect F1 为 `66.56%/48.20%/8.93%`，三类 Recall 为 `81.20%/38.29%/6.67%`，预测数为 `360/103/37`。
+- R0 的阶段进入条件通过：三类 Recall 非零，Direct F1 高于 `34.88%`，Indirect Recall 与 `6.67%` 基线持平，单类预测占比不超过 70%。但最终放行失败：校准 Macro F1 `41.23%` 低于 `45.00%` 门槛；同时以 `min(clean_f1, direct_f1, indirect_f1)` 选最优 checkpoint 时，step3000 的 `8.93%` 低于 step2250 R0 的 `11.92%`。
+- 因最终评测门槛未通过，不启动 P5 复跑、发布或打包流程；保留所有原始与 R0 校准产物以及正式 checkpoint，后续应以 step2250 R0 作为当前最佳已验证状态，并单独讨论恢复 Indirect 的后续训练策略。
+
+## 2026-08-08 MCR + SBC 无训练恢复结论
+
+- MCR（Multimodal Context Routing，多模态上下文路由）只对冻结 V2 中缺少路由字段的图像/OCR记录启用正式训练期的结构化 `untrusted_image_ocr` prompt，保留原始图像和原始用户请求，不修改 benchmark、LoRA、optimizer 或 checkpoint。
+- SBC（Scoped Bias Calibration，分组分数校准）仅在 smoke150 上锁定图像/OCR样本的 Direct logit penalty `-0.20`；既定 R0 Indirect offset `+0.55` 保持不变。full500 未参与参数选择。
+- V2/full500 盲验收：Accuracy `60.20%`，Macro F1 `56.80%`，Weighted F1 `59.00%`；Clean/Direct/Indirect F1=`67.99%/48.20%/54.22%`，Recall=`75.60%/38.29%/60.00%`。图像/OCR子集恢复 `40/40` Indirect。
+- 该推理策略满足最终三类 recall 非零、Direct F1 >= `35%`、Macro F1 >= `45%` 的门槛，是当前最佳已验证候选；其结果必须标注为“F-3000-MCR-SBC 推理策略”，不能误表述为新的训练 checkpoint。
+
 ## 2026-08-02 T1 启动阻塞
 
 - 已进行了两次有界启动尝试，均在 PowerShell `Start-Process` 创建子进程前失败：当前会话环境同时包含 `Path` 与 `PATH`，触发 `Item has already been added. Key in dictionary: 'Path'`。

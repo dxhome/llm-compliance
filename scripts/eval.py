@@ -164,6 +164,10 @@ def parse_args() -> argparse.Namespace:
                    help="Override output dir (else uses config io.out_dir)")
     p.add_argument("--batch-size", type=int, default=None,
                    help="Override evaluation batch size. Use 1 for variable-patch image sets.")
+    p.add_argument("--inject-ocr-context", action="store_true",
+                   help="Use structured untrusted OCR context for records with OCR text but no content_role.")
+    p.add_argument("--inject-image-role-context", action="store_true",
+                   help="Use the structured untrusted-image role without injecting OCR text.")
     p.add_argument("--max-records", type=int, default=None,
                    help="Cap the number of eval records (debugging)")
     p.add_argument("--stratified-max-records", type=int, default=None,
@@ -221,10 +225,14 @@ def _build_dataloader_with_processor(processor, val_path: Path,
                                      device: str, batch_size: int,
                                      max_records: Optional[int],
                                      stratified_max_records: Optional[int] = None,
-                                     sample_seed: int = 42) -> DataLoader:
+                                     sample_seed: int = 42,
+                                     inject_ocr_context: bool = False,
+                                     inject_image_role_context: bool = False) -> DataLoader:
     val_ds = MPIDJsonlDataset(
         Path(val_path), processor=processor, device=device,
         max_records=max_records,
+        inject_ocr_context_if_missing_role=inject_ocr_context,
+        inject_image_role_if_missing_role=inject_image_role_context,
     )
     effective_ds = val_ds
     if stratified_max_records is not None and 0 < stratified_max_records < len(val_ds):
@@ -413,6 +421,8 @@ def run_single_model(
     sample_seed: int = 42,
     chunk_size: int = 0,
     chunk_output_dir: Optional[Path] = None,
+    inject_ocr_context: bool = False,
+    inject_image_role_context: bool = False,
 ) -> int:
     """Original single-model eval — kept for backward compatibility."""
     print(f"[eval] config:     {args_config_str(checkpoint, val_path, out_dir)}")
@@ -444,6 +454,8 @@ def run_single_model(
         max_records,
         stratified_max_records=stratified_max_records,
         sample_seed=sample_seed,
+        inject_ocr_context=inject_ocr_context,
+        inject_image_role_context=inject_image_role_context,
     )
     # The probe owns a full VLM only to expose its processor.  Release it
     # before loading either comparison checkpoint so CPU evaluation stays
@@ -1647,6 +1659,8 @@ def _make_early_exit_markdown(s: dict) -> str:
 
 def main() -> int:
     args = parse_args()
+    if args.inject_ocr_context and args.inject_image_role_context:
+        raise ValueError("OCR text injection and role-only image context are mutually exclusive")
     cfg = build_train_config_from_yaml(args.config)
     if args.batch_size is not None:
         if args.batch_size < 1:
@@ -1708,6 +1722,8 @@ def main() -> int:
         sample_seed=args.sample_seed,
         chunk_size=args.chunk_size,
         chunk_output_dir=chunk_output_dir,
+        inject_ocr_context=args.inject_ocr_context,
+        inject_image_role_context=args.inject_image_role_context,
     )
 
 

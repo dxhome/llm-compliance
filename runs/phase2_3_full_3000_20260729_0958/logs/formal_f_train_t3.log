@@ -1,0 +1,296 @@
+[train] config: runs\phase2_3_full_3000_20260729_0958\configs\train_f_formal.yaml
+[train] out_dir: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints
+[train] train: C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\data\train.jsonl
+[train] val:   C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\formal_f_benchmark_v2\inputs\smoke_all_150_resolved_images.jsonl
+[train] epochs=3  max_train_records=3000  batch_size=3  lr=5e-06
+[train] RESUME: checkpoint=C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_750.safetensors
+[train] RESUME: skip_train_batches=750  resume_global_step=750
+[train] INIT_FROM_LORA_ONLY: C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors
+[train] STEP LIMIT: 750
+[train] log_every=5  save_every=50  eval_after_epoch=False
+[train][+   0.0s] === phase 1/6 加载 backbone ===
+[train] loading adapter on cpu ...
+[train]   backbone loaded in 3.8s
+[train][+   3.8s] === phase 2/6 LoRA + head 注入 ===
+[train] LoRA params: 8,323,072  Head params: 2,883
+[train] initialized LoRA only from C:\work\llm-compliance\runs\phase2_3_full_2000_20260727_1211\artifacts\checkpoints\checkpoint_step_2000.safetensors (lora tensors=328; head and optimizer are new)
+[train] loaded training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_750.state.pt
+[train] resumed from C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_750.safetensors (lora tensors=328, head tensors=2)
+[train][+   4.1s] === phase 3/6 数据集加载 ===
+[train] dataset: train=3000 val=150
+[train] batch_size=3  steps_per_epoch=1000
+[train] paired batch mode: complete clean/direct/indirect triplets first
+[train][+   4.1s] === phase 4/6 优化器 + class weights ===
+[train] class weights: None
+[train] total trainable params: 8,325,955
+[train] optimizer lr: LoRA=5e-06  head=2e-05
+[train] optimizer state resumed (step_global=750)
+[train] RNG state resumed
+[train][+   4.1s] === phase 5/6 训练循环  (3 epoch × 3000 sample × bs=3) ===
+[train] epoch 1/3 step 755/1000 (global 755/3000) loss=1.1914  last_loss=1.3957  step_dt=nans  epoch_elapsed=600.8s  ETA=nans  total_elapsed=604.9s
+[train] epoch 1/3 step 760/1000 (global 760/3000) loss=1.4408  last_loss=1.6853  step_dt=69.89s  epoch_elapsed=1229.8s  ETA=156547s  total_elapsed=1233.9s
+[train] epoch 1/3 step 765/1000 (global 765/3000) loss=1.6813  last_loss=1.9236  step_dt=87.71s  epoch_elapsed=1828.7s  ETA=196023s  total_elapsed=1832.8s
+[train] epoch 1/3 step 770/1000 (global 770/3000) loss=1.7756  last_loss=1.5474  step_dt=95.35s  epoch_elapsed=2412.5s  ETA=212637s  total_elapsed=2416.6s
+[train] epoch 1/3 step 775/1000 (global 775/3000) loss=1.8796  last_loss=3.6221  step_dt=100.87s  epoch_elapsed=3021.6s  ETA=224428s  total_elapsed=3025.7s
+[train] epoch 1/3 step 780/1000 (global 780/3000) loss=1.9386  last_loss=1.8494  step_dt=104.70s  epoch_elapsed=3637.2s  ETA=232442s  total_elapsed=3641.3s
+[train] epoch 1/3 step 785/1000 (global 785/3000) loss=1.9638  last_loss=1.3158  step_dt=107.40s  epoch_elapsed=4252.2s  ETA=237881s  total_elapsed=4256.3s
+[train] epoch 1/3 step 790/1000 (global 790/3000) loss=1.9003  last_loss=2.0856  step_dt=110.70s  epoch_elapsed=4918.1s  ETA=244650s  total_elapsed=4922.3s
+[train] epoch 1/3 step 795/1000 (global 795/3000) loss=1.9130  last_loss=0.6381  step_dt=112.81s  epoch_elapsed=5564.5s  ETA=248749s  total_elapsed=5568.6s
+[train] epoch 1/3 step 800/1000 (global 800/3000) loss=1.8084  last_loss=0.5699  step_dt=113.54s  epoch_elapsed=6164.4s  ETA=249795s  total_elapsed=6168.5s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 800)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_800.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_800.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 1/3 step 805/1000 (global 805/3000) loss=1.8200  last_loss=1.7214  step_dt=114.39s  epoch_elapsed=6778.1s  ETA=251096s  total_elapsed=6782.2s
+[train] epoch 1/3 step 810/1000 (global 810/3000) loss=1.7970  last_loss=1.1782  step_dt=115.14s  epoch_elapsed=7393.9s  ETA=252152s  total_elapsed=7398.0s
+[train] epoch 1/3 step 815/1000 (global 815/3000) loss=1.8078  last_loss=1.2314  step_dt=118.67s  epoch_elapsed=8195.5s  ETA=259289s  total_elapsed=8199.6s
+[train] epoch 1/3 step 820/1000 (global 820/3000) loss=1.8332  last_loss=2.1865  step_dt=122.16s  epoch_elapsed=9029.6s  ETA=266302s  total_elapsed=9033.7s
+[train] epoch 1/3 step 825/1000 (global 825/3000) loss=1.8474  last_loss=1.3003  step_dt=125.04s  epoch_elapsed=9854.0s  ETA=271969s  total_elapsed=9858.1s
+[train] epoch 1/3 step 830/1000 (global 830/3000) loss=1.8719  last_loss=2.5816  step_dt=127.20s  epoch_elapsed=10649.8s  ETA=276031s  total_elapsed=10654.0s
+[train] epoch 1/3 step 835/1000 (global 835/3000) loss=1.8881  last_loss=1.3238  step_dt=129.30s  epoch_elapsed=11461.7s  ETA=279927s  total_elapsed=11465.8s
+[train] epoch 1/3 step 840/1000 (global 840/3000) loss=1.8960  last_loss=1.3094  step_dt=130.96s  epoch_elapsed=12256.0s  ETA=282867s  total_elapsed=12260.1s
+[train] epoch 1/3 step 845/1000 (global 845/3000) loss=1.8860  last_loss=1.9394  step_dt=132.56s  epoch_elapsed=13061.6s  ETA=285671s  total_elapsed=13065.7s
+[train] epoch 1/3 step 850/1000 (global 850/3000) loss=1.9050  last_loss=1.3412  step_dt=133.84s  epoch_elapsed=13851.2s  ETA=287762s  total_elapsed=13855.3s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 850)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_850.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_850.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 1/3 step 855/1000 (global 855/3000) loss=1.8717  last_loss=1.3042  step_dt=134.87s  epoch_elapsed=14627.5s  ETA=289301s  total_elapsed=14631.6s
+[train] epoch 1/3 step 860/1000 (global 860/3000) loss=1.8868  last_loss=2.4680  step_dt=136.19s  epoch_elapsed=15445.3s  ETA=291442s  total_elapsed=15449.4s
+[train] epoch 1/3 step 865/1000 (global 865/3000) loss=1.8727  last_loss=1.1556  step_dt=137.21s  epoch_elapsed=16242.3s  ETA=292935s  total_elapsed=16246.4s
+[train] epoch 1/3 step 870/1000 (global 870/3000) loss=1.8955  last_loss=1.8943  step_dt=138.31s  epoch_elapsed=17060.0s  ETA=294607s  total_elapsed=17064.2s
+[train] epoch 1/3 step 875/1000 (global 875/3000) loss=1.8756  last_loss=0.6229  step_dt=138.95s  epoch_elapsed=17830.6s  ETA=295268s  total_elapsed=17834.7s
+[train] epoch 1/3 step 880/1000 (global 880/3000) loss=1.8522  last_loss=1.3068  step_dt=139.86s  epoch_elapsed=18643.0s  ETA=296507s  total_elapsed=18647.1s
+[train] epoch 1/3 step 885/1000 (global 885/3000) loss=1.8382  last_loss=1.5416  step_dt=140.81s  epoch_elapsed=19469.0s  ETA=297808s  total_elapsed=19473.1s
+[train] epoch 1/3 step 890/1000 (global 890/3000) loss=1.8492  last_loss=4.2030  step_dt=141.49s  epoch_elapsed=20267.4s  ETA=298536s  total_elapsed=20271.5s
+[train] epoch 1/3 step 895/1000 (global 895/3000) loss=1.8356  last_loss=1.1739  step_dt=142.33s  epoch_elapsed=21096.4s  ETA=299606s  total_elapsed=21100.5s
+[train] epoch 1/3 step 900/1000 (global 900/3000) loss=1.8148  last_loss=1.6773  step_dt=142.79s  epoch_elapsed=21877.0s  ETA=299867s  total_elapsed=21881.2s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 900)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_900.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_900.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 1/3 step 905/1000 (global 905/3000) loss=1.8158  last_loss=0.9040  step_dt=143.34s  epoch_elapsed=22675.1s  ETA=300297s  total_elapsed=22679.2s
+[train] epoch 1/3 step 910/1000 (global 910/3000) loss=1.8269  last_loss=1.9603  step_dt=144.05s  epoch_elapsed=23504.3s  ETA=301059s  total_elapsed=23508.4s
+[train] epoch 1/3 step 915/1000 (global 915/3000) loss=1.8326  last_loss=1.0712  step_dt=144.69s  epoch_elapsed=24329.2s  ETA=301669s  total_elapsed=24333.3s
+[train] epoch 1/3 step 920/1000 (global 920/3000) loss=1.8472  last_loss=0.9319  step_dt=145.15s  epoch_elapsed=25131.6s  ETA=301918s  total_elapsed=25135.7s
+[train] epoch 1/3 step 925/1000 (global 925/3000) loss=1.8417  last_loss=2.1876  step_dt=145.63s  epoch_elapsed=25941.2s  ETA=302192s  total_elapsed=25945.3s
+[train] epoch 1/3 step 930/1000 (global 930/3000) loss=1.8263  last_loss=2.3515  step_dt=146.04s  epoch_elapsed=26741.7s  ETA=302301s  total_elapsed=26745.9s
+[train] epoch 1/3 step 935/1000 (global 935/3000) loss=1.8286  last_loss=1.1815  step_dt=146.61s  epoch_elapsed=27577.5s  ETA=302756s  total_elapsed=27581.7s
+[train] epoch 1/3 step 940/1000 (global 940/3000) loss=1.8304  last_loss=0.8397  step_dt=146.98s  epoch_elapsed=28379.7s  ETA=302776s  total_elapsed=28383.8s
+[train] epoch 1/3 step 945/1000 (global 945/3000) loss=1.8230  last_loss=1.2334  step_dt=147.48s  epoch_elapsed=29212.4s  ETA=303076s  total_elapsed=29216.5s
+[train] epoch 1/3 step 950/1000 (global 950/3000) loss=1.8266  last_loss=0.7960  step_dt=147.84s  epoch_elapsed=30021.9s  ETA=303082s  total_elapsed=30026.0s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 950)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_950.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_950.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 1/3 step 955/1000 (global 955/3000) loss=1.8190  last_loss=1.0877  step_dt=148.16s  epoch_elapsed=30826.0s  ETA=302993s  total_elapsed=30830.1s
+[train] epoch 1/3 step 960/1000 (global 960/3000) loss=1.8028  last_loss=0.3725  step_dt=148.54s  epoch_elapsed=31645.4s  ETA=303019s  total_elapsed=31649.5s
+[train] epoch 1/3 step 965/1000 (global 965/3000) loss=1.7998  last_loss=1.4212  step_dt=148.90s  epoch_elapsed=32466.0s  ETA=303017s  total_elapsed=32470.1s
+[train] epoch 1/3 step 970/1000 (global 970/3000) loss=1.7843  last_loss=1.0318  step_dt=149.23s  epoch_elapsed=33281.7s  ETA=302933s  total_elapsed=33285.8s
+[train] epoch 1/3 step 975/1000 (global 975/3000) loss=1.7794  last_loss=1.1092  step_dt=149.81s  epoch_elapsed=34158.7s  ETA=303370s  total_elapsed=34162.9s
+[train] epoch 1/3 step 980/1000 (global 980/3000) loss=1.7674  last_loss=2.0232  step_dt=150.14s  epoch_elapsed=34982.4s  ETA=303279s  total_elapsed=34986.5s
+[train] epoch 1/3 step 985/1000 (global 985/3000) loss=1.7539  last_loss=0.9885  step_dt=150.50s  epoch_elapsed=35817.1s  ETA=303251s  total_elapsed=35821.2s
+[train] epoch 1/3 step 990/1000 (global 990/3000) loss=1.7585  last_loss=0.8323  step_dt=150.85s  epoch_elapsed=36655.1s  ETA=303218s  total_elapsed=36659.2s
+[train] epoch 1/3 step 995/1000 (global 995/3000) loss=1.7399  last_loss=0.8814  step_dt=151.07s  epoch_elapsed=37461.8s  ETA=302895s  total_elapsed=37465.9s
+[train] epoch 1/3 step 1000/1000 (global 1000/3000) loss=1.7342  last_loss=0.9584  step_dt=151.22s  epoch_elapsed=38255.8s  ETA=302450s  total_elapsed=38259.9s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1000)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1000.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1000.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 1 train done; skipping eval (eval_after_epoch=False)
+[train] saving checkpoint lora_phase2_3_f_formal.safetensors ...
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal.safetensors (333 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 1/1000 (global 1001/3000) loss=1.5895  last_loss=1.5895  step_dt=151.28s  epoch_elapsed=163.3s  ETA=302400s  total_elapsed=38423.9s
+[train] epoch 2/3 step 5/1000 (global 1005/3000) loss=1.3386  last_loss=0.8365  step_dt=151.47s  epoch_elapsed=818.8s  ETA=302191s  total_elapsed=39079.3s
+[train] epoch 2/3 step 10/1000 (global 1010/3000) loss=1.6117  last_loss=0.9357  step_dt=151.72s  epoch_elapsed=1639.9s  ETA=301924s  total_elapsed=39900.5s
+[train] epoch 2/3 step 15/1000 (global 1015/3000) loss=1.9534  last_loss=2.0106  step_dt=151.95s  epoch_elapsed=2459.0s  ETA=301620s  total_elapsed=40719.6s
+[train] epoch 2/3 step 20/1000 (global 1020/3000) loss=1.9253  last_loss=0.8462  step_dt=152.18s  epoch_elapsed=3282.0s  ETA=301326s  total_elapsed=41542.6s
+[train] epoch 2/3 step 25/1000 (global 1025/3000) loss=1.8581  last_loss=0.8253  step_dt=152.21s  epoch_elapsed=4050.7s  ETA=300621s  total_elapsed=42311.2s
+[train] epoch 2/3 step 30/1000 (global 1030/3000) loss=1.9174  last_loss=0.9857  step_dt=152.49s  epoch_elapsed=4887.8s  ETA=300397s  total_elapsed=43148.4s
+[train] epoch 2/3 step 35/1000 (global 1035/3000) loss=1.8152  last_loss=0.6049  step_dt=152.82s  epoch_elapsed=5744.8s  ETA=300288s  total_elapsed=44005.4s
+[train] epoch 2/3 step 40/1000 (global 1040/3000) loss=1.7129  last_loss=0.6498  step_dt=153.13s  epoch_elapsed=6597.5s  ETA=300125s  total_elapsed=44858.1s
+[train] epoch 2/3 step 45/1000 (global 1045/3000) loss=1.7454  last_loss=0.8126  step_dt=153.46s  epoch_elapsed=7462.4s  ETA=300020s  total_elapsed=45723.0s
+[train] epoch 2/3 step 50/1000 (global 1050/3000) loss=1.7497  last_loss=1.2600  step_dt=153.66s  epoch_elapsed=8289.1s  ETA=299640s  total_elapsed=46549.7s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1050)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1050.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1050.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 55/1000 (global 1055/3000) loss=1.7241  last_loss=0.3396  step_dt=153.86s  epoch_elapsed=9118.9s  ETA=299265s  total_elapsed=47379.4s
+[train] epoch 2/3 step 60/1000 (global 1060/3000) loss=1.7221  last_loss=2.6901  step_dt=154.05s  epoch_elapsed=9946.8s  ETA=298864s  total_elapsed=48207.4s
+[train] epoch 2/3 step 65/1000 (global 1065/3000) loss=1.6405  last_loss=0.1581  step_dt=154.25s  epoch_elapsed=10777.9s  ETA=298468s  total_elapsed=49038.4s
+[train] epoch 2/3 step 70/1000 (global 1070/3000) loss=1.6205  last_loss=2.2396  step_dt=154.42s  epoch_elapsed=11603.9s  ETA=298028s  total_elapsed=49864.5s
+[train] epoch 2/3 step 75/1000 (global 1075/3000) loss=1.5560  last_loss=0.4015  step_dt=154.60s  epoch_elapsed=12434.4s  ETA=297603s  total_elapsed=50694.9s
+[train] epoch 2/3 step 80/1000 (global 1080/3000) loss=1.4913  last_loss=0.3868  step_dt=154.77s  epoch_elapsed=13263.7s  ETA=297159s  total_elapsed=51524.2s
+[train] epoch 2/3 step 85/1000 (global 1085/3000) loss=1.4712  last_loss=1.8411  step_dt=154.96s  epoch_elapsed=14099.4s  ETA=296739s  total_elapsed=52359.9s
+[train] epoch 2/3 step 90/1000 (global 1090/3000) loss=1.4208  last_loss=0.8554  step_dt=155.11s  epoch_elapsed=14926.8s  ETA=296261s  total_elapsed=53187.4s
+[train] epoch 2/3 step 95/1000 (global 1095/3000) loss=1.3725  last_loss=1.1163  step_dt=155.26s  epoch_elapsed=15754.2s  ETA=295773s  total_elapsed=54014.8s
+[train] epoch 2/3 step 100/1000 (global 1100/3000) loss=1.3311  last_loss=0.3861  step_dt=155.40s  epoch_elapsed=16577.9s  ETA=295254s  total_elapsed=54838.5s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1100)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1100.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1100.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 105/1000 (global 1105/3000) loss=1.2939  last_loss=0.2784  step_dt=155.54s  epoch_elapsed=17404.4s  ETA=294743s  total_elapsed=55665.0s
+[train] epoch 2/3 step 110/1000 (global 1110/3000) loss=1.2601  last_loss=0.1897  step_dt=155.67s  epoch_elapsed=18231.4s  ETA=294225s  total_elapsed=56492.0s
+[train] epoch 2/3 step 115/1000 (global 1115/3000) loss=1.2239  last_loss=0.1794  step_dt=155.77s  epoch_elapsed=19042.9s  ETA=293618s  total_elapsed=57303.5s
+[train] epoch 2/3 step 120/1000 (global 1120/3000) loss=1.1806  last_loss=0.1330  step_dt=155.86s  epoch_elapsed=19856.5s  ETA=293016s  total_elapsed=58117.0s
+[train] epoch 2/3 step 125/1000 (global 1125/3000) loss=1.1410  last_loss=0.0780  step_dt=155.95s  epoch_elapsed=20668.0s  ETA=292398s  total_elapsed=58928.6s
+[train] epoch 2/3 step 130/1000 (global 1130/3000) loss=1.1017  last_loss=0.1137  step_dt=156.04s  epoch_elapsed=21482.6s  ETA=291790s  total_elapsed=59743.1s
+[train] epoch 2/3 step 135/1000 (global 1135/3000) loss=1.0646  last_loss=0.0588  step_dt=156.12s  epoch_elapsed=22295.5s  ETA=291169s  total_elapsed=60556.1s
+[train] epoch 2/3 step 140/1000 (global 1140/3000) loss=1.0320  last_loss=0.4799  step_dt=156.21s  epoch_elapsed=23110.0s  ETA=290551s  total_elapsed=61370.6s
+[train] epoch 2/3 step 145/1000 (global 1145/3000) loss=1.0014  last_loss=0.0787  step_dt=156.29s  epoch_elapsed=23922.9s  ETA=289919s  total_elapsed=62183.4s
+[train] epoch 2/3 step 150/1000 (global 1150/3000) loss=0.9699  last_loss=0.0553  step_dt=156.19s  epoch_elapsed=24665.3s  ETA=288957s  total_elapsed=62925.9s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1150)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1150.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1150.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 155/1000 (global 1155/3000) loss=0.9414  last_loss=0.1263  step_dt=156.47s  epoch_elapsed=25558.8s  ETA=288690s  total_elapsed=63819.4s
+[train] epoch 2/3 step 160/1000 (global 1160/3000) loss=0.9127  last_loss=0.0258  step_dt=156.74s  epoch_elapsed=26451.6s  ETA=288404s  total_elapsed=64712.2s
+[train] epoch 2/3 step 165/1000 (global 1165/3000) loss=0.8862  last_loss=0.0670  step_dt=157.01s  epoch_elapsed=27345.4s  ETA=288109s  total_elapsed=65605.9s
+[train] epoch 2/3 step 170/1000 (global 1170/3000) loss=0.8607  last_loss=0.0103  step_dt=157.27s  epoch_elapsed=28239.0s  ETA=287798s  total_elapsed=66499.5s
+[train] epoch 2/3 step 175/1000 (global 1175/3000) loss=0.8370  last_loss=0.0303  step_dt=157.00s  epoch_elapsed=28911.5s  ETA=286521s  total_elapsed=67172.1s
+[train] epoch 2/3 step 180/1000 (global 1180/3000) loss=0.8141  last_loss=0.0115  step_dt=156.61s  epoch_elapsed=29531.8s  ETA=285038s  total_elapsed=67792.4s
+[train] epoch 2/3 step 185/1000 (global 1185/3000) loss=0.7927  last_loss=0.0295  step_dt=156.33s  epoch_elapsed=30192.4s  ETA=283742s  total_elapsed=68452.9s
+[train] epoch 2/3 step 190/1000 (global 1190/3000) loss=0.7722  last_loss=0.0096  step_dt=156.04s  epoch_elapsed=30846.5s  ETA=282435s  total_elapsed=69107.1s
+[train] epoch 2/3 step 195/1000 (global 1195/3000) loss=0.7527  last_loss=0.0128  step_dt=155.76s  epoch_elapsed=31500.9s  ETA=281143s  total_elapsed=69761.4s
+[train] epoch 2/3 step 200/1000 (global 1200/3000) loss=0.7341  last_loss=0.0033  step_dt=155.47s  epoch_elapsed=32151.1s  ETA=279849s  total_elapsed=70411.7s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1200)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1200.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1200.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 205/1000 (global 1205/3000) loss=0.7163  last_loss=0.0144  step_dt=155.51s  epoch_elapsed=32946.6s  ETA=279143s  total_elapsed=71207.1s
+[train] epoch 2/3 step 210/1000 (global 1210/3000) loss=0.6993  last_loss=0.0030  step_dt=155.58s  epoch_elapsed=33756.9s  ETA=278494s  total_elapsed=72017.5s
+[train] epoch 2/3 step 215/1000 (global 1215/3000) loss=0.6832  last_loss=0.0020  step_dt=155.81s  epoch_elapsed=34638.9s  ETA=278116s  total_elapsed=72899.5s
+[train] epoch 2/3 step 220/1000 (global 1220/3000) loss=0.6677  last_loss=0.0024  step_dt=155.72s  epoch_elapsed=35378.4s  ETA=277187s  total_elapsed=73638.9s
+[train] epoch 2/3 step 225/1000 (global 1225/3000) loss=0.6529  last_loss=0.0011  step_dt=155.64s  epoch_elapsed=36119.7s  ETA=276268s  total_elapsed=74380.2s
+[train] epoch 2/3 step 230/1000 (global 1230/3000) loss=0.6388  last_loss=0.0021  step_dt=155.56s  epoch_elapsed=36859.8s  ETA=275349s  total_elapsed=75120.4s
+[train] epoch 2/3 step 235/1000 (global 1235/3000) loss=0.6252  last_loss=0.0027  step_dt=155.49s  epoch_elapsed=37601.9s  ETA=274441s  total_elapsed=75862.4s
+[train] epoch 2/3 step 240/1000 (global 1240/3000) loss=0.6122  last_loss=0.0042  step_dt=155.41s  epoch_elapsed=38341.6s  ETA=273528s  total_elapsed=76602.2s
+[train] epoch 2/3 step 245/1000 (global 1245/3000) loss=0.6214  last_loss=1.2604  step_dt=155.32s  epoch_elapsed=39073.1s  ETA=272589s  total_elapsed=77333.7s
+[train] epoch 2/3 step 250/1000 (global 1250/3000) loss=0.6848  last_loss=4.3597  step_dt=155.21s  epoch_elapsed=39796.2s  ETA=271625s  total_elapsed=78056.8s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1250)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1250.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1250.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 255/1000 (global 1255/3000) loss=0.6876  last_loss=0.3065  step_dt=155.07s  epoch_elapsed=40501.3s  ETA=270603s  total_elapsed=78761.9s
+[train] epoch 2/3 step 260/1000 (global 1260/3000) loss=0.7238  last_loss=2.5193  step_dt=155.04s  epoch_elapsed=41260.4s  ETA=269772s  total_elapsed=79520.9s
+[train] epoch 2/3 step 265/1000 (global 1265/3000) loss=0.7601  last_loss=4.7003  step_dt=155.02s  epoch_elapsed=42026.5s  ETA=268966s  total_elapsed=80287.1s
+[train] epoch 2/3 step 270/1000 (global 1270/3000) loss=0.7588  last_loss=1.6524  step_dt=154.90s  epoch_elapsed=42736.1s  ETA=267973s  total_elapsed=80996.7s
+[train] epoch 2/3 step 275/1000 (global 1275/3000) loss=0.7719  last_loss=1.0504  step_dt=154.84s  epoch_elapsed=43482.9s  ETA=267107s  total_elapsed=81743.5s
+[train] epoch 2/3 step 280/1000 (global 1280/3000) loss=0.7926  last_loss=0.1627  step_dt=154.75s  epoch_elapsed=44205.1s  ETA=266164s  total_elapsed=82465.7s
+[train] epoch 2/3 step 285/1000 (global 1285/3000) loss=0.7927  last_loss=0.8434  step_dt=154.70s  epoch_elapsed=44956.5s  ETA=265318s  total_elapsed=83217.1s
+[train] epoch 2/3 step 290/1000 (global 1290/3000) loss=0.7934  last_loss=0.1563  step_dt=154.56s  epoch_elapsed=45652.5s  ETA=264299s  total_elapsed=83913.0s
+[train] epoch 2/3 step 295/1000 (global 1295/3000) loss=0.8096  last_loss=2.5290  step_dt=154.50s  epoch_elapsed=46394.5s  ETA=263429s  total_elapsed=84655.1s
+[train] epoch 2/3 step 300/1000 (global 1300/3000) loss=0.8229  last_loss=1.3595  step_dt=154.44s  epoch_elapsed=47133.0s  ETA=262551s  total_elapsed=85393.5s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1300)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1300.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1300.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 305/1000 (global 1305/3000) loss=0.8248  last_loss=1.7932  step_dt=154.36s  epoch_elapsed=47860.4s  ETA=261642s  total_elapsed=86121.0s
+[train] epoch 2/3 step 310/1000 (global 1310/3000) loss=0.8257  last_loss=0.1440  step_dt=154.32s  epoch_elapsed=48606.6s  ETA=260793s  total_elapsed=86867.2s
+[train] epoch 2/3 step 315/1000 (global 1315/3000) loss=0.8211  last_loss=0.8639  step_dt=154.22s  epoch_elapsed=49325.4s  ETA=259864s  total_elapsed=87586.0s
+[train] epoch 2/3 step 320/1000 (global 1320/3000) loss=0.8366  last_loss=4.8261  step_dt=154.16s  epoch_elapsed=50059.3s  ETA=258983s  total_elapsed=88319.9s
+[train] epoch 2/3 step 325/1000 (global 1325/3000) loss=0.8778  last_loss=1.3305  step_dt=154.09s  epoch_elapsed=50790.8s  ETA=258097s  total_elapsed=89051.3s
+[train] epoch 2/3 step 330/1000 (global 1330/3000) loss=0.8777  last_loss=1.8727  step_dt=153.97s  epoch_elapsed=51493.3s  ETA=257131s  total_elapsed=89753.8s
+[train] epoch 2/3 step 335/1000 (global 1335/3000) loss=0.8751  last_loss=0.0916  step_dt=153.90s  epoch_elapsed=52219.2s  ETA=256236s  total_elapsed=90479.7s
+[train] epoch 2/3 step 340/1000 (global 1340/3000) loss=0.8827  last_loss=1.0176  step_dt=153.85s  epoch_elapsed=52964.2s  ETA=255397s  total_elapsed=91224.8s
+[train] epoch 2/3 step 345/1000 (global 1345/3000) loss=0.8842  last_loss=0.0798  step_dt=153.77s  epoch_elapsed=53685.7s  ETA=254495s  total_elapsed=91946.3s
+[train] epoch 2/3 step 350/1000 (global 1350/3000) loss=0.8989  last_loss=0.0897  step_dt=153.74s  epoch_elapsed=54437.1s  ETA=253678s  total_elapsed=92697.7s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1350)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1350.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1350.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 355/1000 (global 1355/3000) loss=0.9103  last_loss=0.1880  step_dt=153.63s  epoch_elapsed=55133.9s  ETA=252713s  total_elapsed=93394.5s
+[train] epoch 2/3 step 360/1000 (global 1360/3000) loss=0.9233  last_loss=0.5120  step_dt=153.54s  epoch_elapsed=55852.0s  ETA=251810s  total_elapsed=94112.6s
+[train] epoch 2/3 step 365/1000 (global 1365/3000) loss=0.9283  last_loss=3.7451  step_dt=153.50s  epoch_elapsed=56592.9s  ETA=250971s  total_elapsed=94853.5s
+[train] epoch 2/3 step 370/1000 (global 1370/3000) loss=0.9212  last_loss=0.1955  step_dt=153.46s  epoch_elapsed=57333.0s  ETA=250132s  total_elapsed=95593.6s
+[train] epoch 2/3 step 375/1000 (global 1375/3000) loss=0.9358  last_loss=0.3690  step_dt=153.40s  epoch_elapsed=58065.9s  ETA=249275s  total_elapsed=96326.5s
+[train] epoch 2/3 step 380/1000 (global 1380/3000) loss=0.9484  last_loss=6.5087  step_dt=153.32s  epoch_elapsed=58782.6s  ETA=248378s  total_elapsed=97043.1s
+[train] epoch 2/3 step 385/1000 (global 1385/3000) loss=0.9457  last_loss=1.8327  step_dt=153.27s  epoch_elapsed=59516.4s  ETA=247528s  total_elapsed=97777.0s
+[train] epoch 2/3 step 390/1000 (global 1390/3000) loss=0.9442  last_loss=0.1190  step_dt=153.21s  epoch_elapsed=60247.0s  ETA=246672s  total_elapsed=98507.6s
+[train] epoch 2/3 step 395/1000 (global 1395/3000) loss=0.9553  last_loss=0.0253  step_dt=153.18s  epoch_elapsed=60995.3s  ETA=245861s  total_elapsed=99255.8s
+[train] epoch 2/3 step 400/1000 (global 1400/3000) loss=0.9589  last_loss=2.6807  step_dt=153.16s  epoch_elapsed=61746.6s  ETA=245059s  total_elapsed=100007.1s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1400)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1400.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1400.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 405/1000 (global 1405/3000) loss=0.9514  last_loss=0.0154  step_dt=153.11s  epoch_elapsed=62480.0s  ETA=244215s  total_elapsed=100740.5s
+[train] epoch 2/3 step 410/1000 (global 1410/3000) loss=0.9650  last_loss=3.4891  step_dt=153.10s  epoch_elapsed=63236.5s  ETA=243427s  total_elapsed=101497.1s
+[train] epoch 2/3 step 415/1000 (global 1415/3000) loss=0.9700  last_loss=0.2183  step_dt=153.06s  epoch_elapsed=63977.4s  ETA=242603s  total_elapsed=102237.9s
+[train] epoch 2/3 step 420/1000 (global 1420/3000) loss=0.9757  last_loss=0.4365  step_dt=153.04s  epoch_elapsed=64725.0s  ETA=241796s  total_elapsed=102985.6s
+[train] epoch 2/3 step 425/1000 (global 1425/3000) loss=0.9697  last_loss=0.1818  step_dt=152.98s  epoch_elapsed=65453.4s  ETA=240945s  total_elapsed=103714.0s
+[train] epoch 2/3 step 430/1000 (global 1430/3000) loss=0.9684  last_loss=0.8263  step_dt=152.91s  epoch_elapsed=66167.1s  ETA=240062s  total_elapsed=104427.7s
+[train] epoch 2/3 step 435/1000 (global 1435/3000) loss=0.9650  last_loss=0.0529  step_dt=152.85s  epoch_elapsed=66893.2s  ETA=239209s  total_elapsed=105153.8s
+[train] epoch 2/3 step 440/1000 (global 1440/3000) loss=0.9685  last_loss=0.3563  step_dt=152.86s  epoch_elapsed=67666.5s  ETA=238465s  total_elapsed=105927.1s
+[train] epoch 2/3 step 445/1000 (global 1445/3000) loss=0.9861  last_loss=4.8697  step_dt=152.95s  epoch_elapsed=68491.9s  ETA=237838s  total_elapsed=106752.5s
+[train] epoch 2/3 step 450/1000 (global 1450/3000) loss=0.9867  last_loss=2.3442  step_dt=152.98s  epoch_elapsed=69278.9s  ETA=237122s  total_elapsed=107539.4s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1450)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1450.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1450.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] epoch 2/3 step 455/1000 (global 1455/3000) loss=0.9988  last_loss=4.4612  step_dt=153.06s  epoch_elapsed=70099.6s  ETA=236480s  total_elapsed=108360.2s
+[train] epoch 2/3 step 460/1000 (global 1460/3000) loss=0.9953  last_loss=1.1574  step_dt=153.15s  epoch_elapsed=70925.4s  ETA=235846s  total_elapsed=109186.0s
+[train] epoch 2/3 step 465/1000 (global 1465/3000) loss=1.0054  last_loss=0.0905  step_dt=153.25s  epoch_elapsed=71766.6s  ETA=235242s  total_elapsed=110027.1s
+[train] epoch 2/3 step 470/1000 (global 1470/3000) loss=1.0049  last_loss=0.1135  step_dt=153.31s  epoch_elapsed=72571.1s  ETA=234558s  total_elapsed=110831.7s
+[train] epoch 2/3 step 475/1000 (global 1475/3000) loss=1.0092  last_loss=1.3667  step_dt=153.39s  epoch_elapsed=73401.2s  ETA=233925s  total_elapsed=111661.8s
+[train] epoch 2/3 step 480/1000 (global 1480/3000) loss=1.0136  last_loss=4.2406  step_dt=153.47s  epoch_elapsed=74224.9s  ETA=233276s  total_elapsed=112485.5s
+[train] epoch 2/3 step 485/1000 (global 1485/3000) loss=1.0173  last_loss=3.7333  step_dt=153.52s  epoch_elapsed=75024.5s  ETA=232575s  total_elapsed=113285.0s
+[train] epoch 2/3 step 490/1000 (global 1490/3000) loss=1.0233  last_loss=1.2012  step_dt=153.59s  epoch_elapsed=75848.9s  ETA=231924s  total_elapsed=114109.4s
+[train] epoch 2/3 step 495/1000 (global 1495/3000) loss=1.0439  last_loss=0.1648  step_dt=153.65s  epoch_elapsed=76662.8s  ETA=231249s  total_elapsed=114923.4s
+[train] epoch 2/3 step 500/1000 (global 1500/3000) loss=1.0437  last_loss=0.2736  step_dt=153.74s  epoch_elapsed=77492.8s  ETA=230604s  total_elapsed=115753.4s
+[train]   -> periodic save: lora_phase2_3_f_formal_partial.safetensors (step 1500)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal_partial.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1500.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\checkpoint_step_1500.state.pt
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt
+[train] STEP LIMIT REACHED (750) - stopping at epoch 2 step 500
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal.safetensors (333 tensors)
+[train] saved C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.safetensors (333 tensors)
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\lora_phase2_3_f_formal.state.pt
+[train] saved training state C:\work\llm-compliance\runs\phase2_3_full_3000_20260729_0958\artifacts\checkpoints\latest.state.pt

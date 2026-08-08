@@ -139,6 +139,10 @@ class DemoPipeline:
         checkpoint: Path,
         device: str,
         max_new_tokens: int,
+        *,
+        lora_r: int = 16,
+        lora_alpha: int = 32,
+        f3000_mcr_sbc: bool = False,
     ) -> None:
         import torch
         from peft import set_peft_model_state_dict
@@ -155,6 +159,7 @@ class DemoPipeline:
         self.LABEL_ORDER = LABEL_ORDER
         self.IDX2LABEL = IDX2LABEL
         self.NUM_CLASSES = NUM_CLASSES
+        self.f3000_mcr_sbc = f3000_mcr_sbc
 
         print(f"[demo] loading adapter from {model_dir} on {device} ...")
         self.adapter = VLMAdapter(
@@ -171,7 +176,7 @@ class DemoPipeline:
         # is identical to ``scripts/train.py``.
         lora_cfg = TrainConfig(
             train_jsonl="", val_jsonl="", out_dir="",
-            lora_r=16, lora_alpha=32, lora_dropout=0.05,
+            lora_r=lora_r, lora_alpha=lora_alpha, lora_dropout=0.05,
             lora_target="q_proj,k_proj,v_proj,o_proj",
         )
         self.peft_model, self.n_lora = inject_lora(self.adapter.model, lora_cfg)
@@ -203,32 +208,73 @@ class DemoPipeline:
 
     # -- hot path ---------------------------------------------------------
 
-    def classify(self, text: str, image) -> dict:
-        """Run the LoRA + 3-class head on (text, image) and return a
-        dict with label / risk / per-class probs."""
+    def _classify_lora(
+        self,
+        text: str,
+        image,
+        *,
+        mcr_active: bool = False,
+        apply_f3000_calibration: bool = False,
+    ) -> dict:
+        """Classify with the loaded LoRA model and optional F-3000 policy."""
         import torch
+        import torch.nn.functional as F
 
         from mpid.data.prompt import build_prompt
 
-        prompt = build_prompt(text or "")
-        out = self.adapter.forward(prompt, image)
-        hidden = out["last_hidden"]  # (1, D) — inference_mode tensor
-        # ``inference_mode`` tensors are NOT autograd-friendly, and
-        # ``nn.Dropout`` (even in eval mode) always builds a backward
-        # graph. Wrap the head call in ``no_grad`` so the dropout
-        # layer can safely accept the hidden state without trying to
-        # save it for backward.
-        with torch.no_grad():
-            pred = self.head.predict(hidden)
-        probs = pred["probs"][0].cpu().tolist()
-        label = pred["label"][0]
-        risk = float(pred["risk"][0])
+        prompt_record = (
+            {
+                "prompt_version": "trusted_boundary_v2",
+                "content_role": "untrusted_image_ocr",
+            }
+            if mcr_active
+            else None
+        )
+        prompt = build_prompt(text or "", record=prompt_record)
+        encoded = self.adapter.preprocess(prompt, image)
+        self.peft_model.eval()
+        with torch.inference_mode():
+            out = self.peft_model(**encoded, output_hidden_states=True)
+            last_hidden = out.hidden_states[-1]
+            last_idx = encoded["attention_mask"].sum(dim=1) - 1
+            batch_idx = torch.arange(last_hidden.size(0), device=last_hidden.device)
+            pooled = last_hidden[batch_idx, last_idx]
+            logits = self.head(pooled)
+            if apply_f3000_calibration:
+                # R0 is global; SBC applies only after local OCR activates MCR.
+                logits[:, 2] += 0.55
+                if mcr_active:
+                    logits[:, 1] -= 0.20
+            probs_t = F.softmax(logits, dim=-1)
+            label_idx = int(probs_t.argmax(dim=-1)[0].item())
+            probs = probs_t[0].cpu().tolist()
+            risk = float(probs_t.max(dim=-1).values[0].item())
+            label = self.IDX2LABEL[label_idx]
         return {
             "label": label,
-            "label_idx": int(pred["label_idx"][0]),
+            "label_idx": label_idx,
             "risk": risk,
             "probs": probs,  # [P(clean), P(direct), P(indirect)]
+            "mcr_active": mcr_active,
         }
+
+    def classify(self, text: str, image) -> dict:
+        """Run the uncalibrated LoRA + 3-class head for comparison."""
+        return self._classify_lora(text, image)
+
+    def classify_f3000_mcr_sbc(self, text: str, image) -> dict:
+        """Run the frozen F-3000 MCR + R0/SBC head policy."""
+        from mpid.crossmodal import extract_ocr_text
+
+        ocr = extract_ocr_text(image)
+        result = self._classify_lora(
+            text,
+            image,
+            mcr_active=ocr.available and bool(ocr.text.strip()),
+            apply_f3000_calibration=True,
+        )
+        result["ocr_available"] = ocr.available
+        return result
 
     def generate(self, text: str, image) -> str:
         """Free-form generation with the base VLM (no head, no
@@ -367,6 +413,15 @@ def note_html(text: str) -> str:
         "<div style='margin:0;padding:10px;background:#f9fafb;"
         "border-radius:6px;line-height:1.45'>"
         f"{html.escape(text).replace(chr(10), '<br>')}</div>"
+    )
+
+
+def blocked_output_html(label: str, model_name: str) -> str:
+    """Show the intercepted injection type in the output slot."""
+    injection_type = LABEL_CN.get(label, label or "unknown")
+    return note_html(
+        f"已拦截：{injection_type}\n"
+        f"未调用 {model_name} 生成。"
     )
 
 
@@ -685,7 +740,7 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         if lora_result.output:
             mpid_output_body = code_html(lora_result.output)
         elif lora_result.action == "block":
-            mpid_output_body = note_html("发现注入风险,推理失败\n已拦截,未调用 LoRA 生成。")
+            mpid_output_body = blocked_output_html(label_pred, "LoRA")
         else:
             mpid_output_body = note_html("已放行,但 MPID 模型未产生输出。")
 
@@ -715,7 +770,11 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         # ---------- Third column: MPID + C4/C5/C6 lightweight path -------
         opt_result = run_optimized_pipeline(
             compare_record,
-            classify_fn=pipeline.classify,
+            classify_fn=(
+                pipeline.classify_f3000_mcr_sbc
+                if pipeline.f3000_mcr_sbc
+                else pipeline.classify
+            ),
             generate_fn=pipeline.generate_with_lora,
         )
         opt_head = opt_result.head or {}
@@ -725,10 +784,10 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         if opt_result.output:
             opt_output_body = code_html(opt_result.output)
         else:
-            opt_output_body = note_html(
-                "发现注入风险,推理失败\n已拦截或未触发生成。"
+            opt_output_body = (
+                blocked_output_html(opt_result.label, "LoRA")
                 if opt_result.action == "block"
-                else "已放行,但 LoRA 模型未产生输出。"
+                else note_html("已放行,但 LoRA 模型未产生输出。")
             )
         opt_latency_parts = [
             ("total", opt_result.timings.get("total_seconds", 0.0)),
@@ -751,14 +810,27 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         else:
             opt_stage_note = "优化调度器返回了未识别阶段。"
 
-        opt_header = (
-            OPT_HEADER_BLOCK_MD if opt_result.action == "block" else OPT_HEADER_PASS_MD
-        )
+        if pipeline.f3000_mcr_sbc:
+            opt_color = "#ef4444" if opt_result.action == "block" else "#22c55e"
+            opt_header = (
+                f"<span style='color:{opt_color}'>*</span> "
+                "MPID (F-3000-MCR-SBC)"
+            )
+        else:
+            opt_header = (
+                OPT_HEADER_BLOCK_MD if opt_result.action == "block" else OPT_HEADER_PASS_MD
+            )
         opt_mpid_judgement = (
             mpid_pass_markdown(label_gt, opt_label_pred, opt_risk)
             if opt_result.head
             else note_html("未执行 head。C5/C6 已在前置阶段完成判定。")
         )
+        if pipeline.f3000_mcr_sbc and opt_result.head:
+            opt_mpid_judgement += (
+                "<div>MCR: <code>active</code></div>"
+                if opt_head.get("mcr_active")
+                else "<div>MCR: <code>not triggered</code></div>"
+            )
         opt_c4c6_judgement = (
             f"<div>最终动作: <code>{opt_result.action}</code></div>"
             f"<div>最终标签: <code>{opt_result.label}</code></div>"
@@ -977,6 +1049,10 @@ def parse_args() -> argparse.Namespace:
                    help="Compute device (default: cpu; mac users may pass mps)")
     p.add_argument("--max-new-tokens", type=int, default=128,
                    help="Max tokens for the base VLM generation (default: 128)")
+    p.add_argument("--f3000-mcr-sbc", action="store_true",
+                   help="Use the frozen F-3000 MCR + R0/SBC policy in the optimized column")
+    p.add_argument("--ocr-models-dir", type=Path, default=None,
+                   help="RapidOCR ONNX models directory for F-3000-MCR-SBC")
     p.add_argument("--server-name", default="127.0.0.1",
                    help="Server bind address (default: 127.0.0.1)")
     p.add_argument("--server-port", type=int, default=7860,
@@ -997,6 +1073,13 @@ def main() -> int:
     print(f"[demo] samples  = {args.samples}")
     print(f"[demo] device   = {args.device}")
 
+    if args.f3000_mcr_sbc:
+        if args.ocr_models_dir is None:
+            args.ocr_models_dir = args.model_dir.parent / "ocr"
+        os.environ["MPID_OCR_MODELS_DIR"] = str(args.ocr_models_dir)
+        print("[demo] policy   = F-3000-MCR-SBC")
+        print(f"[demo] ocr_models= {args.ocr_models_dir}")
+
     # Sanity checks before the model load.
     if not args.model_dir.exists():
         print(f"[demo] ERROR: model dir not found: {args.model_dir}", file=sys.stderr)
@@ -1006,6 +1089,9 @@ def main() -> int:
         return 2
     if not args.samples.exists():
         print(f"[demo] ERROR: samples not found: {args.samples}", file=sys.stderr)
+        return 2
+    if args.f3000_mcr_sbc and not args.ocr_models_dir.exists():
+        print(f"[demo] ERROR: OCR models not found: {args.ocr_models_dir}", file=sys.stderr)
         return 2
 
     with open(args.samples, encoding="utf-8") as f:
@@ -1018,6 +1104,9 @@ def main() -> int:
         checkpoint=args.checkpoint,
         device=args.device,
         max_new_tokens=args.max_new_tokens,
+        lora_r=32 if args.f3000_mcr_sbc else 16,
+        lora_alpha=64 if args.f3000_mcr_sbc else 32,
+        f3000_mcr_sbc=args.f3000_mcr_sbc,
     )
     t_ready = time.perf_counter() - t0
     print(f"[demo] pipeline ready in {t_ready:.1f} s")

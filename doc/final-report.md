@@ -14,7 +14,7 @@
 
 本项目面向离线、隐私敏感和资源受限场景，构建轻量级多模态提示注入检测方案。任务将输入分为正常输入（`clean`）、直接提示注入（`direct`）和间接/多模态提示注入（`indirect`）三类。基础检测器为 SmolVLM-500M 加载 LoRA 与 MPID 三分类 head；在其上组合 C4/C5/C6 防线、本地 OCR 和可审计的推理校准，形成最终离线交付方案 **F-3000-MCR-SBC**。
 
-正式训练以策略 F 为基线，使用 3,000 条均衡训练样本完成至 `checkpoint_step_3000`。原始 head 在正式验收中出现 Indirect 类塌缩，因此项目保持 checkpoint 不变，仅在冻结的 smoke150 上选择并锁定运行时补强：R0 全局 Indirect logit offset `+0.55`、本地 OCR 驱动的多模态上下文路由（MCR）以及图像/OCR 分组的 Direct logit 校准（SBC `-0.20`）。full500 不参与上述参数选择。
+正式训练以策略 F 为基线，使用 3,000 条均衡训练样本完成至 `checkpoint_step_3000`。原始 head 在正式验收中出现 Indirect 类塌缩，因此项目保持 checkpoint 不变，仅在冻结的 smoke150 上选择并锁定运行时补强：本地 OCR 驱动的多模态上下文路由（MCR）和分组分数校准（SBC）。SBC 固定包含全局 Indirect logit `+0.55` 与仅在 MCR 激活时施加的 Direct logit `-0.20`。full500 不参与上述参数选择。
 
 最终完整离线 pipeline 在冻结 V2/full500 上取得 Accuracy **62.00%**、Macro F1 **59.28%**、Weighted F1 **61.32%**；clean/direct/indirect F1 分别为 **68.38% / 53.56% / 55.90%**。三类 Recall 均非零，满足预设的 Direct F1 >= 35% 和 Macro F1 >= 45% 门槛。最终方案已形成可移动离线 artifact、完整 checksum、离线 smoke、性能证据和发布审计。该结论只适用于锁定的模型、推理策略和 Benchmark v2，不构成对未知攻击或生产高并发环境的无条件安全承诺。
 
@@ -44,7 +44,7 @@
 | 输入 | 文本和可选图像 |
 | 安全任务 | `clean` / `direct` / `indirect` 三分类 |
 | 模型 | SmolVLM-500M + LoRA + MPID classification head |
-| 运行时防线 | C4 高置信 clean 放行、C5 规则、C6 本地 OCR / 跨模态检查、MCR、R0、SBC |
+| 运行时防线 | C4 高置信 clean 放行、C5 规则、C6 本地 OCR / 跨模态检查、MCR、SBC |
 | 不在范围内 | 云端安全服务、7B 以上模型横评、攻击自动化、生产级安全承诺、高并发实时服务 |
 
 `direct` 指攻击指令直接出现在用户文本中；`indirect` 指恶意指令位于图像或其他不可信外部内容中，或由图文组合形成。三分类而非二分类的原因是两类攻击依赖不同证据和防线，单一 Accuracy 无法揭示某一攻击类完全漏报的问题。
@@ -61,9 +61,9 @@
 C5 rules
   -> C6B-lite local OCR
   -> C6A compatibility check
-  -> MCR
+  -> MCR (Multimodal Context Routing)
   -> F-3000 LoRA + MPID head
-  -> R0 / SBC calibration
+  -> SBC (Scoped Bias Calibration)
   -> C4 clean gate
   -> block / allow
 ```
@@ -74,17 +74,16 @@ C5 rules
 | C5 | 对高确定性直接注入模式给出可解释短路 | 命中即 `direct`；未命中只表示继续检测，不表示安全 |
 | C6B-lite | 从图像像素做本地 OCR 并识别明确风险文本 | 使用随包 RapidOCR 权重；不读取 benchmark OCR 标注 |
 | C6A | 兼容性与跨模态风险检查 | 位于 OCR 之后、模型之前 |
-| MCR | 将本地 OCR 非空的图像标记为不可信图像文本上下文 | 仅由运行时像素 OCR 是否非空触发，使用 `untrusted_image_ocr` 结构化角色 |
-| R0 | 恢复 Indirect 类分数边界 | 全局 Indirect logit offset 固定为 `+0.55` |
-| SBC | 减少 MCR 场景下 Direct 偏置 | 仅在 MCR 激活时施加 Direct logit `-0.20` |
+| MCR（Multimodal Context Routing，多模态上下文路由） | 将本地 OCR 非空的图像标记为不可信图像文本上下文 | 仅由运行时像素 OCR 是否非空触发，使用 `untrusted_image_ocr` 结构化角色 |
+| SBC（Scoped Bias Calibration，分组分数校准） | 恢复 Indirect 分数边界，并减少 MCR 场景下的 Direct 偏置 | 全局 Indirect logit 固定 `+0.55`；仅在 MCR 激活时施加 Direct logit `-0.20` |
 | C4 | 对高置信 clean 做保守放行 | 阈值 `0.95`，且位于 C5/C6 之后，不绕过已知风险证据 |
 
 ### 2.2 设计原则
 
 1. **规则优先，语义兜底。** C5 与 C6B-lite 处理高确定性证据，剩余难例交给 VLM head。
 2. **不可信外部内容隔离。** MCR 将图像 OCR 作为不可信内容的角色边界，而不是把 benchmark 中的 OCR 标注文字注入模型。
-3. **校准与训练分离。** R0、MCR、SBC 都是推理策略，不改变 LoRA、optimizer、训练数据或 checkpoint。
-4. **先选策略，再做盲验收。** R0 与 SBC 均在 smoke150 锁定，full500 只用于一次最终验收，不能再用于调参。
+3. **校准与训练分离。** MCR 与 SBC 都是推理策略，不改变 LoRA、optimizer、训练数据或 checkpoint。
+4. **先选策略，再做盲验收。** SBC 的两项分数校准均在 smoke150 锁定，full500 只用于一次最终验收，不能再用于调参。
 5. **保留决策证据。** 输出可追溯至规则命中、OCR 分支、MCR 激活、head fallback 或校准阶段。
 
 ---
@@ -143,17 +142,17 @@ Full-3000 的第一阶段是在冻结 V2/smoke150 上，以相同评测脚本和
 | 尝试 | 是否改变训练权重 | 处理与结论 |
 |---|---|---|
 | 原始 step3000 head | 否 | full500 的 Indirect F1 为 0，存在类别塌缩，不能作为最终方案 |
-| R0 | 否 | 在 smoke 锁定 Indirect offset `+0.55`；仅部分恢复 Indirect，仍不够 |
+| SBC 的全局 Indirect 校准 | 否 | 在 smoke 锁定 Indirect logit `+0.55`；仅部分恢复 Indirect，仍不足以作为最终方案 |
 | step2250/3000 logits ensemble | 否 | 未改善三类平衡，不采用 |
 | 条件 OCR rescue / OCR 文本注入 | 否 | smoke 未达到基线或带来误报，不采用 |
 | MCR | 否 | 将本地 OCR 非空图像置于 `untrusted_image_ocr` 角色，恢复图像/OCR 边界 |
-| SBC | 否 | 在 MCR 场景固定 Direct logit `-0.20`，与 R0、MCR 组成最终策略 |
+| SBC 的 MCR 分组校准 | 否 | 在 MCR 场景固定 Direct logit `-0.20`；与 MCR 共同构成最终运行时补强 |
 
 原始 step3000 head 的 V2/full500 结果为 Accuracy 56.60%、Macro F1 38.89%、clean/direct/indirect F1 为 67.19% / 49.48% / 0.00%。这说明 loss 收敛和 checkpoint 成功保存不等同于安全三分类达到要求，也说明最终提升主要来自“固定 F-3000 head + 明确的运行时证据与校准”这一组合，而不是重新训练出另一套 LoRA 权重。
 
 ---
 
-## 4. 数据、评测协议与审计边界
+## 4. V2/full500 评测方案与最终结果
 
 ### 4.1 冻结 Benchmark v2
 
@@ -176,29 +175,9 @@ Macro F1 是主指标，因为它能惩罚仅预测多数类或遗漏某个攻�
 
 ---
 
-## 5. 最终 V2/full500 结果
+### 4.3 MPID LoRA-only 与完整优化链路的同基准对照
 
-### 5.1 完整离线 pipeline 指标
-
-| 指标 | F-3000-MCR-SBC 结果 |
-|---|---:|
-| Accuracy | **62.00%** |
-| Macro F1 | **59.28%** |
-| Weighted F1 | **61.32%** |
-| clean Precision / Recall / F1 | 63.27% / 74.40% / 68.38% |
-| direct Precision / Recall / F1 | 65.83% / 45.14% / 53.56% |
-| indirect Precision / Recall / F1 | 52.33% / 60.00% / 55.90% |
-| 预测数（clean/direct/indirect） | 294 / 120 / 86 |
-| C5 命中 / C6B-lite 命中 / head fallback | 35 / 40 / 425 |
-| MCR 激活 | 40 |
-
-所有预设门槛均已通过。完整预测、报告和运行日志位于 [offline_f_3000_mcr_sbc_v2_full500](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/offline_f_3000_mcr_sbc_v2_full500)。
-
-### 5.2 结果解读
-
-#### 5.2.1 MPID LoRA-only 与完整优化链路的同基准对照
-
-两行均使用相同的 `checkpoint_step_3000`、相同的冻结 V2/full500 输入和同一三分类任务定义。`MPID LoRA-only` 只运行 LoRA + MPID head；最终方案在该 head 外叠加 C4/C5/C6、MCR、R0 和 SBC。因此，该表衡量的是固定 F-3000 权重下完整离线防线的端到端增量，而不是新 checkpoint 带来的增量。
+两行均使用相同的 `checkpoint_step_3000`、相同的冻结 V2/full500 输入和同一三分类任务定义。`MPID LoRA-only` 只运行 LoRA + MPID head；最终方案在该 head 外叠加 C4/C5/C6、MCR 和 SBC。因此，该表衡量的是固定 F-3000 权重下完整离线防线的端到端增量，而不是新 checkpoint 带来的增量。
 
 | 指标 | MPID LoRA-only | F-3000-MCR-SBC（LoRA + 全部优化） | 增量 |
 |---|---:|---:|---:|
@@ -209,26 +188,27 @@ Macro F1 是主指标，因为它能惩罚仅预测多数类或遗漏某个攻�
 | direct Precision / Recall / F1 | 63.39% / 40.57% / 49.48% | 65.83% / 45.14% / 53.56% | F1 **+4.08pp** |
 | indirect Precision / Recall / F1 | 0.00% / 0.00% / 0.00% | 52.33% / 60.00% / 55.90% | F1 **+55.90pp** |
 | 预测完整性 | 500 / 500 | 500 / 500 | 完整 |
+| 平均判定耗时 | **11.69 秒/条** | 未以同口径持久化记录 | 暂不能给出可信增量 |
 
 原始 LoRA-only 报告位于 [full_step_3000](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/formal_f_benchmark_v2/full_step_3000)，最终完整链路报告位于 [offline_f_3000_mcr_sbc_v2_full500](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/offline_f_3000_mcr_sbc_v2_full500)。两次均已产出完整 `predictions.jsonl`；最终方案的 500 条预测未出现 NaN、Inf 或 traceback。
 
-#### 5.2.2 结果解读
+### 4.4 正确性、效率与审计结论
 
 1. **三类攻击不再被单类优势掩盖。** Indirect Recall 60.00%、Indirect F1 55.90%，解决了原始 F-3000 head 的 Indirect F1 为 0 的失效模式。
 2. **直接注入仍是优先改进项。** Direct Recall 为 45.14%，175 条 Direct 中仍有 96 条没有被最终判为 Direct；后续应按规则漏报、改写攻击、Unicode 混淆和语义边界分桶分析。
-3. **分层组合有可测增益。** 仅含 MCR+SBC 的 head full500 验收 Macro F1 为 56.80%；完整 C5/C6B-lite 链路达到 59.28%，增加 2.48 个百分点。
-4. **OCR 路径是可审计的运行时证据。** C6B-lite 基于本地 OCR 像素证据短路 40 条样本，另有 40 条 OCR 非空图像激活 MCR；两种路径均不使用 benchmark 标注字段。
+3. **效率比较存在已知数据缺口。** 原始 LoRA-only full500 的总耗时为 5,846.5 秒，即 11.69 秒/条；最终完整离线 pipeline 的同口径 full500 总耗时没有在发布日志中持久化。为避免用分路径性能证据替代端到端均值，本报告不推导或虚构最终平均耗时。下一次不调参的回归验收应在相同硬件、相同启动条件下补记该单一指标，届时才能完成严格的效率横向结论。
+4. **工程审计通过。** 最终链路生成 500/500 条预测且无 NaN、Inf 或 traceback；发布清单 94 项、包内 checksum、断网 smoke 和 ZIP CRC 均通过。C5/C6B-lite、OCR 与 MCR 的决策证据均来自运行时本地输入，不读取 benchmark 标签或 OCR 标注。
 
 ---
 
-## 6. 离线交付、性能与复现
+## 5. 离线交付与复现
 
-### 6.1 最终 artifact
+### 5.1 最终 artifact
 
 推荐交付目录：[runs/_artifact/F-3000-MCR-SBC](/C:/work/llm-compliance/runs/_artifact/F-3000-MCR-SBC)。它包含：
 
 1. 固定的 `checkpoint_step_3000.safetensors`、SmolVLM-500M 与 RapidOCR 权重；
-2. 含 MCR/R0/SBC 和 C4/C5/C6 的离线推理代码；
+2. 含 MCR/SBC 和 C4/C5/C6 的离线推理代码；
 3. `MANIFEST.json`、`CHECKSUMS.txt`、发布清单和发布审计；
 4. 包内 `smoke_offline.py`、图像 smoke fixture、full500 报告和性能证据。
 
@@ -254,21 +234,27 @@ python mpid_offline/smoke_offline.py --pkg mpid_offline --stage-root offline_smo
 {"text":"待检测文本","image":"可选本地图片路径"}
 ```
 
-### 6.2 性能边界
-
-| 路径 | P50 或峰值 |
-|---|---:|
-| C5 直接规则短路 | 6.81 ms |
-| C6B OCR 拦截 | 203.34 ms |
-| 文本 VLM head | 9,201.95 ms |
-| 图像 MCR/head | 8,671.17 ms |
-| 常驻峰值 RSS | 3,004.0 MB |
-
-该方案适合离线批处理、人工辅助审计和低吞吐端侧防护；当前性能不支持高并发实时服务的声明。
+该方案适合离线批处理、人工辅助审计和低吞吐端侧防护；当前性能不支持高并发实时服务的声明。分路径性能证据随交付包保留，但不替代第 4 章中要求的端到端平均判定耗时对比。
 
 ---
 
-## 7. 结论、限制与后续建议
+## 6. 方案未来展望
+
+### 6.1 数据与独立评测
+
+当前结果证明冻结 V2/full500 上的方案可用，但不能替代跨域泛化结论。下一阶段应扩充中文、英文、中英混合、Unicode 混淆、OCR 噪声和图文语义冲突样本，并增加真实或更贴近真实的间接注入载体。所有规则、校准或训练变体都应在新的冻结留出集上进行逐层消融：LoRA-only、+MCR、+SBC、+C5/C6 与完整 pipeline，并按图像/OCR、语言、攻击来源和风险强度报告子集指标；不得继续用当前 full500 搜索参数。
+
+### 6.2 模型与防御架构
+
+Direct 漏报仍是当前最明确的质量瓶颈，应围绕改写攻击、引用型攻击、角色伪装和 Unicode 混淆建立困难样本桶。若要继续训练，应保持 `checkpoint_step_3000` 可回退，并单独冻结新的训练/验证协议。当前 LoRA 只作用于语言侧，是在数据规模、视觉对齐风险和平台稳定性约束下的工程取舍；当获得更大规模、高质量图像间接注入数据和稳定 GPU 资源后，可受控验证视觉侧或跨模态投影层的 LoRA，但不能直接假定其一定优于当前 C6/MCR 的模块化分工。
+
+### 6.3 效率与工程化
+
+最终包已经满足离线、可移动和可审计要求，但尚不适合高并发实时服务。应优先补齐最终完整 pipeline 的同口径 full500 总耗时和平均判定耗时，再扩展冷启动、P50/P95、吞吐、峰值内存和 OCR 失败回退测量；在不降低三类安全门槛的前提下，评估 C4 的实际早退收益、量化/ONNX 等推理引擎优化，以及 CPU/GPU/边缘设备上的可复现部署。工程侧应继续完善依赖锁定、模型版本治理、自动化完整性校验、回归测试和人工复核接口。
+
+---
+
+## 7. 结论与适用边界
 
 ### 7.1 最终结论
 
@@ -276,19 +262,10 @@ python mpid_offline/smoke_offline.py --pkg mpid_offline --stage-root offline_smo
 
 ### 7.2 适用边界
 
-1. 本结论只适用于当前 checkpoint、R0 `+0.55`、SBC `-0.20`、C4-C6 版本和冻结 Benchmark v2。
-2. R0/MCR/SBC 是推理策略，不应被表述为新的微调模型或新的 LoRA 权重。
+1. 本结论只适用于当前 checkpoint、SBC 的锁定分数校准、C4-C6 版本和冻结 Benchmark v2。
+2. MCR/SBC 是推理策略，不应被表述为新的微调模型或新的 LoRA 权重。
 3. 不能在当前 full500 上继续搜索阈值、offset 或规则；任何后续变体须使用新的、未参与选择的冻结评测集验收。
 4. Direct 漏报、OCR 噪声、未知攻击形式、低质量图像和跨平台运行差异仍是主要风险。
-
-### 7.3 后续建议
-
-1. 基于 Direct 漏报建立困难样本桶，重点补充改写攻击、Unicode 混淆、引用型攻击和角色伪装。
-2. 以新的独立验证集做逐层消融：LoRA-only、+R0、+MCR、+SBC、+C5/C6 与完整 pipeline，并按图像/OCR、语言和攻击来源报告子集指标；不得在当前 full500 上继续搜索这些参数。
-3. 如需进一步通过训练改善模型，应单独提出新的训练方案、冻结新的验证集，并保留当前 `checkpoint_step_3000` 作为可回退基线。
-4. 针对生产部署，增加吞吐、内存上限、OCR 失败回退、模型完整性和人工复核流程的系统级验收。
-
----
 
 ## 附录：证据与历史记录原则
 

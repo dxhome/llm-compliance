@@ -2,7 +2,7 @@
 
 > **报告版本**：v2.0
 >
-> **完成日期**：2026-08-08
+> **完成日期**：2026-08-09
 >
 > **最终方案**：`F-3000-MCR-SBC`
 >
@@ -188,15 +188,18 @@ Macro F1 是主指标，因为它能惩罚仅预测多数类或遗漏某个攻�
 | direct Precision / Recall / F1 | 63.39% / 40.57% / 49.48% | 65.83% / 45.14% / 53.56% | F1 **+4.08pp** |
 | indirect Precision / Recall / F1 | 0.00% / 0.00% / 0.00% | 52.33% / 60.00% / 55.90% | F1 **+55.90pp** |
 | 预测完整性 | 500 / 500 | 500 / 500 | 完整 |
-| 平均判定耗时 | **11.69 秒/条** | 未以同口径持久化记录 | 暂不能给出可信增量 |
+| 总体平均判定耗时（模型加载后） | 14.06 秒/条 | **10.56 秒/条** | **-3.49 秒/条（-24.86%）** |
+| clean 平均判定耗时（250 条） | 14.07 秒/条 | **12.02 秒/条** | **-2.06 秒/条（-14.62%）** |
+| direct 平均判定耗时（175 条） | 14.53 秒/条 | **10.51 秒/条** | **-4.01 秒/条（-27.63%）** |
+| indirect 平均判定耗时（75 条） | 12.91 秒/条 | **5.83 秒/条** | **-7.07 秒/条（-54.80%）** |
 
-原始 LoRA-only 报告位于 [full_step_3000](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/formal_f_benchmark_v2/full_step_3000)，最终完整链路报告位于 [offline_f_3000_mcr_sbc_v2_full500](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/offline_f_3000_mcr_sbc_v2_full500)。两次均已产出完整 `predictions.jsonl`；最终方案的 500 条预测未出现 NaN、Inf 或 traceback。
+正确性报告分别位于 [full_step_3000](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/formal_f_benchmark_v2/full_step_3000) 与 [offline_f_3000_mcr_sbc_v2_full500](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/offline_f_3000_mcr_sbc_v2_full500)。按类计时产物分别位于 [full_step_3000_timed_by_class](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/formal_f_benchmark_v2/full_step_3000_timed_by_class) 与 [offline_f_3000_mcr_sbc_v2_full500_timed_by_class](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/offline_f_3000_mcr_sbc_v2_full500_timed_by_class)。两次计时回归均生成 500 条预测，且未出现 NaN、Inf 或 traceback；标签只在推理完成后用于类别分组。
 
 ### 4.4 正确性、效率与审计结论
 
 1. **三类攻击不再被单类优势掩盖。** Indirect Recall 60.00%、Indirect F1 55.90%，解决了原始 F-3000 head 的 Indirect F1 为 0 的失效模式。
 2. **直接注入仍是优先改进项。** Direct Recall 为 45.14%，175 条 Direct 中仍有 96 条没有被最终判为 Direct；后续应按规则漏报、改写攻击、Unicode 混淆和语义边界分桶分析。
-3. **效率比较存在已知数据缺口。** 原始 LoRA-only full500 的总耗时为 5,846.5 秒，即 11.69 秒/条；最终完整离线 pipeline 的同口径 full500 总耗时没有在发布日志中持久化。为避免用分路径性能证据替代端到端均值，本报告不推导或虚构最终平均耗时。下一次不调参的回归验收应在相同硬件、相同启动条件下补记该单一指标，届时才能完成严格的效率横向结论。
+3. **完整链路同时改善总体与分类判定效率。** 在模型加载完成后、相同的逐条 full500 计时口径下，本轮 LoRA-only 总耗时为 7,028.2 秒（14.06 秒/条），完整 pipeline 为 5,280.9 秒（10.56 秒/条），平均每条减少 3.49 秒（24.86%）。按 gold 类别分组，Direct 和 Indirect 的降幅最大，分别为 27.63% 和 54.80%，符合 C5/C6B-lite 对明确攻击证据进行短路的设计预期；clean 也降低 14.62%，并未出现“完整链路必然更慢”的现象。该结果来自同机串行的一次测量，适合作为当前交付包的回归证据，不等价于冷启动、高并发吞吐或跨硬件的性能承诺。
 4. **工程审计通过。** 最终链路生成 500/500 条预测且无 NaN、Inf 或 traceback；发布清单 94 项、包内 checksum、断网 smoke 和 ZIP CRC 均通过。C5/C6B-lite、OCR 与 MCR 的决策证据均来自运行时本地输入，不读取 benchmark 标签或 OCR 标注。
 
 ---
@@ -234,7 +237,7 @@ python mpid_offline/smoke_offline.py --pkg mpid_offline --stage-root offline_smo
 {"text":"待检测文本","image":"可选本地图片路径"}
 ```
 
-该方案适合离线批处理、人工辅助审计和低吞吐端侧防护；当前性能不支持高并发实时服务的声明。分路径性能证据随交付包保留，但不替代第 4 章中要求的端到端平均判定耗时对比。
+该方案适合离线批处理、人工辅助审计和低吞吐端侧防护；当前性能不支持高并发实时服务的声明。端到端 full500 的总体与分类计时补测产物位于 [offline_f_3000_mcr_sbc_v2_full500_timed_by_class](/C:/work/llm-compliance/runs/phase2_3_full_3000_20260729_0958/artifacts/offline_f_3000_mcr_sbc_v2_full500_timed_by_class)，分路径性能证据随交付包保留，用于部署诊断而非替代端到端对比。
 
 ---
 
@@ -250,7 +253,7 @@ Direct 漏报仍是当前最明确的质量瓶颈，应围绕改写攻击、引�
 
 ### 6.3 效率与工程化
 
-最终包已经满足离线、可移动和可审计要求，但尚不适合高并发实时服务。应优先补齐最终完整 pipeline 的同口径 full500 总耗时和平均判定耗时，再扩展冷启动、P50/P95、吞吐、峰值内存和 OCR 失败回退测量；在不降低三类安全门槛的前提下，评估 C4 的实际早退收益、量化/ONNX 等推理引擎优化，以及 CPU/GPU/边缘设备上的可复现部署。工程侧应继续完善依赖锁定、模型版本治理、自动化完整性校验、回归测试和人工复核接口。
+最终包已经满足离线、可移动和可审计要求，但尚不适合高并发实时服务。完整 pipeline 的同口径 full500 总耗时和平均判定耗时已补齐；下一步应扩展冷启动、P50/P95、吞吐、峰值内存和 OCR 失败回退测量，并在不降低三类安全门槛的前提下，评估 C4 的实际早退收益、量化/ONNX 等推理引擎优化，以及 CPU/GPU/边缘设备上的可复现部署。工程侧应继续完善依赖锁定、模型版本治理、自动化完整性校验、回归测试和人工复核接口。
 
 ---
 

@@ -971,7 +971,7 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         sample_dd = gr.Dropdown(
             choices=[(title, idx) for title, idx in sample_choices],
             value=samples[0]["index"],
-            label="📦 预置样本 (clean × 3 / direct × 3 / indirect × 2)",
+            label="📦 Benchmark v2 预置样本 (clean × 5 / direct × 5 / indirect × 5)",
             interactive=True,
             elem_id="sample-dropdown",
         )
@@ -1096,8 +1096,8 @@ def main() -> int:
 
     with open(args.samples, encoding="utf-8") as f:
         samples = json.load(f)
-    if len(samples) != 8:
-        print(f"[demo] WARNING: expected 8 samples, got {len(samples)}", file=sys.stderr)
+    if len(samples) != 15:
+        print(f"[demo] WARNING: expected 15 samples, got {len(samples)}", file=sys.stderr)
 
     pipeline = DemoPipeline(
         model_dir=args.model_dir,

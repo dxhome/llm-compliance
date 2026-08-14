@@ -454,7 +454,7 @@ def render_comparison_table(columns: list[dict[str, str]]) -> str:
     header = (
         "<tr>"
         + "".join(
-            "<th style='width:33%;text-align:left;vertical-align:bottom;"
+            "<th style='width:33.333%;min-width:0;text-align:left;vertical-align:bottom;"
             "padding:0 12px 8px 0;border:0!important;border-color:transparent!important;"
             "background:transparent!important;font-size:22px;font-weight:700;line-height:1.2'>"
             f"{col['header']}</th>"
@@ -465,7 +465,7 @@ def render_comparison_table(columns: list[dict[str, str]]) -> str:
     body = "\n".join(
         "<tr>"
         + "".join(
-            "<td style='vertical-align:top;padding:10px 12px 10px 0;"
+            "<td style='width:33.333%;min-width:0;vertical-align:top;padding:10px 12px 10px 0;"
             "border:0!important;border-color:transparent!important;"
             "background:transparent!important'>"
             f"{titled_cell(label, col[key])}</td>"
@@ -475,7 +475,7 @@ def render_comparison_table(columns: list[dict[str, str]]) -> str:
         for label, key in row_defs
     )
     return (
-        "<table class='comparison-table' style='width:100%;border-collapse:collapse;"
+        "<table class='comparison-table' style='width:100%;table-layout:fixed;border-collapse:collapse;"
         "border:0!important;border-color:transparent!important;"
         "font-size:14px;line-height:1.45;background:transparent!important'>"
         f"{header}{body}</table>"
@@ -950,6 +950,29 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
                 background: transparent !important;
                 box-shadow: none !important;
             }
+            #comparison-output,
+            #comparison-output .prose {
+                width: 100% !important;
+                max-width: none !important;
+                min-width: 0 !important;
+            }
+            #comparison-output .comparison-table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed !important;
+            }
+            #comparison-output .comparison-table th,
+            #comparison-output .comparison-table td,
+            #comparison-output .comparison-table div,
+            #comparison-output .comparison-table pre {
+                min-width: 0 !important;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+            #comparison-output .comparison-table pre {
+                max-width: 100% !important;
+                overflow-x: auto;
+            }
         """,
     ) as app:
         gr.Markdown(
@@ -999,7 +1022,7 @@ def build_app(pipeline: DemoPipeline, samples: list[dict]) -> "gr.Blocks":
         run_btn = gr.Button("▶ 运行对比 (Run)", variant="primary")
 
         # --- 4. Aligned comparison table --------------------------------
-        comparison_out = gr.Markdown()
+        comparison_out = gr.Markdown(elem_id="comparison-output")
 
         # Wire up the callbacks.
         mode_radio.change(

@@ -1,65 +1,39 @@
-# 文档目录
+# 文档导航
 
-本目录汇集本项目的全部正式文档。
+> **项目状态**：已完成
+>
+> **最终方案**：`F-3000-MCR-SBC`
+>
+> **最终验收**：冻结 Standard Benchmark v2/full500，Accuracy 62.00%，Macro F1 59.28%。
 
-## 最新实验状态（2026-08-01）
+本目录按“结论、立项、复现、归档”组织。模型、数据集、checkpoint、评测预测和离线 artifact 是本地大文件，均不进入 Git；文档中的 `runs/` 路径用于在已恢复本地资产的环境中追溯证据。
 
-- Full-3000 的 A-H 策略已在同一份冻结 `MPID Standard Benchmark v2/smoke`（150 条）完成横评；F 的 Macro F1 为 40.72%、direct F1 为 33.73%，是当前最平衡的候选，但未达到 45% / 35% 放行门槛。
-- F2 仅将 F 的 `direct_margin` 从 0.35 调整为 0.55；完成 120-step smoke 和同集评测后，Macro F1 为 40.13%、direct F1 仍为 33.73%，未优于 F。
-- 因此正式 3000-step 训练继续禁止启动，且 `runs/phase2_3_full_3000_20260729_0958/artifacts/checkpoints/` 中没有正式 checkpoint。
-- 完整口径、A-H/F2 对比与审计路径见 [reference.md 第 3 章](reference.md#3-测试结果汇总) 和 [F2 审计报告](../runs/phase2_3_full_3000_20260729_0958/artifacts/smoke_f2/smoke_f2_benchmark_v2_audit.md)。
+## 推荐阅读
 
-## 当前运行目录约定
+1. [final-report.md](final-report.md)：最终方案、量化结果、训练收敛、pipeline、artifact 与适用边界。
+2. [project-plan-and-verification.md](project-plan-and-verification.md)：项目完成项、验收证据、最小验证命令、事故复盘和后续限制。
+3. [reference.md](reference.md)：威胁模型、LoRA、代码解读、平台命令、历史实验记录和排障细节。
+4. [opening-report-vlm.md](opening-report-vlm.md)：当前 VLM 路线的开题报告。
 
-本项目的本地执行状态统一收敛到顶层 `runs/` 目录。旧的顶层本地目录 `configs/`、`data/`、`models/`、`artifacts/`、`logs/` 不应再新建或继续作为执行入口。
+## 文档职责
 
-- `runs/<run_id>/` 表示一次独立端到端执行，包含该次执行自己的 `configs/`、`data/`、`artifacts/`、`logs/`、`scripts/`、`execution_plan.*` 和 `execution_log.md`。
-- 具体 run 目录必须带时间后缀，例如 `runs/phase2_2_balanced_600_20260718_1955/`。
-- `runs/_datasets/`、`runs/_models/`、`runs/_templates/`、`runs/_manual/` 是共享的本地数据、模型、模板和手动输出目录。
-- 整个 `runs/` 已加入 `.gitignore`；其中的 run-local 配置、数据、checkpoint、日志、离线包和 launcher 都是本地执行资产，不进入 git。
-- 顶层 `scripts/` 只保留通用脚本；具体执行的 PowerShell launcher 放在 `runs/<run_id>/scripts/`，通用模板入口为 `scripts/run_phase2_workflow.ps1`。
-
-## 文档清单
-
-| 文档 | 用途 | 读者 |
+| 文档 | 状态 | 读者与用途 |
 |---|---|---|
-| [opening-report-vlm.md](opening-report-vlm.md) | **课题开题报告（独立版 v0.3·轻量级 VLM 专用）**：基于 **SmolVLM-500M** 单一 VLM 的离线多模态提示注入检测；**算法优化为核心研究内容**（**C4 早退机制** / **C5 规则前置过滤** / **C6 跨模态自检**）；强调离线 AI 趋势、defense-in-depth 多层防御与独立自洽 | 评审专家、导师、答辩组（开题提交）|
-| [reference.md](reference.md) | **项目参考手册（FAQ 速查 v4.0）**：Phase 0A/0/1/2 详解、**核心概念速查（2.A 威胁模型 / 2.B 数据集构造 / 2.C EDA / 2.D Macro F1）**、框架 vs 能力辨析、7 步端到端校验、Phase 2.2 可复制执行流程、Windows/macOS 分流命令、常见坑、术语表、速查卡片 | 项目作者（开发/执行时快速回看） |
-| [tasks.md](tasks.md) | **任务分解**：与 VLM 开题报告（v0.3）严格对应；分阶段任务（含 Phase 0A 准备阶段、Phase 3/4/5 三项算法优化 C4/C5/C6、Phase 6 攻防基线评测、Phase 7 项目整理），依赖图、风险缓冲 | 项目执行者 |
-| [opening-report-formal.md](opening-report-formal.md) | **课题开题报告（级联方案·v1.2）**：OCR + XLM-RoBERTa + CLIP 的级联式检测路线，作为 **VLM 方案的对照参考** | 备查、对照 |
-| [opening-report-reference.md](opening-report-reference.md) | **课题开题报告（参考存档·历史版本）**：早期详尽版，**不维护，仅供查阅完整背景与方法论** | 备查 |
-| [VERIFICATION.md](VERIFICATION.md) | **验收报告**：各 Phase 验收清单与执行记录 | 项目审计 |
-| [README.md](README.md) | 本文件：文档目录与版本说明 | 所有读者 |
+| [final-report.md](final-report.md) | 当前权威结论 | 答辩、交付、结果引用 |
+| [project-plan-and-verification.md](project-plan-and-verification.md) | 当前执行归档 | 复现、审计、项目回顾 |
+| [reference.md](reference.md) | 当前技术手册 | 开发、排障、理解实现与历史决策 |
+| [opening-report-vlm.md](opening-report-vlm.md) | 保留 | VLM 路线开题材料 |
+| [opening-report-formal.md](opening-report-formal.md) | 保留 | 级联方案的对照开题材料 |
+| [opening-report-reference.md](opening-report-reference.md) | 历史存档 | 早期背景和方法论参考 |
 
-> **威胁模型**：原独立文件 `threat_model.md`（C1 产出）已合并到 [reference.md](reference.md) § 2.1。
+## 已迁移文档
 
-## 文档定位
+- 原 `tasks.md` 与 `VERIFICATION.md` 已合并为 [project-plan-and-verification.md](project-plan-and-verification.md)，避免计划、验收和最终状态互相矛盾。
+- 原 `phase2_workflow_ops.md` 已删除；Phase 2.2 的历史操作说明和当前复现入口已归入 [reference.md](reference.md) 与执行验证归档。
 
-- **`opening-report-vlm.md`（v0.3）**：当前**权威**开题报告，面向"轻量级 VLM 端到端 + 算法优化"路线，所有任务实施以本文件为准。
-- **`reference.md`（v4.0）**：执行期间的**速查手册**——Phase 2 细节、框架/能力区分、Macro F1 解读、Phase 2.2 可复制执行流程、Windows/macOS 分流命令、常见坑等都集中在此，不用每次去翻长篇文档。
-- **`opening-report-formal.md`（v1.2）**：级联式方案的开题报告，作为**VLM 方案的对照参考**，保留但不再作为主交付物。
-- **`opening-report-reference.md`（v0.2）**：历史参考存档，不维护。
-- **`tasks.md`（v2.0）**：与 `opening-report-vlm.md` v0.3 严格对应的执行计划。
+## 本地资产约定
 
-> **权威源**：`opening-report-vlm.md` → `tasks.md`。
-> **执行速查**：`reference.md`（开发/调试时随时翻）。
-
-## 阅读顺序建议
-
-- **开题提交 / 答辩汇报**：用 `opening-report-vlm.md`；
-- **开发执行 / 调试 bug**：用 `reference.md`（看 Phase 2 详解、常见坑、Macro F1 解读）；
-- **项目执行 / 任务分配**：用 `tasks.md`；
-- **查阅历史背景与级联方案对照**：用 `opening-report-reference.md` / `opening-report-formal.md`；
-- **了解本目录结构**：用 `README.md`（本文件）。
-
-## 文档版本
-
-| 文档 | 版本 | 最后更新 |
-|---|---|---|
-| opening-report-vlm.md | v0.3（独立自洽·轻量级 VLM 专用） | 2026-07-13 |
-| reference.md | v4.2（统一 Standard Benchmark 结果口径） | 2026-08-01 |
-| tasks.md | v2.0（对齐 vlm 开题报告 v0.3） | 2026-07-13 |
-| opening-report-formal.md | v1.2（级联方案·对照参考） | 2026-07-13 |
-| opening-report-reference.md | v0.2（参考存档） | 2026-07-13 |
-| VERIFICATION.md | v1.0 | 2026-07-13 |
-| README.md | v1.4 | 2026-08-01 |
+- `runs/<run_id>/`：一次训练或评测的本地执行资产，包括配置、脚本、日志和不进入 Git 的数据/模型/产物。
+- `runs/_artifact/F-3000-MCR-SBC/`：最终可移动离线交付包的本地位置。
+- `runs/_models/` 与 `runs/_datasets/`：共享模型和数据缓存。
+- 需要完整推理时，从受控存储恢复上述资产；仅验证代码编排时可直接运行测试与轻量 pipeline smoke。具体命令见 [project-plan-and-verification.md](project-plan-and-verification.md#3-最小复现与验证)。

@@ -1,8 +1,8 @@
 # MPID Phase 2.5 · Demo
 
 > **目标**:用最直观的方式展示本项目"Base VLM 易被注入攻击 → + LoRA + 3-class head 后能识别并拦截"的对比。
-> 决策记录:方案 C(Gradio 网页)作为唯一交付方案,见 [doc/reference.md](../doc/reference.md) § 3.x。
-> 任务分解:[doc/tasks.md](../doc/tasks.md) § Phase 2.5。
+> 本目录保留早期 Gradio 演示原型；最终能力结论和离线交付以 [最终报告](../doc/final-report.md) 为准。
+> 演示任务与实测归档见 [project-plan-and-verification.md](../doc/project-plan-and-verification.md)。
 
 本目录是端到端自洽的子项目,只依赖核心 `src/mpid/` 包的导入,本身不修改核心代码。
 
@@ -104,7 +104,7 @@ python demo/gradio_app.py --server-port 8080 --share
 | 7 | indirect | figstep | **读图后被诱导生成危险内容** | `indirect` (高置信) |
 | 8 | indirect | figstep | 同上 | `indirect` (高置信) |
 
-> 实际结果与上述预期的差距是**核心验收标准**。`doc/VERIFICATION.md`
+> 实际结果与上述预期的差距应记录在项目执行与验证归档中，而不是作为最终模型能力结论。
 > § Phase 2.5 段记录实际跑出的 8 条结果。
 
 ## 4. 已知限制

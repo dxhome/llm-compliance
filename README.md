@@ -1,335 +1,228 @@
-# MPID — Multimodal Prompt Injection Defense
+# MPID - Multimodal Prompt Injection Defense
 
-> **面向离线场景的轻量级多模态提示注入防御系统**。
-> 一套**backbone-agnostic** 的检测算法框架：同一套训练/评测/部署代码既能在本项目选用的
-> SmolVLM-500M 上跑，也能平滑迁移到 7B / 13B 规模的视觉-语言模型继续研究。
+> 面向离线、隐私敏感和资源受限场景的轻量级多模态提示注入检测项目。
+>
+> 最终方案：`F-3000-MCR-SBC`。在冻结 Standard Benchmark v2/full500 上取得 Accuracy **62.00%**、Macro F1 **59.28%**。
 
-[![phase](https://img.shields.io/badge/Phase%205-C4%2FC5%2FC6%20完成-green)](doc/VERIFICATION.md#phase-5--c6-跨模态自检)
-[![macro-f1](https://img.shields.io/badge/Macro%20F1-85.5%25-brightgreen)](doc/reference.md#31-核心结论摘要)
-[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](pyproject.toml)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
+[![final-macro-f1](https://img.shields.io/badge/final%20Macro%20F1-59.28%25-brightgreen)](doc/final-report.md)
 
 ---
 
 ## 目录
 
 1. [项目是什么](#1-项目是什么)
-2. [最终目标长什么样](#2-最终目标长什么样)
-3. [核心成果](#3-核心成果)
-4. [从 0 跑通：7 步上手指南](#4-从-0-跑通7-步上手指南)
+2. [最终交付](#2-最终交付)
+3. [核心结果](#3-核心结果)
+4. [安装与快速验证](#4-安装与快速验证)
 5. [项目结构](#5-项目结构)
-6. [各 Phase 在哪、怎么跑](#6-各-phase-在哪怎么跑)
-7. [重要声明](#7-重要声明)
+6. [训练、评测与离线复现](#6-训练评测与离线复现)
+7. [文档与项目边界](#7-文档与项目边界)
 
 ---
 
 ## 1. 项目是什么
 
-在 LLM / VLM 入口处构建一个**轻量、可打包、跨平台、零网络依赖**的"前置过滤"组件，
-拦截**直接注入 / 间接注入 / 多模态注入**三类 prompt-injection 攻击。
+MPID 是部署在主模型或人工审计流程之前的离线前置检测组件。它接收用户文本和可选图像，判断输入是否安全，并在发现攻击时给出明确的阻断阶段和依据。
 
-| 维度 | 业界主流 | 本项目 |
+提示注入既可能直接写在用户文本中，也可能藏在图片、截图或其他不可信外部内容中。项目将它们显式区分，避免以单一二分类掩盖某一攻击类别的完全漏报。
+
+| 标签 | 定义 | 典型载体 |
 |---|---|---|
-| 部署形态 | 云端 API | 端侧 / 边缘独立部署 |
-| 模型规模 | 数百 MB ~ 数十 GB | 默认 < 500 MB |
-| 网络依赖 | 必需 | **无** |
-| 数据流向 | 上传 prompt 至云端 | 数据完全在本地 |
-| 适用场景 | 通用 SaaS 防护 | 隐私敏感、边缘、低成本合规 |
+| `clean` | 正常请求，不含提示注入 | 一般问答、图片描述、文档阅读请求 |
+| `direct` | 攻击指令直接出现在用户可控文本中 | 角色越权、jailbreak、“忽略之前指令” |
+| `indirect` | 恶意指令位于图片或其他不可信外部内容中，或由图文组合形成 | 图像中的注入文字、图文冲突诱导 |
+
+| 维度 | 本项目 |
+|---|---|
+| 模型核心 | SmolVLM-500M + LoRA + MPID 三分类 head |
+| 防御方式 | 规则、像素 OCR、跨模态检查、上下文隔离、分数校准和置信门控 |
+| 部署 | 本地离线、低吞吐端侧、人工辅助审计 |
+| 输出 | `clean/direct/indirect`、`allow/block`、决策阶段、解释和耗时 |
+| 不在范围 | 云端安全服务、高并发生产服务、攻击自动化、未知攻击的无条件安全保证 |
 
 ### 技术核心
 
-- **Backbone**：[SmolVLM-500M](https://huggingface.co/HuggingFaceTB/SmolVLM-500M)（Apache 2.0，约 5 亿参数）
-- **训练方法**：LoRA（PEFT 注入 q/k/v/o 投影）+ 3 类分类头（`clean / direct / indirect`）
-- **三层防御链路（C4 / C5 / C6）**：
-  - **C4 早退机制**——clean 高置信度样本提前放行，generation 次数 -45.6%
-  - **C5 规则前置过滤**——文本规则拦截直接注入，direct recall 从 31% → 61%
-  - **C6 跨模态一致性**——跨模态启发式拦截间接注入，indirect F1 从 0% → 100%
-- **离线优先**：backbone + LoRA + tokenizer + 推理脚本打成一个 `mpid_offline/` 包，
-  校验和覆盖 77 个文件，**零网络调用**
+- **参数高效训练**：在 SmolVLM-500M 语言注意力的 `q/k/v/o` 投影上进行 LoRA 微调，搭配三分类 head。
+- **反事实边界学习**：以 `clean/direct/indirect` 三元组和对角排序损失学习同一场景下的类别差异，而不是只记忆攻击关键词。
+- **纵深防御**：C5 优先处理高确定性文本攻击；C6B-lite 从真实图像像素做本地 OCR；C6A 提供已知兼容性风险检查；剩余样本交由多模态模型。
+- **不可信内容隔离**：MCR 将 OCR 文本置于 `untrusted_image_ocr` 受限上下文，不将图中文字提升为用户指令。
+- **可审计校准**：SBC 只使用 smoke 阶段锁定的固定 logits 偏移，最终 full500 不参与调参。
+- **离线交付**：模型、OCR 权重、推理代码、checksum 与 smoke 一同打包，数据与模型大文件不提交到 Git。
 
----
+## 2. 最终交付
 
-## 2. 最终目标长什么样
+最终方案不是新的 checkpoint，而是固定的 `checkpoint_step_3000` 加锁定运行时策略：
 
-整个研究链条按 Phase 推进，最终交付一个**可分发的离线检测包 + 完整评测报告**。
-
-```
-Phase 0A        Phase 0         Phase 1         Phase 2         Phase 3
-环境/模型/数据   项目脚手架     威胁模型         VLM 端到端基线   C4 早退
-───────         ──────         ──────         ──────         ──────
-(已完成)        (已完成)       (已完成)        (已完成)        (已完成)
-  ↓               ↓               ↓               ↓               ↓
-Phase 4         Phase 5         Phase 6         Phase 7
-C5 规则前置     C6 跨模态        攻防评测体系     项目整理
-───────         ──────         ──────         ──────
-(已完成)        (已完成)        (待启动)        (待启动)
+```text
+文本 + 可选图像
+  -> C5 文本高确定性规则
+  -> C6B-lite 本地 RapidOCR
+  -> C6A 兼容性/跨模态风险检查
+  -> MCR：不可信 OCR 上下文路由
+  -> F-3000：SmolVLM + LoRA + 三分类 head
+  -> SBC：固定分数校准
+  -> C4：高置信 clean 放行
+  -> block / allow
 ```
 
-### 最终交付清单
-
-| 文件 | 用途 | 状态 |
+| 交付物 | 说明 | 状态 |
 |---|---|---|
-| `runs/*/artifacts/lora_baseline.safetensors` | MPID LoRA checkpoint | ✅ |
-| `src/mpid/early_exit.py` | C4 早退机制 | ✅ |
-| `src/mpid/rules/direct_rules.py` | C5 规则前置 | ✅ |
-| `src/mpid/crossmodal/heuristics.py` | C6 跨模态启发式 | ✅ |
-| `scripts/infer_c4_c5_c6.py` | 完整推理链路 | ✅ |
-| `mpid_offline/` | 端侧离线包（含 infer.py、CHECKSUMS.txt） | ✅ |
-| `report/technical_report.md` | Phase 6 完整技术报告 | ⏳ |
+| `checkpoint_step_3000.safetensors` | F-3000 固定 LoRA 与分类 head | 已完成 |
+| `src/mpid/infer/pipeline.py` | C5/C6/head/C4 的优化 pipeline | 已完成 |
+| C6B-lite + MCR | 本地 OCR 与不可信图文上下文隔离 | 已完成 |
+| `runs/_artifact/F-3000-MCR-SBC/` | 可移动离线 artifact、checksum 和 smoke | 已完成，本地保存 |
+| [final-report.md](doc/final-report.md) | 最终结果、训练收敛、性能和审计证据 | 已完成 |
 
----
+MCR 和 SBC 分别位于分类器输入构造与 logits 后处理；C5、C6B-lite、C6A 和 C4 是可独立审计的 pipeline 关卡。完整流程图、理论说明与运行边界见 [最终报告 2.1 节](doc/final-report.md#21-方案组成)。
 
-## 3. 核心成果
+## 3. 核心结果
 
-> 详见 [doc/reference.md § 3. 测试结果汇总](doc/reference.md#3-测试结果汇总)
+所有最终能力数字均来自冻结的 Standard Benchmark v2/full500。该集不参与 MCR、SBC、阈值或规则的选择。
 
-### 推理效果（300 样本）
+### 最终效果
 
-| 指标 | MPID LoRA | MPID LoRA + C4-C6优化 | Delta |
+| 指标 | F-3000 LoRA-only | F-3000-MCR-SBC 完整 pipeline | 增量 |
 |---|---:|---:|---:|
-| Macro F1 | 32.3% | **85.5%** | +53.2pp（+164.7% relative） |
-| Accuracy | 42.7% | **86.0%** | +43.3pp |
-| clean F1 | 55.4% | 82.2% | +26.8pp |
-| direct F1 | 41.3% | 74.4% | +33.1pp |
-| indirect F1 | 0.0% | **100.0%** | +100.0pp |
+| Accuracy | 56.60% | **62.00%** | **+5.40pp** |
+| Macro F1 | 38.89% | **59.28%** | **+20.37pp** |
+| Weighted F1 | 50.91% | **61.32%** | **+10.41pp** |
+| clean F1 | 67.19% | **68.38%** | +1.19pp |
+| direct F1 | 49.48% | **53.56%** | +4.08pp |
+| indirect F1 | 0.00% | **55.90%** | +55.90pp |
+| 预测完整性 | 500 / 500 | 500 / 500 | 完整 |
 
-### 推理时间（300 样本）
+### 推理效率与交付验证
 
-| 指标 | MPID LoRA | MPID LoRA + C4-C6优化 | Delta |
-|---|---:|---:|---:|
-| 端到端总耗时 | 4945.4s | **2978.1s** | -39.8% |
-| 平均耗时 / 样本 | 16.48s | **9.93s** | -39.7% |
-| generation 次数 | 250 | **136** | -45.6% |
+| 指标 | LoRA-only | 完整 pipeline | 结果 |
+|---|---:|---:|---|
+| 模型加载后的平均判定耗时 | 14.06 秒/条 | **10.56 秒/条** | **-24.86%** |
+| clean 平均判定耗时 | 14.07 秒/条 | **12.02 秒/条** | -14.62% |
+| direct 平均判定耗时 | 14.53 秒/条 | **10.51 秒/条** | -27.63% |
+| indirect 平均判定耗时 | 12.91 秒/条 | **5.83 秒/条** | -54.80% |
+| 发布清单 / checksum / ZIP CRC | 94 项 / 全部匹配 / 通过 | - | 离线 artifact 验证通过 |
 
-### C4 / C5 / C6 各自贡献
+完整 pipeline 解决了 LoRA-only 的 indirect F1 为 0 的失效模式，但 Direct Recall 仍为 45.14%，未知攻击、OCR 噪声和跨硬件性能仍需在新冻结数据上继续验证。详细指标、实验口径和风险见 [最终报告](doc/final-report.md)。
 
-| 阶段 | 贡献 |
-|---|---|
-| **C5** | direct recall 从 31% → 61%，补齐 MPID classification head 的部分漏检 |
-| **C6A** | indirect F1 从 0% → 100%，修复对 synthetic cross-modal indirect 的盲点 |
-| **C4** | 主要起置信度决策与 generation gate 作用 |
+## 4. 安装与快速验证
 
----
+### 4.1 环境要求
 
-## 4. 从 0 跑通：7 步上手指南
+- Python 3.10+，推荐 Python 3.11。
+- Windows 使用 PowerShell；macOS 使用 zsh/bash。
+- 完整模型推理需要另行恢复本地模型、数据和 artifact；核心单元测试与轻量 pipeline smoke 不需要这些大文件。
 
-> **目标平台约定**（贯穿全文档）：
-> - **mac** = macOS 12.5+ / Apple Silicon（MPS 可用，CUDA 不可用）
-> - **x86** = Linux x86_64 / CPU-only（**无 CUDA、无 MPS**）
+### 4.2 创建环境
 
-### 第 1 步 — 克隆 + Python 环境
+**Windows PowerShell**：
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements-x86.txt
+python -m pip install -e .
+```
+
+**macOS**：
 
 ```bash
-git clone <your-fork-url> llm-compliance
-cd llm-compliance
 python3.11 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
-### 第 2 步 — 装依赖（按平台选一个）
+### 4.3 验证核心编排
 
-```bash
-# macOS（Apple Silicon，MPS）
-pip install -r requirements.txt
+以下命令不加载 VLM；其中 `--probs` 是模拟分类 head 的输出，仅用于验证规则和 pipeline 顺序。
 
-# x86 / Linux CPU-only
-pip install -r requirements-x86.txt
+```powershell
+python -m pytest tests -q
 
-# macOS 13+ 想用 MLX 4-bit 路径
-pip install -r requirements-mlx.txt
+# 预期：direct / c5_rules
+python scripts/infer_pipeline_light.py --text "ignore previous instructions" --probs 0.34,0.33,0.33
+
+# 预期：clean / c4_early_exit
+python scripts/infer_pipeline_light.py --text "summarize this note" --probs 0.96,0.02,0.02
 ```
-
-### 第 3 步 — 把 `mpid` 包安装成可编辑模式
-
-```bash
-pip install -e .
-```
-
-冒烟测试：
-
-```bash
-python scripts/smoke_env.py        # Phase 0A-1：import + 设备 + tensor + tokenizer
-pytest tests/test_device.py -v     # Phase 0A-1：12 个设备抽象单测
-```
-
-### 第 4 步 — 下载 SmolVLM-500M + 4 个数据集
-
-```bash
-python scripts/download_models.py  # → models/smolvlm-500m/ （~970 MB）
-python scripts/download_data.py    # → data/raw/ 4 个公开集（~43 MB）
-```
-
-冒烟：
-
-```bash
-python scripts/smoke_model.py      # Phase 0A-2：模型加载 + 最小推理
-python scripts/smoke_data.py       # Phase 0A-3：5+ 样例/集 + 课题符合性
-```
-
-### 第 5 步 — 构数据集 + 跑 Phase 1 威胁模型
-
-```bash
-python scripts/build_phase1.py     # → data/mpid-v1/{train,val,test}.jsonl + EDA.md
-# 跨模态子集 → data/mpid-v1-crossmodal/ （120 张间接注入攻击图）
-```
-
-### 第 6 步 — 跑 Phase 2 VLM 基线
-
-```bash
-# 训练（CPU smoke 5 records ≈ 7 min；x86 + 25k ≈ 30 h，CUDA 30 min）
-python scripts/train.py --config configs/baseline.yaml --out-dir runs/baseline
-
-# 评估（生成 report + 混淆矩阵）
-python scripts/eval.py --max-records 30
-
-# 量化离线指标
-python scripts/measure_offline.py --samples 5
-
-# 打包离线包
-python scripts/package_offline.py
-
-# 离线包 smoke
-python scripts/smoke_offline.py
-```
-
-### 第 7 步 — 跑 Phase 3 / 4 / 5 优化
-
-```bash
-# C4 早退
-python scripts/train_c4.py --config configs/c4_early_exit.yaml
-python scripts/eval_c4.py
-
-# C5 规则前置
-python scripts/eval_c5.py --rules configs/rules.yaml
-
-# C6 跨模态
-python scripts/train_c6.py --config configs/c6_crossmodal.yaml
-python scripts/eval_c6.py
-
-# 完整推理链路（C4 + C5 + C6）
-python scripts/infer_c4_c5_c6.py --checkpoint runs/balanced-600/artifacts/checkpoints/lora_baseline.safetensors
-
-# 收尾：合并多模型结果 + 出报告
-python scripts/aggregate_results.py    # → report/eval_*.json
-python scripts/make_figures.py        # → report/figures/*.png
-```
-
-> 各命令的具体参数与产出都登记在 [`doc/tasks.md`](doc/tasks.md) 与
-> [`doc/VERIFICATION.md`](doc/VERIFICATION.md) 对应 Phase 章节里。
-
----
 
 ## 5. 项目结构
 
-```
+```text
 llm-compliance/
-├── README.md                # 本文件
-├── pyproject.toml           # 包元数据 + 依赖（mac / x86 / mlx 三套）
-├── requirements*.txt        # 三套依赖清单
+├── README.md                            项目入口与最终结果摘要
+├── pyproject.toml                       包元数据、依赖范围与测试配置
+├── requirements*.txt                    macOS、x86 CPU 与 MLX 依赖清单
 │
-├── doc/                     # 全部正式文档（不散落）
-│   ├── opening-report-vlm.md    # 课题开题报告 v0.3
-│   ├── reference.md            # 项目参考手册（核心概念 + Phase 详解 + 测试结果）
-│   ├── tasks.md                 # 任务分解（按 Phase）
-│   └── VERIFICATION.md          # 验证报告（实测基线、限制、决策）
+├── src/mpid/                            核心 Python 包
+│   ├── adapters/vlm.py                  SmolVLM 推理适配器
+│   ├── backbones/registry.py            Backbone 注册表
+│   ├── heads/classification.py          三分类 head
+│   ├── train/trainer.py                 LoRA、配对三元组训练与 checkpoint 恢复
+│   ├── infer/pipeline.py                优化 pipeline 与决策审计输出
+│   ├── rules/engine.py                  C5 文本规则
+│   ├── crossmodal/                      C6A、C6B-lite OCR 与图像冲突规则
+│   ├── early_exit.py                    C4 高置信 clean 门
+│   └── data/                            数据 schema、加载、划分和 prompt 构造
 │
-├── src/mpid/                # 核心代码包（pip install -e . 后可 import）
-│   ├── device.py            # 设备抽象（MPS / CUDA / CPU）
-│   ├── adapters/vlm.py      # VLM 推理适配器（T2.1）
-│   ├── backbones/registry.py    # Backbone 注册表（T2.2）
-│   ├── heads/classification.py  # 3 类 head + 风险分（T2.3）
-│   ├── early_exit.py        # C4 早退机制
-│   ├── rules/direct_rules.py    # C5 规则前置
-│   ├── crossmodal/heuristics.py # C6 跨模态启发式
-│   ├── data/
-│   │   ├── public_loaders.py        # 公开集统一 schema（T1.3）
-│   │   ├── split.py                 # 8:1:1 划分（T1.5）
-│   │   ├── synthetic_image_injection.py  # 跨模态合成（T1.4）
-│   │   ├── dataset.py               # JSONL → Tensor
-│   │   └── prompt.py                # 3 类指令 prompt 模板（T2.4）
-│   └── train/trainer.py     # LoRA + 训练 + 评估回调（T2.5）
+├── scripts/                             通用训练、评测、打包、诊断与数据构建脚本
+├── tests/                               设备、规则、OCR、C4 与 pipeline 单元测试
+├── demo/                                Gradio 演示原型，不作为最终能力评测入口
 │
-├── scripts/                 # CLI 入口
-│   ├── download_models.py   # 下载 SmolVLM-500M
-│   ├── download_data.py     # 下载 4 个公开集
-│   ├── build_phase1.py      # 构数据集（Phase 1）
-│   ├── smoke_*.py           # 各 Phase 冒烟
-│   ├── train.py             # T2.7 训练入口
-│   ├── eval.py              # T2.9 评估入口
-│   ├── measure_offline.py   # T2.10 离线指标
-│   ├── package_offline.py   # T2.11 离线打包
-│   ├── smoke_offline.py     # T2.12 离线包 smoke
-│   └── infer_c4_c5_c6.py    # 完整推理链路（Phase 3-5）
+├── doc/                                 正式文档
+│   ├── final-report.md                  最终结题报告
+│   ├── project-plan-and-verification.md 执行与验证归档
+│   ├── reference.md                     概念、实现解读和历史复现手册
+│   └── opening-report-*.md              开题与历史参考材料
 │
-├── configs/                 # 训练 / 规则配置
-│   └── baseline.yaml        # VLM 基线配置
-│
-├── tests/                   # 单元测试
-│   └── test_device.py       # 设备抽象 12 用例
-│
-├── data/                    # 数据（gitignored）
-│   ├── raw/                 # 原始公开集
-│   ├── mpid-v1/             # 内部统一数据集（train/val/test + EDA）
-│   └── mpid-v1-crossmodal/  # 跨模态子集
-│
-├── models/                  # 权重（gitignored）
-│   └── smolvlm-500m/
-│
-├── runs/                    # 训练/评估产物（gitignored）
-│   └── balanced-600/        # MPID LoRA checkpoint
-│
-├── mpid_offline/            # T2.11 离线分发包（gitignored）
-│
-└── report/                  # Phase 6 技术报告（gitignored）
-    ├── technical_report.md
-    └── figures/
+└── runs/                                本地训练、评测和发布资产
+    ├── _models/、_datasets/             共享模型和数据缓存，不进入 Git
+    ├── phase2_3_full_3000_*/            F-3000 的本地训练与审计资产
+    └── _artifact/F-3000-MCR-SBC/        最终离线交付包，不进入 Git
 ```
 
----
+`runs/` 中的轻量配置、脚本、日志和说明可以保留在 Git；数据集、模型、checkpoint、预测、图片和压缩包由 [.gitignore](.gitignore) 排除，避免将大文件提交到仓库。
 
-## 6. 各 Phase 在哪、怎么跑
+## 6. 训练、评测与离线复现
 
-| Phase | 内容 | 入口脚本 | 验证 |
-|---|---|---|---|
-| **0A-1** | 环境搭建 + 设备抽象 | `scripts/smoke_env.py` | [§ 0A-1](doc/VERIFICATION.md#phase-0a-1--运行环境搭建) |
-| **0A-2** | SmolVLM-500M 本地化 | `scripts/smoke_model.py` | [§ 0A-2](doc/VERIFICATION.md#phase-0a-2--smolvlm-500m-模型准备) |
-| **0A-3** | 数据集准备 | `scripts/smoke_data.py` | [§ 0A-3](doc/VERIFICATION.md#phase-0a-3--训练--测试数据集准备) |
-| **0** | 项目脚手架 | `python -c "from mpid.device import get_device"` | [§ Phase 0](doc/VERIFICATION.md#phase-0--脚手架) |
-| **1** | 威胁模型 + 数据集 | `scripts/build_phase1.py` | [§ Phase 1](doc/VERIFICATION.md#phase-1--多模态注入威胁模型构建c1) |
-| **2** | VLM 端到端基线 | `scripts/{train,eval,measure_offline,package_offline,smoke_offline}.py` | [§ Phase 2](doc/VERIFICATION.md#phase-2--vlm-端到端检测基线c2) |
-| **3** | C4 早退 | `scripts/infer_c4_c5_c6.py` | ✅ 已完成 |
-| **4** | C5 规则前置 | `scripts/infer_c4_c5_c6.py` | ✅ 已完成 |
-| **5** | C6 跨模态 | `scripts/infer_c4_c5_c6.py` | ✅ 已完成 |
-| **6** | 攻防基线评测 | `scripts/{aggregate_results,make_figures}.py` | 待启动 |
-| **7** | 项目整理 | `Makefile` / `MODEL_CARD.md` | 待启动 |
+### 6.1 训练与策略收敛
 
-### 当前状态（2026-07-20）
+最终模型来自一条受控的两阶段路线，而非单次长训：
 
-| Phase | 状态 | 备注 |
-|---|---|---|
-| 0A-1 / 0A-2 / 0A-3 | ✅ | 跨平台一致性已验证 |
-| 0 | ✅ | `mpid` 包 + 3 CLI 占位 |
-| 1 | ✅ | 25,646 条 × 3 类 + 120 张 cross-modal 图 |
-| 2 | ✅ | MPID LoRA checkpoint（balanced-600） |
-| 3 / 4 / 5 | ✅ | C4/C5/C6 三层防御链路已完成 |
-| 6 | ⏳ | 依赖 3/4/5 产出 |
-| 7 | ⏳ | 依赖 6 报告 |
+1. 使用统一 smoke150 对 A-H、F2-F4 共 11 个候选机制进行快速比较。
+2. F 是唯一保持三类非零 Recall、类别最平衡的方向，因此作为正式训练基线。
+3. 使用 3,000 条均衡训练样本（每类 1,000 条）完成 F-3000，并固化 `checkpoint_step_3000`。
+4. 只在 smoke150 锁定 MCR/SBC；V2/full500 仅用于一次最终盲验收。
 
-**核心成果**：Macro F1 **85.5%**，端到端推理耗时 **-39.8%**，generation 次数 **-45.6%**
+完整的候选机制差异、训练时间、checkpoint 恢复和问题复盘见 [最终报告第 3 节](doc/final-report.md#3-f-3000-正式训练与收敛过程) 与 [执行与验证归档](doc/project-plan-and-verification.md)。
 
-完整实测数字、跨平台差异、已知限制与决策见
-[**doc/VERIFICATION.md**](doc/VERIFICATION.md)。
+### 6.2 恢复完整离线 artifact
 
----
+模型、数据、checkpoint 与离线包为大文件，不保存在 Git 中。完整推理前，从受控存储恢复：
 
-## 7. 重要声明
+- `runs/_models/` 与 `runs/_datasets/`；
+- `runs/phase2_3_full_3000_20260729_0958/` 中所需 run-local 资产；
+- `runs/_artifact/F-3000-MCR-SBC/` 交付目录或其 ZIP 包。
 
-本项目**仅用于安全研究、合规审计与防御研究**：
+恢复后，以 artifact 内的 `README`、`MANIFEST.json`、`CHECKSUMS.txt` 和 `smoke_offline.py` 完成文件完整性与断网验证。artifact 的 94 项发布清单、checksum、3/3 smoke 与 ZIP CRC 均已通过；具体命令和交付证据见 [最终报告第 5 节](doc/final-report.md#5-离线交付与复现)。
 
-- **不发布为对外可调用的在线服务或 API**
-- **不构建主动攻击工具或越狱教程**
-- **不替代**模型训练阶段的安全对齐，仅作前置过滤 / 审计用途
-- 研究目标设备为普通 PC 与主流边缘设备，**不覆盖 MCU 级**极端嵌入式
+## 7. 文档与项目边界
 
-代码许可见 [LICENSE](LICENSE)；课题伦理声明详见
-[doc/opening-report-vlm.md](doc/opening-report-vlm.md) § 8 伦理。
+| 文档 | 用途 |
+|---|---|
+| [最终报告](doc/final-report.md) | 最终方案、完整结果、训练收敛、pipeline 和 artifact 证据 |
+| [执行与验证归档](doc/project-plan-and-verification.md) | 已完成任务、最小验证、事故复盘和后续限制 |
+| [技术参考手册](doc/reference.md) | 概念、代码解读、Windows/macOS 命令、历史实验和排障 |
+| [VLM 开题报告](doc/opening-report-vlm.md) | 项目的研究背景、目标与方法 |
+| [文档导航](doc/README.md) | 文档职责和迁移说明 |
+
+本项目仅用于安全研究、合规审计与防御原型验证：
+
+- 不发布为对外攻击工具或越狱教程。
+- 不替代上游模型训练阶段的安全对齐，仅作为前置过滤和审计层。
+- 不对生产高并发、未知攻击或跨域泛化作无条件安全承诺。
+
+代码采用 [Apache-2.0](LICENSE) 许可。

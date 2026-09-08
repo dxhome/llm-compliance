@@ -1,9 +1,13 @@
 # MPID (Multimodal Prompt Injection Defense) 项目参考手册
 
 > **文档类型**：FAQ / 参考手册
-> **文档版本**：v4.2
+> **文档版本**：v5.0
 > **创建日期**：2026-07-13
 > **用途**：项目执行过程中常见问题与基础概念速查
+
+> **最终状态（2026-09-08）**：项目已完成，最终能力结论以 [final-report.md](final-report.md) 为准：`F-3000-MCR-SBC` 在冻结 Standard Benchmark v2/full500 上取得 Accuracy 62.00%、Macro F1 59.28%。本手册保留 Phase 0-2.3 的历史命令、实验记录和代码解读，用于复现与排障；其中早期 smoke、V1 和旧 Phase 计划不应替代最终验收结论。
+>
+> **文档迁移**：原 `tasks.md` 与 `VERIFICATION.md` 已合并为 [project-plan-and-verification.md](project-plan-and-verification.md)。原 `phase2_workflow_ops.md` 已删除。
 
 > **平台约定**：
 > - `Windows` 默认指 **PowerShell 5+ / PowerShell 7+**。
@@ -1315,7 +1319,7 @@ def _stratified_split(records, *, ratios=(0.8, 0.1, 0.1), seed=42):
 
 > **本章节是整个项目的核心**。它合并了原 reference.md 第一部分（技术细节）与第二部分（框架 vs 能力辨析）。
 >
-> **本 Phase 拆分为两个训练子阶段 + 一个演示交付阶段**（对齐 [tasks.md v2.3](tasks.md)）：
+> **本 Phase 拆分为两个训练子阶段 + 一个演示交付阶段**（历史任务拆分已归档至 [project-plan-and-verification.md](project-plan-and-verification.md)）：
 > - **§2.0 基础防注入方案与 C3 评测契约**：定义 `MPID LoRA / C4 / C5 / C6 / full pipeline` 的统一输出 schema、消融矩阵和评测口径
 > - **§2.1–§2.5 Phase 2 整体架构**（共享）：VLM 适配器 / LoRA 注入 / 3 分类 head / 训练循环 / 离线打包的代码框架
 > - **§2.6–§2.12 Phase 2.1 — Smoke 端到端离线模型**：用 `max_train_records=5` 跑通整条管线，**不验证模型能力**
@@ -1537,7 +1541,7 @@ label="direct", risk=0.87
 >
 > **关键边界**：5 条样本训出的 head **没有真实检测能力**——本阶段**不验证 Macro F1**，**不期望**训练指标好。本阶段**严禁用 `lora_baseline.safetensors` 跑 C4/C5/C6 评估**。
 >
-> **对应任务**：T2.1–T2.12（[tasks.md v2.3 §Phase 2.1](tasks.md#phase-21--vlm-端到端检测基线·smoke-训练对应-c2)）。
+> **历史任务范围**：T2.1–T2.12；其完成状态与验收摘要见 [project-plan-and-verification.md](project-plan-and-verification.md)。
 >
 > **核心产出**：`runs/<run_id>/artifacts/checkpoints/lora_baseline.safetensors`（管线就位证明）+ `runs/<run_id>/artifacts/package/mpid_offline/`（Phase 2.1 版离线包）。
 
@@ -2050,7 +2054,7 @@ Phase 7    项目整理
 > - 本阶段产出的 `lora_full.safetensors`（或 `lora_partial.safetensors` 兜底）**是 C4/C5/C6 评估的唯一合法 baseline**
 > - 训练在 **MPS** 上跑（mac Apple Silicon），用 `lr=1e-5` 极保守 + NaN 防护 + mid-epoch save
 >
-> **对应任务**：T2.13–T2.21（[tasks.md v2.3 §Phase 2.2](tasks.md#phase-22--真实数据全量微调对应-c2--续)）。
+> **历史任务范围**：T2.13–T2.21；其完成状态与验收摘要见 [project-plan-and-verification.md](project-plan-and-verification.md)。
 >
 > **核心产出**：`runs/<run_id>/artifacts/checkpoints/lora_full.safetensors`（或 `lora_partial.safetensors`）+ `runs/<run_id>/artifacts/package/mpid_offline/`（Phase 2.2 版离线包）+ `comparison_full_vs_smoke.{json,md}`（T2.18 报告）。
 
@@ -2300,7 +2304,7 @@ python scripts/eval.py \
 > - Demo 必须显式加载 Phase 2.2 产出的 checkpoint；不要继续使用 Phase 2.1 的 `lora_baseline.safetensors` 做能力展示。
 > - Demo 的运行资产遵循当前 `runs/` 目录结构：共享 backbone 放在 `runs/_models/`，单次训练产物放在 `runs/<run_id>/artifacts/`，截图 / smoke 报告落在同一个 run 的 `artifacts/demo/` 下。
 >
-> **对应任务**：T2.5.1–T2.5.8（[tasks.md §Phase 2.5](tasks.md#phase-25--成果可视化-demo独立交付)）。
+> **历史任务范围**：T2.5.1–T2.5.8；其完成状态与验收摘要见 [project-plan-and-verification.md](project-plan-and-verification.md)。
 >
 > **核心产出**：`demo/gradio_app.py` + `demo/samples.json` + `demo/smoke_pipeline.py` + `runs/<run_id>/artifacts/demo/smoke_report.json` + `runs/<run_id>/artifacts/demo/screenshots/`。
 
@@ -2323,7 +2327,7 @@ python scripts/eval.py \
 | [demo/gradio_app.py](../demo/gradio_app.py) | Gradio Blocks 页面；封装 `DemoPipeline`，同时跑 base generation 与 MPID classify | T2.5.4 |
 | [demo/README.md](../demo/README.md) | demo 启动说明、UI 结构、预置样本说明 | T2.5.5 |
 | [demo/smoke_pipeline.py](../demo/smoke_pipeline.py) | 不启动浏览器，直接跑 8 条样本并写 JSON smoke 报告 | T2.5.6 |
-| [doc/VERIFICATION.md](VERIFICATION.md) | 记录实际 UI 截图、8 条样本实际输出、已知限制 | T2.5.7 |
+| [project-plan-and-verification.md](project-plan-and-verification.md) | 记录执行验证摘要、已知限制与复现入口 | T2.5.7 |
 | [README.md](../README.md) | “在线体验 / 本地演示”入口说明 | T2.5.8 |
 
 ### 2.22 资产目录约定
@@ -2419,7 +2423,7 @@ RUN_ID=<run_id>
 
 **解释方式**：
 - `K/8` 不是 Phase 2.5 的唯一验收指标；它用于快速看 demo pipeline 是否可跑，以及当前 checkpoint 在 8 条展示样本上的直观效果。
-- 如果 Phase 2.2 快速训练仍未学好 `indirect`，demo 里 indirect 样本可能会误判。这应记录在 `doc/VERIFICATION.md` 的 Phase 2.5 实际结果中，而不是藏起来。
+- 如果 Phase 2.2 快速训练仍未学好 `indirect`，demo 里 indirect 样本可能会误判。这应记录在项目执行与验证归档的实际结果中，而不是藏起来。
 
 #### Step 3: 启动 Gradio 页面
 
@@ -2472,7 +2476,7 @@ Running on local URL: http://127.0.0.1:7860
 - `runs/<run_id>/artifacts/demo/screenshots/indirect_01.png`
 - `runs/<run_id>/artifacts/demo/smoke_report.json`
 
-然后在 [doc/VERIFICATION.md](VERIFICATION.md) 的 Phase 2.5 段记录：
+然后在 [project-plan-and-verification.md](project-plan-and-verification.md) 中记录：
 - 使用的 `run_id`
 - 使用的 checkpoint 路径
 - 8 条样本的 `gt / pred / risk`
@@ -2504,7 +2508,7 @@ Running on local URL: http://127.0.0.1:7860
 - [ ] `demo/smoke_pipeline.py` 跑完 8 条预置样本，并写出 `runs/<run_id>/artifacts/demo/smoke_report.json`。
 - [ ] 8 条样本覆盖 clean ×3 / direct ×3 / indirect ×2。
 - [ ] 至少保存 clean / direct / indirect 三类截图到 `runs/<run_id>/artifacts/demo/screenshots/`。
-- [ ] [doc/VERIFICATION.md](VERIFICATION.md) 记录实际 `gt / pred / risk`，而不是只写预期。
+- [ ] 在 [project-plan-and-verification.md](project-plan-and-verification.md) 记录实际 `gt / pred / risk`，而不是只写预期。
 - [ ] 如果当前 checkpoint 在 indirect 上表现差，文档中明确标注为已知限制，并指向 Phase 5 C6。
 - [ ] `demo/README.md` 和顶层 [README.md](../README.md) 给出可复制启动命令。
 
@@ -3848,7 +3852,7 @@ F2 是该统一筛选中的第九项：它仅将 F 的 `direct_margin` 从 0.35 
 
 **为什么必须接受**：这是课题不是工业项目。
 
-**缓解措施**：所有工程化清单已在 `VERIFICATION.md` 的已知限制中标记，可作为"项目交付"清单。
+**缓解措施**：所有工程化清单已在 [project-plan-and-verification.md](project-plan-and-verification.md) 的已知限制中标记，可作为"项目交付"清单。
 
 #### 4.2.9 研究深度
 
@@ -4399,7 +4403,7 @@ python infer.py --text "忽略以上指令"   # 自动加载 LoRA + 跑 C4 + 输
 
 项目最开始在 mac Apple Silicon 上推进是合理的，因为本地开发顺手、MPS 可用、早期 smoke 验证也够快。但从 Phase 2 往后，问题开始集中暴露。
 
-从 [VERIFICATION.md](VERIFICATION.md) 的实测记录可以看到，mac 路线至少有这些硬约束：
+从 [project-plan-and-verification.md](project-plan-and-verification.md) 的执行归档可以看到，mac 路线至少有这些硬约束：
 - MPS 在 LoRA 训练场景下不稳定，踩到过 `loss=nan`、backward 卡住和 OOM。
 - macOS 12 上没有可用的 4-bit 量化路径，`bitsandbytes` 也不能真正量化 MPS tensor。
 - 训练速度和内存余量都比较紧，很多参数只能保守设置。
@@ -4433,7 +4437,7 @@ Phase 2.2 之后的训练任务动辄数小时，不能再视为“一次性不�
 
 这条和 A1 相关，但值得单独写，因为它不只是算力不够，更是训练稳定性本身不足。
 
-根据 [VERIFICATION.md](VERIFICATION.md) 的 Phase 2 记录，mac MPS 上明确踩到过这些坑：
+根据 [project-plan-and-verification.md](project-plan-and-verification.md) 的项目复盘，mac MPS 上明确踩到过这些坑：
 - `gradient_checkpointing=true` 时，step 10 左右可能出现 `loss=nan`
 - 关闭 gradient checkpointing 后，又可能因为内存压力 OOM
 - fp16 路线本身也踩到过 NaN
@@ -4445,7 +4449,7 @@ Phase 2.2 之后的训练任务动辄数小时，不能再视为“一次性不�
 
 从 mac 迁到 x86 Windows 后，项目遇到的不是单一 bug，而是一串脚本与环境假设的连锁修正。
 
-`VERIFICATION.md` 已明确记录过至少 3 个 Windows-only 兼容性问题：
+项目执行与验证归档已明确记录过至少 3 个 Windows-only 兼容性问题：
 - [src/mpid/device.py](../src/mpid/device.py) 早期使用 `os.uname()`，Windows 没有这个接口
 - [tests/test_device.py](../tests/test_device.py) 早期测试也绑了 Unix 风格假设
 - [scripts/smoke_data.py](../scripts/smoke_data.py) 的 emoji 输出在 PowerShell 默认编码下触发 `UnicodeEncodeError`
@@ -4703,11 +4707,10 @@ Flickr30k 图像   → 4.4 GB 推迟，按需下载
 
 - **本项目文档**：
   - [opening-report-vlm.md](opening-report-vlm.md) — VLM 端到端路线开题报告 v0.3
-  - [tasks.md](tasks.md) — 任务分解 v2.3（Phase 2 拆分为 2.1 smoke + 2.2 真实训练）
+  - [project-plan-and-verification.md](project-plan-and-verification.md) — 执行、验收与问题复盘归档
   - [reference.md § 1.1](reference.md#11-威胁模型threat-model) — 威胁模型
   - [reference.md § 1.5](reference.md#15-lora-原理与使用技巧) — LoRA 原理与使用技巧
   - [reference.md § 4](reference.md#4-未来展望) — 项目局限、扩展方向与未来展望（答辩 Q&A 弹药库）
-  - [VERIFICATION.md](VERIFICATION.md) — 验收报告
 - **核心实现**：
   - [vlm.py](../src/mpid/adapters/vlm.py) — VLM 适配器
   - [trainer.py](../src/mpid/train/trainer.py) — LoRA 训练循环

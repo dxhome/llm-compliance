@@ -65,6 +65,32 @@
 
 *图 1：F-3000-MCR 的审计式运行流程。早期关卡只在有明确证据时立即阻断；未命中记录再进入 MCR、F-3000 和冻结决策策略。青绿色表示受控的正常路径和防护层，砖红色表示规则确认后的风险阻断。*
 
+下图保留原有的逻辑分支视图，用于快速查看各关卡的执行顺序和输出归因；它与图 1 描述同一条运行流水线，并非另一套方案。
+
+```mermaid
+flowchart TD
+    A["输入记录<br/>文本 + 可选图像"] --> B["C5：文本高确定性规则<br/>角色越权、jailbreak、Unicode 绕过等"]
+    B -->|"命中"| X["阻断<br/>Direct / c5_rules"]
+    B -->|"未命中"| C["C6B-lite：本地 RapidOCR<br/>仅从图像像素提取文字"]
+    C -->|"明确图像注入"| Y["阻断<br/>Indirect / c6b_lite_ocr"]
+    C -->|"无明确命中"| D["C6A：兼容性与跨模态风险检查"]
+    D -->|"命中"| Z["阻断<br/>Indirect / c6_crossmodal"]
+    D -->|"继续"| M
+
+    subgraph H["分类器调用与最终判定"]
+        M["MCR：非空本地 OCR 写入<br/>untrusted_image_ocr 受限上下文"] --> F["F-3000：SmolVLM + LoRA<br/>MPID 三分类头输出 logits"]
+        F --> S["冻结运行时决策策略<br/>按 smoke 锁定，不修改权重"]
+    end
+
+    S --> G{"C4：P(clean) > 0.95？"}
+    G -->|"是"| L["放行<br/>Clean / c4_early_exit"]
+    G -->|"否"| Q{"最终类别"}
+    Q -->|"Clean"| R["放行<br/>head_clean_fallback"]
+    Q -->|"Direct / Indirect"| T["阻断<br/>head_injection_fallback"]
+```
+
+*图 1A：运行流水线的逻辑分支视图。图 1 展示审计层与风险路径，图 1A 强调关卡的先后顺序、分支条件和最终归因。*
+
 其中有两个重要的非等价判断：C5/C6 的“未命中”只代表没有发现可由规则确认的风险，不等价于安全；C4 的放行则必须建立在前置风险关卡通过、且模型对 `clean` 具有足够高置信度的前提上。
 
 #### 2.1.2 训练核心：F-3000 LoRA 与边界学习

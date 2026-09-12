@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="630" viewBox="0 0 1180 630" role="img" aria-labelledby="title desc">
+  <title id="title">Full-3000 从 smoke 筛选到最终验收的端到端演进</title>
+  <desc id="desc">训练从 Full-2000 初始化和固定 smoke 基准开始，依次筛选普通分类头、三元组边界约束、排序或层级机制及 F 的消融实验。F 被选为受控正式训练基线，训练到 checkpoint step 3000，最终在独立的 V2 full500 上盲验收。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#384646"/></marker>
+    <marker id="proof-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#0c6a6a"/></marker>
+    <marker id="risk-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#993425"/></marker>
+    <style>
+      .bg{fill:#f7faf9;stroke:#dbe4e3;stroke-width:1}.lane{fill:none;stroke:#c6d2d1;stroke-width:1;stroke-dasharray:4 4}.box{fill:#fdfefe;stroke:#c6d2d1;stroke-width:1}.proof{fill:#d5e7e5;stroke:#0c6a6a;stroke-width:1.2}.riskbox{fill:#f1dbd6;stroke:#993425;stroke-width:1.2}.label{fill:#101718;font-family:Consolas,monospace;font-size:13px}.small{fill:#657879;font-family:Consolas,monospace;font-size:10.5px}.lane-label{fill:#657879;font-family:Consolas,monospace;font-size:10px;font-weight:500;letter-spacing:1.5px}.accent{fill:#0c6a6a;font-family:Consolas,monospace;font-size:10.5px;font-weight:500}.danger{fill:#993425;font-family:Consolas,monospace;font-size:10.5px;font-weight:500}.normal{fill:none;stroke:#384646;stroke-width:1.25;marker-end:url(#arrow)}.secure{fill:none;stroke:#0c6a6a;stroke-width:1.6;marker-end:url(#proof-arrow)}.riskline{fill:none;stroke:#993425;stroke-width:1.35;marker-end:url(#risk-arrow)}.dash{fill:none;stroke:#657879;stroke-width:1;stroke-dasharray:3 3}
+    </style>
+  </defs>
+  <rect x=".5" y=".5" width="1179" height="629" rx="3" class="bg"/>
+
+  <g transform="translate(0 -156)">
+  <text x="28" y="190" class="lane-label">SMOKE MECHANISM SCREENING</text><line x1="28" y1="201" x2="1152" y2="201" class="dash"/>
+  <rect x="28" y="224" width="1124" height="236" rx="2" class="lane"/>
+
+  <rect x="64" y="258" width="226" height="112" rx="2" class="box"/><text x="80" y="285" class="label">ROUND 1  A-C</text><text x="80" y="306" class="small">普通三分类 / 类别权重 / 蒸馏</text><text x="80" y="327" class="small">300 条；逐条交叉熵</text><text x="80" y="348" class="danger">偏向 clean，攻击召回未恢复</text>
+  <rect x="64" y="394" width="226" height="38" rx="2" class="riskbox"/><text x="80" y="418" class="danger">淘汰：A-C</text><path d="M177 370V390" class="riskline"/>
+
+  <rect x="338" y="258" width="226" height="112" rx="2" class="box"/><text x="354" y="285" class="label">ROUND 2  D-E</text><text x="354" y="306" class="small">三元组 batch + margin / 覆盖损失</text><text x="354" y="327" class="small">900 条；每 batch 一组三元组</text><text x="354" y="348" class="danger">Indirect 强，但 Direct Recall 为 0</text>
+  <rect x="338" y="394" width="226" height="38" rx="2" class="riskbox"/><text x="354" y="418" class="danger">淘汰：D-E</text><path d="M451 370V390" class="riskline"/>
+
+  <rect x="612" y="258" width="226" height="112" rx="2" class="proof"/><text x="628" y="285" class="label">ROUND 3  F-H</text><text x="628" y="306" class="small">排序损失 / 层级分类 / 混合损失</text><text x="628" y="327" class="small">900 条；120-step smoke</text><text x="628" y="348" class="accent">F：Macro F1 40.72%，三类 Recall 非零</text>
+  <rect x="612" y="394" width="226" height="38" rx="2" class="proof"/><text x="628" y="418" class="accent">保留：F 对角排序方向</text><path d="M725 370V390" class="secure"/>
+
+  <rect x="886" y="258" width="226" height="112" rx="2" class="box"/><text x="902" y="285" class="label">ROUND 4  F2-F4</text><text x="902" y="306" class="small">margin / Direct 权重 / hard replay</text><text x="902" y="327" class="small">围绕 F 的单变量消融</text><text x="902" y="348" class="danger">局部改进伴随 Indirect 退化</text>
+  <rect x="886" y="394" width="226" height="38" rx="2" class="riskbox"/><text x="902" y="418" class="danger">不采用：F2-F4；保留原始 F</text><path d="M999 370V390" class="riskline"/>
+
+  <path d="M290 314H334M564 314H608M838 314H882" class="normal"/><text x="300" y="302" class="small">失败模式</text><text x="574" y="302" class="small">改用关系学习</text><text x="848" y="302" class="small">单变量验证</text>
+
+  <text x="28" y="510" class="lane-label">CONTROLLED FORMAL TRAINING</text><text x="330" y="510" class="small">冻结 smoke 选择结论，转为可恢复的长程训练；不再继续 smoke 调参</text><line x1="28" y1="521" x2="1152" y2="521" class="dash"/>
+  <rect x="120" y="548" width="270" height="82" rx="2" class="proof"/><text x="138" y="575" class="label">F 受控正式训练基线</text><text x="138" y="596" class="small">冻结数据、初始化、损失与阈值</text><text x="138" y="615" class="small">无候选自动晋级；经受控审查进入长训</text>
+  <rect x="455" y="548" width="270" height="82" rx="2" class="proof"/><text x="473" y="575" class="label">3,000 条均衡训练</text><text x="473" y="596" class="small">每类 1,000；240 组可信边界三元组</text><text x="473" y="615" class="small">batch=3；paired batch；对角排序</text>
+  <rect x="790" y="548" width="270" height="82" rx="2" class="proof"/><text x="808" y="575" class="label">checkpoint_step_3000</text><text x="808" y="596" class="small">每 50 step 保存 optimizer / RNG sidecar</text><text x="808" y="615" class="small">恢复完成；无 NaN / Inf / traceback</text>
+  <path d="M725 432V500H255V544" class="secure"/><text x="438" y="489" class="accent">F 被选为受控正式训练基线</text><path d="M390 589H451M725 589H786" class="secure"/>
+
+  <text x="28" y="680" class="lane-label">INDEPENDENT BLIND ACCEPTANCE</text><text x="340" y="680" class="small">冻结 checkpoint 与运行时策略；full500 仅作一次验收，不回写调参</text><line x1="28" y1="691" x2="1152" y2="691" class="dash"/>
+  <rect x="252" y="708" width="306" height="62" rx="2" class="box"/><text x="270" y="730" class="label">冻结 V2/full500：250 / 175 / 75</text><text x="270" y="751" class="small">500 条完整预测；独立盲验收</text>
+  <rect x="622" y="708" width="306" height="62" rx="2" class="proof"/><text x="640" y="730" class="accent">F-3000-MCR：Accuracy 62.00% · Macro F1 59.28%</text><text x="640" y="751" class="accent">Direct / Indirect F1：53.56% / 55.90%；通过门槛</text>
+  <path d="M925 630V680H405V704" class="secure"/><path d="M558 725H618" class="secure"/>
+  </g>
+</svg>

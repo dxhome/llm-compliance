@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="780" viewBox="0 0 1180 780" role="img" aria-labelledby="title desc">
+  <title id="title">F-3000-MCR 离线提示注入检测流程</title>
+  <desc id="desc">输入依次经过 C5 文本规则、C6B-lite 本地 OCR 和 C6A 跨模态检查。未被规则阻断的记录经 MCR 和 F-3000 模型处理，再按冻结决策策略完成放行或阻断。</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#384646"/></marker>
+    <marker id="p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#0c6a6a"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#993425"/></marker>
+    <style>
+      .bg{fill:#f7faf9;stroke:#dbe4e3;stroke-width:1}.lane{fill:none;stroke:#c6d2d1;stroke-width:1;stroke-dasharray:4 4}.box{fill:#fdfefe;stroke:#c6d2d1;stroke-width:1}.proof{fill:#d5e7e5;stroke:#0c6a6a;stroke-width:1.2}.riskbox{fill:#f1dbd6;stroke:#993425;stroke-width:1.2}.decision{fill:#fdfefe;stroke:#0c6a6a;stroke-width:1.4}.label{fill:#101718;font-family:Consolas,monospace;font-size:13px}.small{fill:#657879;font-family:Consolas,monospace;font-size:10.5px}.lane-label{fill:#657879;font-family:Consolas,monospace;font-size:10px;font-weight:500;letter-spacing:1.5px}.accent{fill:#0c6a6a;font-family:Consolas,monospace;font-size:10.5px;font-weight:500}.danger{fill:#993425;font-family:Consolas,monospace;font-size:10.5px;font-weight:500}.normal{fill:none;stroke:#384646;stroke-width:1.25;marker-end:url(#a)}.secure{fill:none;stroke:#0c6a6a;stroke-width:1.6;marker-end:url(#p)}.riskline{fill:none;stroke:#993425;stroke-width:1.35;marker-end:url(#r)}.dash{fill:none;stroke:#657879;stroke-width:1;stroke-dasharray:3 3}
+    </style>
+  </defs>
+  <rect x=".5" y=".5" width="1179" height="779" rx="3" class="bg"/>
+
+  <text x="28" y="34" class="lane-label">INPUT AND EARLY RISK GATES</text><line x1="28" y1="45" x2="1152" y2="45" class="dash"/>
+  <rect x="28" y="70" width="192" height="74" rx="2" class="box"/><text x="44" y="98" class="label">输入记录</text><text x="44" y="120" class="small">用户文本 + 可选图像</text>
+  <rect x="282" y="70" width="192" height="74" rx="2" class="proof"/><text x="298" y="98" class="label">C5 文本规则</text><text x="298" y="120" class="small">角色越权 / jailbreak / Unicode</text>
+  <rect x="536" y="70" width="192" height="74" rx="2" class="proof"/><text x="552" y="98" class="label">C6B-lite 本地 OCR</text><text x="552" y="120" class="small">仅从图像像素提取文字</text>
+  <rect x="790" y="70" width="192" height="74" rx="2" class="proof"/><text x="806" y="98" class="label">C6A 风险检查</text><text x="806" y="120" class="small">兼容性与跨模态信号</text>
+  <path d="M220 107H278M474 107H532M728 107H786" class="secure"/><text x="231" y="96" class="accent">继续</text><text x="485" y="96" class="accent">继续</text><text x="739" y="96" class="accent">继续</text>
+  <rect x="282" y="190" width="192" height="62" rx="2" class="riskbox"/><text x="298" y="216" class="danger">BLOCK  DIRECT</text><text x="298" y="236" class="small">c5_rules</text><path d="M378 144V186" class="riskline"/><text x="389" y="170" class="danger">命中</text>
+  <rect x="536" y="190" width="192" height="62" rx="2" class="riskbox"/><text x="552" y="216" class="danger">BLOCK  INDIRECT</text><text x="552" y="236" class="small">c6b_lite_ocr</text><path d="M632 144V186" class="riskline"/><text x="643" y="170" class="danger">明确注入</text>
+  <rect x="790" y="190" width="192" height="62" rx="2" class="riskbox"/><text x="806" y="216" class="danger">BLOCK  INDIRECT</text><text x="806" y="236" class="small">c6_crossmodal</text><path d="M886 144V186" class="riskline"/><text x="897" y="170" class="danger">命中</text>
+
+  <text x="28" y="308" class="lane-label">CLASSIFIER INVOCATION</text><line x1="28" y1="319" x2="1152" y2="319" class="dash"/>
+  <rect x="28" y="342" width="1124" height="142" rx="2" class="lane"/><text x="48" y="366" class="small">仅当早期关卡未确认风险时进入；OCR 非空才激活 MCR。</text>
+  <rect x="142" y="396" width="240" height="68" rx="2" class="proof"/><text x="158" y="423" class="label">MCR 上下文路由</text><text x="158" y="444" class="small">untrusted_image_ocr 受限角色</text>
+  <rect x="470" y="396" width="240" height="68" rx="2" class="box"/><text x="486" y="423" class="label">F-3000 模型判定</text><text x="486" y="444" class="small">SmolVLM + LoRA + MPID head</text>
+  <rect x="798" y="396" width="240" height="68" rx="2" class="proof"/><text x="814" y="423" class="label">冻结最终判定</text><text x="814" y="444" class="small">固定策略输出 clean / direct / indirect</text>
+  <path d="M982 144V378H262V392" class="secure"/><text x="998" y="280" class="accent">未命中，继续</text><path d="M382 430H466M710 430H794" class="secure"/>
+
+  <text x="28" y="528" class="lane-label">FINAL ACTION</text><line x1="28" y1="539" x2="1152" y2="539" class="dash"/>
+  <path d="M918 556L972 608L918 660L864 608Z" class="decision"/><text x="891" y="603" class="label">C4</text><text x="880" y="620" class="small">P(clean) &gt; 0.95?</text><path d="M918 464V552" class="secure"/>
+  <rect x="642" y="698" width="230" height="52" rx="2" class="proof"/><text x="658" y="721" class="accent">ALLOW  CLEAN</text><text x="658" y="739" class="small">c4_early_exit</text><path d="M864 608H757V694" class="secure"/><text x="805" y="597" class="accent">是</text>
+  <rect x="920" y="698" width="232" height="52" rx="2" class="box"/><text x="936" y="721" class="label">最终类别输出</text><text x="936" y="739" class="small">Clean 放行；Direct / Indirect 阻断</text><path d="M972 608H1118V694" class="normal"/><text x="1035" y="597" class="small">否</text>
+  <rect x="28" y="698" width="535" height="52" rx="2" class="box"/><rect x="44" y="714" width="12" height="12" class="proof"/><text x="66" y="725" class="small">青绿色：受控正常路径 / 防护层</text><rect x="298" y="714" width="12" height="12" class="riskbox"/><text x="320" y="725" class="small">砖红色：明确证据后的立即阻断</text><text x="44" y="742" class="small">C5/C6 未命中不表示安全；最终 clean 才允许放行。</text>
+</svg>

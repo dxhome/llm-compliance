@@ -2,10 +2,9 @@
 
 > 面向离线、隐私敏感和资源受限场景的轻量级多模态提示注入检测项目。
 >
-> 最终方案：`F-3000-MCR-SBC`。在冻结 Standard Benchmark v2/full500 上取得 Accuracy **62.00%**、Macro F1 **59.28%**。
+> 项目结题方案：`F-3000-MCR`。在冻结 Standard Benchmark v2/full500 上取得 Accuracy **62.00%**、Macro F1 **59.28%**。
 
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
-[![license](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![final-macro-f1](https://img.shields.io/badge/final%20Macro%20F1-59.28%25-brightgreen)](doc/final-report.md)
 
 ---
@@ -48,12 +47,12 @@ MPID 是部署在主模型或人工审计流程之前的离线前置检测组件
 - **反事实边界学习**：以 `clean/direct/indirect` 三元组和对角排序损失学习同一场景下的类别差异，而不是只记忆攻击关键词。
 - **纵深防御**：C5 优先处理高确定性文本攻击；C6B-lite 从真实图像像素做本地 OCR；C6A 提供已知兼容性风险检查；剩余样本交由多模态模型。
 - **不可信内容隔离**：MCR 将 OCR 文本置于 `untrusted_image_ocr` 受限上下文，不将图中文字提升为用户指令。
-- **可审计校准**：SBC 只使用 smoke 阶段锁定的固定 logits 偏移，最终 full500 不参与调参。
+- **固定运行时决策**：模型权重保持为 `checkpoint_step_3000`；运行时策略在 smoke 阶段确定，最终 full500 仅用于盲验收。
 - **离线交付**：模型、OCR 权重、推理代码、checksum 与 smoke 一同打包，数据与模型大文件不提交到 Git。
 
 ## 2. 最终交付
 
-最终方案不是新的 checkpoint，而是固定的 `checkpoint_step_3000` 加锁定运行时策略：
+最终方案 `F-3000-MCR` 不是新的 checkpoint，而是固定的 `checkpoint_step_3000` 与锁定的运行时策略组合：
 
 ```text
 文本 + 可选图像
@@ -62,7 +61,7 @@ MPID 是部署在主模型或人工审计流程之前的离线前置检测组件
   -> C6A 兼容性/跨模态风险检查
   -> MCR：不可信 OCR 上下文路由
   -> F-3000：SmolVLM + LoRA + 三分类 head
-  -> SBC：固定分数校准
+  -> 固定运行时决策策略
   -> C4：高置信 clean 放行
   -> block / allow
 ```
@@ -72,18 +71,18 @@ MPID 是部署在主模型或人工审计流程之前的离线前置检测组件
 | `checkpoint_step_3000.safetensors` | F-3000 固定 LoRA 与分类 head | 已完成 |
 | `src/mpid/infer/pipeline.py` | C5/C6/head/C4 的优化 pipeline | 已完成 |
 | C6B-lite + MCR | 本地 OCR 与不可信图文上下文隔离 | 已完成 |
-| `runs/_artifact/F-3000-MCR-SBC/` | 可移动离线 artifact、checksum 和 smoke | 已完成，本地保存 |
+| `runs/_artifact/` | 可移动离线 artifact、checksum 和 smoke；需从交付存储恢复 | 已完成，未随 Git 仓库提交 |
 | [final-report.md](doc/final-report.md) | 最终结果、训练收敛、性能和审计证据 | 已完成 |
 
-MCR 和 SBC 分别位于分类器输入构造与 logits 后处理；C5、C6B-lite、C6A 和 C4 是可独立审计的 pipeline 关卡。完整流程图、理论说明与运行边界见 [最终报告 2.1 节](doc/final-report.md#21-方案组成)。
+MCR 用于构造分类器输入；固定运行时决策策略在模型输出后执行。C5、C6B-lite、C6A 和 C4 是可独立审计的 pipeline 关卡。完整流程图、理论说明与运行边界见 [最终报告 2.1 节](doc/final-report.md#21-方案组成)。
 
 ## 3. 核心结果
 
-所有最终能力数字均来自冻结的 Standard Benchmark v2/full500。该集不参与 MCR、SBC、阈值或规则的选择。
+所有最终能力数字均来自冻结的 Standard Benchmark v2/full500。该集只用于最终盲验收，不参与运行时策略、阈值或规则的选择。
 
 ### 最终效果
 
-| 指标 | F-3000 LoRA-only | F-3000-MCR-SBC 完整 pipeline | 增量 |
+| 指标 | F-3000 LoRA-only | F-3000-MCR 完整 pipeline | 增量 |
 |---|---:|---:|---:|
 | Accuracy | 56.60% | **62.00%** | **+5.40pp** |
 | Macro F1 | 38.89% | **59.28%** | **+20.37pp** |
@@ -103,7 +102,13 @@ MCR 和 SBC 分别位于分类器输入构造与 logits 后处理；C5、C6B-lit
 | indirect 平均判定耗时 | 12.91 秒/条 | **5.83 秒/条** | -54.80% |
 | 发布清单 / checksum / ZIP CRC | 94 项 / 全部匹配 / 通过 | - | 离线 artifact 验证通过 |
 
-完整 pipeline 解决了 LoRA-only 的 indirect F1 为 0 的失效模式，但 Direct Recall 仍为 45.14%，未知攻击、OCR 噪声和跨硬件性能仍需在新冻结数据上继续验证。详细指标、实验口径和风险见 [最终报告](doc/final-report.md)。
+完整 pipeline 将 LoRA-only 的 indirect F1 从 0 提升至 55.90%，三类 Recall 均非零，并通过预设的三分类门槛。Direct Recall 仍为 45.14%；结论仅适用于当前 checkpoint、冻结策略和 V2/full500，不代表对未知攻击的无条件防护能力。详细指标、实验口径和风险见 [最终报告](doc/final-report.md)。
+
+### 项目收尾结论
+
+项目已完成从数据与训练策略筛选、`checkpoint_step_3000` 正式训练，到冻结集验收、离线打包和完整性审计的闭环。最终可移动 artifact 的 94 项文件清单、checksum、断网 smoke（3/3）和 ZIP CRC 均验证通过；模型加载后的平均判定耗时为 10.56 秒/条。结果支持将方案用于离线批处理、低吞吐端侧防护和人工辅助审计。
+
+当前主要边界是 Direct 漏报、未知攻击与跨域泛化、OCR 噪声，以及跨硬件和高并发性能尚未验证。若继续研究，应在新的冻结留出集上扩充多语言、真实图像注入和困难 Direct 样本，并补充冷启动、吞吐、P50/P95 与内存评估；现有 full500 不应用于继续调参。项目的详细方法、证据和后续方向见[结题报告](doc/final-report.md)，操作性验证与复现入口见[执行与验证归档](doc/project-plan-and-verification.md)。
 
 ## 4. 安装与快速验证
 
@@ -156,6 +161,8 @@ llm-compliance/
 ├── README.md                            项目入口与最终结果摘要
 ├── pyproject.toml                       包元数据、依赖范围与测试配置
 ├── requirements*.txt                    macOS、x86 CPU 与 MLX 依赖清单
+├── benchmarks/                          冻结的 Standard Benchmark v1/v2
+│   └── mpid_standard_v2/{smoke,full}/    策略筛选集与最终盲验收集
 │
 ├── src/mpid/                            核心 Python 包
 │   ├── adapters/vlm.py                  SmolVLM 推理适配器
@@ -171,6 +178,7 @@ llm-compliance/
 ├── scripts/                             通用训练、评测、打包、诊断与数据构建脚本
 ├── tests/                               设备、规则、OCR、C4 与 pipeline 单元测试
 ├── demo/                                Gradio 演示原型，不作为最终能力评测入口
+├── skills/                              项目辅助工作流说明
 │
 ├── doc/                                 正式文档
 │   ├── final-report.md                  最终结题报告
@@ -178,13 +186,11 @@ llm-compliance/
 │   ├── reference.md                     概念、实现解读和历史复现手册
 │   └── opening-report-*.md              开题与历史参考材料
 │
-└── runs/                                本地训练、评测和发布资产
-    ├── _models/、_datasets/             共享模型和数据缓存，不进入 Git
-    ├── phase2_3_full_3000_*/            F-3000 的本地训练与审计资产
-    └── _artifact/F-3000-MCR-SBC/        最终离线交付包，不进入 Git
+└── runs/                                训练、评测和审计记录
+    └── phase2_3_full_3000_20260729_0958/ F-3000 的配置、脚本和运行记录
 ```
 
-`runs/` 中的轻量配置、脚本、日志和说明可以保留在 Git；数据集、模型、checkpoint、预测、图片和压缩包由 [.gitignore](.gitignore) 排除，避免将大文件提交到仓库。
+仓库跟踪的是代码、文档、基准数据和轻量运行记录。当前工作区还含有被 [.gitignore](.gitignore) 排除的本地 `data/`、`models/`、`artifacts/`、`logs/` 与 `mpid_offline*/` 等生成物；它们不是 Git 仓库目录结构的一部分。完整模型、checkpoint 和最终离线 artifact 不随仓库提交，需从受控交付存储恢复。README 中提到的 `runs/_artifact/` 是交付恢复位置；该目录当前不在此工作区内。
 
 ## 6. 训练、评测与离线复现
 
@@ -195,7 +201,7 @@ llm-compliance/
 1. 使用统一 smoke150 对 A-H、F2-F4 共 11 个候选机制进行快速比较。
 2. F 是唯一保持三类非零 Recall、类别最平衡的方向，因此作为正式训练基线。
 3. 使用 3,000 条均衡训练样本（每类 1,000 条）完成 F-3000，并固化 `checkpoint_step_3000`。
-4. 只在 smoke150 锁定 MCR/SBC；V2/full500 仅用于一次最终盲验收。
+4. 只在 smoke150 锁定 MCR 与运行时决策策略；V2/full500 仅用于一次最终盲验收。
 
 完整的候选机制差异、训练时间、checkpoint 恢复和问题复盘见 [最终报告第 3 节](doc/final-report.md#3-f-3000-正式训练与收敛过程) 与 [执行与验证归档](doc/project-plan-and-verification.md)。
 
@@ -203,9 +209,9 @@ llm-compliance/
 
 模型、数据、checkpoint 与离线包为大文件，不保存在 Git 中。完整推理前，从受控存储恢复：
 
-- `runs/_models/` 与 `runs/_datasets/`；
+- `models/` 与所需的本地数据；
 - `runs/phase2_3_full_3000_20260729_0958/` 中所需 run-local 资产；
-- `runs/_artifact/F-3000-MCR-SBC/` 交付目录或其 ZIP 包。
+- 最终离线 artifact 的交付目录或 ZIP 包（恢复到 `runs/_artifact/`）。
 
 恢复后，以 artifact 内的 `README`、`MANIFEST.json`、`CHECKSUMS.txt` 和 `smoke_offline.py` 完成文件完整性与断网验证。artifact 的 94 项发布清单、checksum、3/3 smoke 与 ZIP CRC 均已通过；具体命令和交付证据见 [最终报告第 5 节](doc/final-report.md#5-离线交付与复现)。
 
@@ -225,4 +231,4 @@ llm-compliance/
 - 不替代上游模型训练阶段的安全对齐，仅作为前置过滤和审计层。
 - 不对生产高并发、未知攻击或跨域泛化作无条件安全承诺。
 
-代码采用 [Apache-2.0](LICENSE) 许可。
+包元数据在 [pyproject.toml](pyproject.toml) 中声明 Apache-2.0 许可。
